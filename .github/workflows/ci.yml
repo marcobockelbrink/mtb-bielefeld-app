@@ -23,6 +23,14 @@ jobs:
       - name: Abhängigkeiten installieren
         run: npm ci
 
+      # Expo gibt für die nativen Pakete exakte Versionen vor. Wird eines davon
+      # angehoben — etwa durch einen Dependabot-Vorschlag —, bündelt die App
+      # weiterhin fehlerfrei und die Tests laufen durch; kaputt geht es erst auf
+      # einem echten Telefon. Diese Prüfung fängt genau das, was die übrigen
+      # Schritte nicht sehen können.
+      - name: Passen die Pakete zum Expo-SDK?
+        run: npx expo install --check
+
       - name: Typprüfung
         run: npm run typecheck
 

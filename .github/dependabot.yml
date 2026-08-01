@@ -40,12 +40,30 @@ updates:
         dependency-type: development
 
     ignore:
-      # Expo gibt die passenden Versionen vor; `npx expo install --check` ist
-      # dafür zuständig. Ein Sprung auf ein neues Haupt-SDK will geplant sein
-      # und nicht von einem Bot vorgeschlagen werden.
+      # Für alle Pakete, die Expo mitbringt, gibt das SDK die Version vor —
+      # teils auf die Stelle genau. Ein Haupt-Versionssprung ist dort kein
+      # Fortschritt, sondern ein Bruch: Die App bündelt weiterhin, die Tests
+      # laufen durch, und kaputt geht es erst auf einem echten Telefon.
+      #
+      # Der richtige Weg zu neueren Versionen ist `npx expo install`, nicht ein
+      # einzelner Pull Request. `npx expo install --check` in der CI wacht
+      # zusätzlich darüber.
+      #
+      # Anlass war Dependabots Vorschlag, async-storage von 2.2.0 auf 3.1.1 zu
+      # heben — SDK 57 legt dort exakt 2.2.0 fest.
       - dependency-name: 'expo'
         update-types: ['version-update:semver-major']
+      - dependency-name: 'expo-*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@expo/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
       - dependency-name: 'react-native'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native-*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@react-native-async-storage/*'
         update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
