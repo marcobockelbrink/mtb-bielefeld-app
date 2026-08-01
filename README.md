@@ -167,3 +167,12 @@ bei 100 % — die einzigen Ausreißer sind die Scherzeinträge der Bike&Beer-Ter
   (Stand August 2026). Ändern sich die Beiträge, muss es dort nachgezogen
   werden — jeder Abschnitt verlinkt deshalb auf die Website als verbindliche
   Quelle.
+
+## Lizenz
+
+Der Quelltext steht unter der [MIT-Lizenz](LICENSE) — andere Vereine dürfen ihn
+gerne übernehmen.
+
+Name, Logo und die Vereinstexte des MTB Bielefeld e.V. sind davon **nicht**
+erfasst. Was genau frei ist und was nicht, steht in [HINWEISE.md](HINWEISE.md);
+dort finden sich auch die Angaben zum Datenschutz.
