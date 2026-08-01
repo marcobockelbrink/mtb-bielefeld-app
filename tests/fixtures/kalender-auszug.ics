@@ -1,0 +1,965 @@
+BEGIN:VCALENDAR
+PRODID:-//Google Inc//Google Calendar 70.9054//EN
+VERSION:2.0
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:MTBie Angebote
+X-WR-TIMEZONE:Europe/Berlin
+X-WR-CALDESC:Alle Angebote (Events\, Biken\, Schrauben\, Treffen) von MTB B
+ ielefeld e.V.
+BEGIN:VTIMEZONE
+TZID:Europe/Amsterdam
+X-LIC-LOCATION:Europe/Amsterdam
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+TZNAME:GMT+2
+DTSTART:19700329T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+TZNAME:GMT+1
+DTSTART:19701025T030000
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VTIMEZONE
+TZID:Europe/Berlin
+X-LIC-LOCATION:Europe/Berlin
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+TZNAME:GMT+2
+DTSTART:19700329T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+TZNAME:GMT+1
+DTSTART:19701025T030000
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20231111T110000
+DTEND;TZID=Europe/Berlin:20231111T133000
+RRULE:FREQ=MONTHLY;UNTIL=20240412T215959Z;BYDAY=2SA
+EXDATE;TZID=Europe/Berlin:20231111T110000
+EXDATE;TZID=Europe/Berlin:20240309T110000
+EXDATE;TZID=Europe/Berlin:20240210T110000
+DTSTAMP:20260801T203616Z
+UID:4p04m0fvv0fmvqslslsu5k93m7_R20231111T100000@google.com
+CREATED:20220331T074817Z
+DESCRIPTION:<b>Euer Guide:</b> Dirk<br><b>Tag:</b> 13.01.2<b>4  </b><b></b>
+ <br><b>Uhrzeit &amp\; Dauer:</b> 11Uhr\, ca. 2\,5 Std  <b> </b><br><b>Abfah
+ rtsort: </b>P+R Senne\, Oetkerstraße\, 33659 Bielefeld<b><br></b><b>Ausdaue
+ r:</b> <span>⭐</span><span><span>⭐</span></span><span><span>⭐</span></span>
+  ca. 35 km\, ca. 600 HM\, moderates Tempo<b> </b><b> </b><br><b>Fahrtechnik
+ :</b> <span>⭐</span><span><span>⭐</span></span><br><b>Trail-Anteil:</b> ger
+ ing<br><b>Schwierigkeitsgrad:</b> flowig<p> <br><b>Anmeldung unter</b> <a h
+ ref="https://mtb-bielefeld.de/angebote/#termine">https://mtb-bielefeld.de/a
+ ngebote/#termine</a> oder per <a href="https://wa.me/4917611751036">WhatsAp
+ p</a></p>
+LAST-MODIFIED:20240510T210224Z
+LOCATION:Wanderparkplatz Kalkofen Oerlinghausen\, Am Kalkofen 11\, 33813 Oe
+ rlinghausen\, Deutschland
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:Tour für Fortgeschrittene
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20250430T180000
+DTEND;TZID=Europe/Berlin:20250430T200000
+RRULE:FREQ=WEEKLY;WKST=MO;UNTIL=20250507T145959Z;BYDAY=WE
+DTSTAMP:20260801T203616Z
+UID:s7i7nrhtp88f6eqtieai1ejo07@google.com
+CREATED:20250220T121630Z
+DESCRIPTION:<span><span><b>Ausdauer:</b>  variabel  <b></b><br><b>Fahrtechn
+ ik:</b> ⭐ bis ⭐⭐⭐</span></span><span><span><span>⭐</span></span></span><spa
+ n><span>       <b></b><br><b>Trail-Anteil:</b> gering bis hoch<b> </b><br><
+ b>Schwierigkeitsgrad:</b> einfach bis schwer</span></span><br><span><span><
+ b>Charakter: </b>offene Runde ohne Guidung oder vorherige Routenplanung<br>
+ </span></span><br><span><span><br>Wir treffen uns jeden Mittwoch zur selben
+  Zeit am selben Ort und wollen einfach zusammen biken. Die Route\, das Prof
+ il und der Schwierigkeitsgrad ergeben sich spontan\, alles kann\, nichts mu
+ ss! <br><br>Je nach Anzahl\, Interessen und Fertigkeiten der Teilnehmer bil
+ den sich evtl. mehrere Gruppen.<br> <br><i>Abfahrt:<b> </b></i><b><i>18:00<
+ /i></b><i><b>Uhr</b> am Infopunkt\, es wird nicht gewartet</i><br><br><b>Ei
+ ngeladen sind alle Mitglieder die Zeit und Lust haben.</b></span></span>
+LAST-MODIFIED:20250417T073951Z
+LOCATION:Johannisberg info point\, Dornberger Str. 53\, 33615 Bielefeld\, D
+ eutschland
+SEQUENCE:3
+STATUS:CONFIRMED
+SUMMARY:MittwochsRudel  (neue Abfahrtszeit)
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20240629T110000
+DTEND;TZID=Europe/Berlin:20240629T170000
+RRULE:FREQ=MONTHLY;WKST=MO;UNTIL=20240726T215959Z;BYDAY=-1SA
+DTSTAMP:20260801T203616Z
+UID:74sj4dpo69j3ibb6c9h3ib9k6oo6cb9pcksmab9j6gpj8dhmc5hjioj160@google.com
+CREATED:20240623T060251Z
+DESCRIPTION:<b>Ausdauer:</b>  variabel  <br><b>Fahrtechnik: </b>⭐ bis ⭐⭐⭐  
+      <br><b>Trail-Anteil: </b>gering bis hoch <br><b>Schwierigkeitsgrad:</b
+ > einfach bis schwer<br><br>Wir treffen uns zu einer gemeinsamen und entspa
+ nnten Ausfahrt. <br> <br>Ein bisschen zusammen biken\, schnacken und im Ans
+ chluss bei unserem Partner Liquid Life verweilen...die Getränke gehen natür
+ lich auf uns 😉 Eine gute Gelegenheit die Akteure des Vereins mal persönlic
+ h kennenzulernen. <br><br>Je nach Anzahl\, Interessen und Fertigkeiten der 
+ Teilnehmer bilden sich evtl. mehrere Gruppen.<br> <br>Treffen ist um 11Uhr 
+ bei Liquid Life\, Abfahrt zur Tour ab ca. 11.30Uhr. <br><br><b>Eingeladen s
+ ind alle Mitglieder die Zeit und Lust haben.</b>
+LAST-MODIFIED:20260727T092930Z
+LOCATION:Liquid-Life | Bike & E-Bike Shop | Bielefeld\, Herforder Str. 155\
+ , 33609 Bielefeld\, Deutschland
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:Bike&Beer
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20231011T170000
+DTEND;TZID=Europe/Berlin:20231011T190000
+RRULE:FREQ=WEEKLY;WKST=MO;UNTIL=20231031T225959Z;BYDAY=WE
+DTSTAMP:20260801T203616Z
+UID:o80gfjclro6s9bh5oi6v90fh7h@google.com
+CREATED:20230819T060208Z
+DESCRIPTION:<b>Tag:</b> jeden Mittwoch<b> </b><br><b>Uhrzeit &amp\; Dauer:<
+ /b> 17:00 Uhr\, ca. 2 h<b> </b><br><b>Treffpunkt: </b>Infopunkt am Johannis
+ berg (Ausklang aufm' Siggi)<b> </b><br><b>Ausdauer:</b>  variabel  <b></b><
+ br><b>Fahrtechnik:</b> ⭐ bis ⭐⭐⭐       <b></b><br><b>Trail-Anteil:</b> geri
+ ng bis hoch<b> </b><br><b>Schwierigkeitsgrad:</b> einfach bis schwer<br><br
+ >Wir treffen uns jeden Mittwoch zur selben Zeit am selben Ort und wollen ei
+ nfach zusammen biken. Die Route\, das Profil und der Schwierigkeitsgrad erg
+ eben sich spontan\, alles kann\, nichts muss! <br><br>Je nach Anzahl\, Inte
+ ressen und Fertigkeiten der Teilnehmer bilden sich evtl. mehrere Gruppen.<b
+ r> <br><i>Abfahrt: </i><i>17.00</i><i>Uhr\, es wird nicht gewartet</i><br><
+ br><b>Eingeladen sind alle Mitglieder die Zeit und Lust haben.</b>
+LAST-MODIFIED:20231010T113735Z
+LOCATION:Johannisberg \n33617 Bielefeld \nDeutschland
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:MittwochsRudel -NEUE ABFAHRTSZEIT 17Uhr-
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20241002T170000
+DTEND;TZID=Europe/Berlin:20241002T190000
+RRULE:FREQ=WEEKLY;UNTIL=20241029T225959Z;BYDAY=WE
+DTSTAMP:20260801T203616Z
+UID:mjjehl3lv83pkfnjchmj9odjv3@google.com
+CREATED:20240229T072206Z
+DESCRIPTION:<b>Ausdauer:</b>  variabel  <br><b>Fahrtechnik:</b> ⭐ bis ⭐⭐⭐  
+      <br><b>Trail-Anteil:</b> gering bis hoch<b> </b><br><b>Schwierigkeitsg
+ rad:</b> einfach bis schwer<br><br>Wir treffen uns jeden Mittwoch zur selbe
+ n Zeit am selben Ort und wollen einfach zusammen biken. Die Route\, das Pro
+ fil und der Schwierigkeitsgrad ergeben sich spontan\, alles kann\, nichts m
+ uss! <br><br>Je nach Anzahl\, Interessen und Fertigkeiten der Teilnehmer bi
+ lden sich evtl. mehrere Gruppen.<br> <br><i>Abfahrt: </i><i>18</i><i>.00</i
+ ><i>Uhr am Infopunkt\, es wird nicht gewartet</i><br><br><b>Eingeladen sind
+  alle die Zeit und Lust haben.</b>
+LAST-MODIFIED:20241019T172646Z
+LOCATION:Johannisberg\, 33617 Bielefeld\, Deutschland
+SEQUENCE:4
+STATUS:CONFIRMED
+SUMMARY:MitwochsRudel
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20230204T100000
+DTEND;TZID=Europe/Berlin:20230204T143000
+RRULE:FREQ=MONTHLY;UNTIL=20230901T215959Z;BYDAY=1SA
+EXDATE;TZID=Europe/Berlin:20230805T100000
+DTSTAMP:20260801T203616Z
+UID:4ijjag5956nkeh79oqu8qcqjfg@google.com
+CREATED:20221221T170456Z
+DESCRIPTION:<b>Euer Guide:</b> <i>Malte</i><br /><br /><b>Tag:</b> 04.02.23
+ <br /><b>Uhrzeit &amp\; Dauer:</b> 10Uhr\, ca. 3\,5 Std <br /><b>Abfahrtsor
+ t:</b> Parkplatz Am Togdrang<br /><b>Ausdauer:</b> ⭐⭐ ca. 32 km\, 600hm\,  
+ mittleres Tempo<br /><b>Fahrtechnik:</b> <span>⭐</span>/⭐⭐<br /><b>Trail-An
+ teil:</b> gering - mittel<br /><b>Schwierigkeitsgrad:</b> flowig<br /><br /
+ >Du überlegst\, ob wir der richtige Verein für dich sind und würdest gerne 
+ Mal eine unserer Vereinsausfahrten ausprobieren? Dann nimm gerne <u><a href
+ ="https://mtb-bielefeld.de/kontakt">Kontakt</a></u> mit uns auf.<br /><a hr
+ ef="https://mtb-bielefeld.de/angebote/#biken">https://mtb-bielefeld.de/ange
+ bote/#biken</a>
+LAST-MODIFIED:20230717T091208Z
+LOCATION:Wandererparkplatz Togdrang\, Am Togdrang\, 33659 Bielefeld\, Deuts
+ chland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Tour
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20211110T190000
+DTEND;TZID=Europe/Berlin:20211110T213000
+RRULE:FREQ=MONTHLY;UNTIL=20220913T215959Z;BYDAY=2WE
+DTSTAMP:20260801T203616Z
+UID:708tmsv3me1llasdr9mqm2s0pe@google.com
+CREATED:20211109T185142Z
+DESCRIPTION:<html-blob>Peter-Ascheloh-Kleeberg und X25 retour <br></html-bl
+ ob><br><html-blob>Euer Guide: <b>Marcelo</b><br><p><span><b>Tag:</b> <a id=
+ "ow542" __is_owner="true">10.08.22</a><br><b>Uhrzeit &amp\; Dauer:</b> 19 U
+ hr\, ca. 2\,5 Std <br><b>Abfahrtsort:</b> Peter auf dem Berge<br><b>Ausdaue
+ r:</b>&nbsp\;⭐<span>⭐<span><span><span>⭐</span></span></span></span>ca. 28 
+ km\, 600 hm\,&nbsp\; flottes Tempo<br><b>Fahrtechnik:</b>&nbsp\;⭐<span>⭐</s
+ pan> <br><b>Trail-Anteil:</b> hoch<br><b>Schwierigkeitsgrad:</b> flowig</sp
+ an></p><p><span>Lampenset bitte mitnehmen\, falls Rückweg dunkel wird!</spa
+ n></p></html-blob>
+LAST-MODIFIED:20230206T065354Z
+LOCATION:Wald-Hotel Peter auf'm Berge in Bielefeld\, Bergstraße 45\, 33619 
+ Bielefeld\, Deutschland
+SEQUENCE:3
+STATUS:CONFIRMED
+SUMMARY:Downcountry für Fortgeschrittene
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20250924T170000
+DTEND;TZID=Europe/Berlin:20250924T190000
+RRULE:FREQ=WEEKLY;WKST=MO;UNTIL=20260331T215959Z;BYDAY=WE
+EXDATE;TZID=Europe/Berlin:20251029T170000
+EXDATE;TZID=Europe/Berlin:20251105T170000
+EXDATE;TZID=Europe/Berlin:20251112T170000
+EXDATE;TZID=Europe/Berlin:20251119T170000
+EXDATE;TZID=Europe/Berlin:20251126T170000
+EXDATE;TZID=Europe/Berlin:20251203T170000
+EXDATE;TZID=Europe/Berlin:20251210T170000
+EXDATE;TZID=Europe/Berlin:20251217T170000
+EXDATE;TZID=Europe/Berlin:20251224T170000
+EXDATE;TZID=Europe/Berlin:20251231T170000
+EXDATE;TZID=Europe/Berlin:20260107T170000
+EXDATE;TZID=Europe/Berlin:20260114T170000
+EXDATE;TZID=Europe/Berlin:20260121T170000
+EXDATE;TZID=Europe/Berlin:20260128T170000
+EXDATE;TZID=Europe/Berlin:20260218T170000
+EXDATE;TZID=Europe/Berlin:20260204T170000
+EXDATE;TZID=Europe/Berlin:20260318T170000
+EXDATE;TZID=Europe/Berlin:20260304T170000
+EXDATE;TZID=Europe/Berlin:20260325T170000
+EXDATE;TZID=Europe/Berlin:20260225T170000
+EXDATE;TZID=Europe/Berlin:20260311T170000
+EXDATE;TZID=Europe/Berlin:20260211T170000
+DTSTAMP:20260801T203616Z
+UID:810d9tl5375f4t8vagls86g4g1@google.com
+CREATED:20250413T052942Z
+DESCRIPTION:<b>Ausdauer:</b>  variabel <br><b>Fahrtechnik:</b> ⭐ bis ⭐⭐⭐   
+    <br><b>Trail-Anteil:</b> gering bis hoch<b></b><br><b>Schwierigkeitsgrad
+ :</b> einfach bis schwer<br><b>Charakter: </b>offene Runde ohne Guidung ode
+ r vorherige Routenplanung<br><br>Wir treffen uns jeden Mittwoch zur selben 
+ Zeit am selben Ort und wollen einfach zusammen biken. Die Route\, das Profi
+ l und der Schwierigkeitsgrad ergeben sich spontan\, alles kann\, nichts mus
+ s! <br>Je nach Anzahl\, Interessen und Fertigkeiten der Teilnehmer bilden s
+ ich evtl. mehrere Gruppen.<br>Abfahrt: 17.00 Uhr am Infopunkt\, es wird nic
+ ht gewartet<b><br></b><b><br></b><b>Eingeladen sind alle Mitglieder die Zei
+ t und Lust haben.</b>
+LAST-MODIFIED:20260127T125635Z
+LOCATION:Johannisberg info point\, Dornberger Str. 53\, 33615 Bielefeld\, D
+ eutschland
+SEQUENCE:3
+STATUS:CONFIRMED
+SUMMARY:MittwochsRudel 
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20231209T110000
+DTEND;TZID=Europe/Berlin:20231209T140000
+DTSTAMP:20260801T203616Z
+UID:4p04m0fvv0fmvqslslsu5k93m7_R20231111T100000@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20231209T110000
+CREATED:20220331T074817Z
+DESCRIPTION:<b>Euer Guide:</b> Dirk<br><b>Tag:</b> 13.01.2<b>4  </b><b></b>
+ <br><b>Uhrzeit &amp\; Dauer:</b> 11Uhr\, ca. 2\,5 Std  <b> </b><br><b>Abfah
+ rtsort: </b>P+R Senne\, Oetkerstraße\, 33659 Bielefeld<b><br></b><b>Ausdaue
+ r:</b> <span>⭐</span><span><span>⭐</span></span><span><span>⭐</span></span>
+  ca. 35 km\, ca. 600 HM\, moderates Tempo<b> </b><b> </b><br><b>Fahrtechnik
+ :</b> <span>⭐</span><span><span>⭐</span></span><br><b>Trail-Anteil:</b> ger
+ ing<br><b>Schwierigkeitsgrad:</b> flowig<p> <br><b>Anmeldung unter</b> <a h
+ ref="https://mtb-bielefeld.de/angebote/#termine">https://mtb-bielefeld.de/a
+ ngebote/#termine</a> oder per <a href="https://wa.me/4917611751036">WhatsAp
+ p</a></p>
+LAST-MODIFIED:20240510T210224Z
+LOCATION:Bielefeld\, P+R Senne\, Oetkerstraße\, 33659 Bielefeld\, Deutschla
+ nd
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:Tour für Fortgeschrittene
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20230603T100000
+DTEND;TZID=Europe/Berlin:20230603T150000
+DTSTAMP:20260801T203616Z
+UID:4ijjag5956nkeh79oqu8qcqjfg@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20230603T100000
+CREATED:20221221T170456Z
+DESCRIPTION:<b>Euer Guide:</b> <i>Malte</i><br><br><b>Tag:</b> 03.06.23<br>
+ <b>Uhrzeit &amp\; Dauer:</b> 10Uhr\, ca. 5 Std <br><b>Abfahrtsort:</b> Park
+ platz Eisgrund<br><b>Ausdauer:</b> ⭐⭐<span>⭐</span> ca. 51 km\, 1100hm\,  m
+ ittleres Tempo<br><b>Fahrtechnik:</b> ⭐⭐<br><b>Trail-Anteil:</b>  mittel<br
+ ><b>Schwierigkeitsgrad:</b> flowig<br><br>Du überlegst\, ob wir der richtig
+ e Verein für dich sind und würdest gerne Mal eine unserer Vereinsausfahrten
+  ausprobieren? Dann nimm gerne <u><a href="https://mtb-bielefeld.de/kontakt
+ ">Kontakt</a></u> mit uns auf.<br><a href="https://mtb-bielefeld.de/angebot
+ e/#biken">https://mtb-bielefeld.de/angebote/#biken</a>
+LAST-MODIFIED:20230717T091208Z
+LOCATION:Parkplatz Eisgrund\, Parkplatz\, Lämershagener Str.\, 33699 Bielef
+ eld\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Hermannsdenkmal Tour
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20230401T100000
+DTEND;TZID=Europe/Berlin:20230401T150000
+DTSTAMP:20260801T203616Z
+UID:4ijjag5956nkeh79oqu8qcqjfg@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20230401T100000
+CREATED:20221221T170456Z
+DESCRIPTION:<b>Euer Guide:</b> <i>Malte</i><br><br><b>Tag:</b> 01.04.23<br>
+ <b>Uhrzeit &amp\; Dauer:</b> 10Uhr\, ca. 5 Std <br><b>Abfahrtsort:</b> Park
+ platz am Eisgrund<br><b>Ausdauer:</b> ⭐⭐/<span>⭐⭐</span><span>⭐</span> ca. 
+ 46 km\, 700hm\,  mittleres Tempo<br><b>Fahrtechnik:</b> ⭐⭐<br><b>Trail-Ante
+ il:</b>  mittel<br><b>Schwierigkeitsgrad:</b> flowig<br><br>Du überlegst\, 
+ ob wir der richtige Verein für dich sind und würdest gerne Mal eine unserer
+  Vereinsausfahrten ausprobieren? Dann nimm gerne <u><a href="https://mtb-bi
+ elefeld.de/kontakt">Kontakt</a></u> mit uns auf.<br><a href="https://mtb-bi
+ elefeld.de/angebote/#biken">https://mtb-bielefeld.de/angebote/#biken</a>
+LAST-MODIFIED:20230717T091208Z
+LOCATION:Parkplatz Eisgrund\, Parkplatz\, Lämershagener Str.\, 33699 Bielef
+ eld\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Tour
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20240113T110000
+DTEND;TZID=Europe/Berlin:20240113T133000
+DTSTAMP:20260801T203616Z
+UID:4p04m0fvv0fmvqslslsu5k93m7_R20231111T100000@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20240113T110000
+CREATED:20220331T074817Z
+DESCRIPTION:<b>Euer Guide:</b> Dirk<br><b>Tag:</b> 13.01.2<b>4  </b><b></b>
+ <br><b>Uhrzeit &amp\; Dauer:</b> 11Uhr\, ca. 2\,5 Std  <b> </b><br><b>Abfah
+ rtsort: </b>P+R Senne\, Oetkerstraße\, 33659 Bielefeld<b><br></b><b>Ausdaue
+ r:</b> <span>⭐</span><span><span>⭐</span></span><span><span>⭐</span></span>
+  ca. 35 km\, ca. 600 HM\, moderates Tempo<b> </b><b> </b><br><b>Fahrtechnik
+ :</b> <span>⭐</span><span><span>⭐</span></span><br><b>Trail-Anteil:</b> ger
+ ing<br><b>Schwierigkeitsgrad:</b> flowig<p> <br><b>Anmeldung unter</b> <a h
+ ref="https://mtb-bielefeld.de/angebote/#termine">https://mtb-bielefeld.de/a
+ ngebote/#termine</a> oder per <a href="https://wa.me/4917611751036">WhatsAp
+ p</a></p>
+LAST-MODIFIED:20240510T210224Z
+LOCATION:P+R Senne\, Oetkerstraße\, 33659 Bielefeld\, \, Deutschland
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:Tour für Fortgeschrittene
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20230204T100000
+DTEND;TZID=Europe/Berlin:20230204T140000
+DTSTAMP:20260801T203616Z
+UID:4ijjag5956nkeh79oqu8qcqjfg@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20230204T100000
+CREATED:20221221T170456Z
+DESCRIPTION:<b>Euer Guide:</b> <i>Malte</i><br><br><b>Tag:</b> 04.02.23<br>
+ <b>Uhrzeit &amp\; Dauer:</b> 10Uhr\, ca. 4 Std <br><b>Abfahrtsort:</b> Park
+ platz Am Togdrang<br><b>Ausdauer:</b> ⭐⭐ ca. 35 km\,700hm\,  mittleres Temp
+ o<br><b>Fahrtechnik:</b> ⭐/⭐⭐<br><b>Trail-Anteil:</b> mittel<br><b>Schwieri
+ gkeitsgrad:</b> flowig<br><br>Du überlegst\, ob wir der richtige Verein für
+  dich sind und würdest gerne Mal eine unserer Vereinsausfahrten ausprobiere
+ n? Dann nimm gerne <u><a href="https://mtb-bielefeld.de/kontakt">Kontakt</a
+ ></u> mit uns auf.<br><a href="https://mtb-bielefeld.de/angebote/#biken">ht
+ tps://mtb-bielefeld.de/angebote/#biken</a>
+LAST-MODIFIED:20230717T091208Z
+LOCATION:Wandererparkplatz Togdrang\, Am Togdrang\, 33659 Bielefeld\, Deuts
+ chland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Tour
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20230506T100000
+DTEND;TZID=Europe/Berlin:20230506T143000
+DTSTAMP:20260801T203616Z
+UID:4ijjag5956nkeh79oqu8qcqjfg@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20230506T100000
+CREATED:20221221T170456Z
+DESCRIPTION:<b>Euer Guide:</b> <i>Malte</i><br><br><b>Tag:</b> 06.05.23<br>
+ <b>Uhrzeit &amp\; Dauer:</b> 10Uhr\, ca. 4\,5 Std <br><b>Abfahrtsort:</b> P
+ arkplatz Peter aufm Berge<br><b>Ausdauer:</b> ⭐⭐⭐  ca. 40km\, 900hm\,  mitt
+ leres Tempo<br><b>Fahrtechnik:</b> ⭐⭐<br><b>Trail-Anteil:</b> mittel<br><b>
+ Schwierigkeitsgrad:</b> flowig<br><br>Du überlegst\, ob wir der richtige Ve
+ rein für dich sind und würdest gerne Mal eine unserer Vereinsausfahrten aus
+ probieren? Dann nimm gerne <u><a href="https://mtb-bielefeld.de/kontakt">Ko
+ ntakt</a></u> mit uns auf.<br><a href="https://mtb-bielefeld.de/angebote/#b
+ iken">https://mtb-bielefeld.de/angebote/#biken</a>
+LAST-MODIFIED:20230717T091208Z
+LOCATION:Wald-Hotel Peter auf'm Berge in Bielefeld\, Bergstraße 45\, 33619 
+ Bielefeld\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Borgholzhausen Tour
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20230304T100000
+DTEND;TZID=Europe/Berlin:20230304T140000
+DTSTAMP:20260801T203616Z
+UID:4ijjag5956nkeh79oqu8qcqjfg@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20230304T100000
+CREATED:20221221T170456Z
+DESCRIPTION:<b>Euer Guide:</b> <i>Malte</i><br><br><b>Tag:</b> 04.03.23<br>
+ <b>Uhrzeit &amp\; Dauer:</b> 10Uhr\, ca. 4 Std <br><b>Abfahrtsort:</b> Wand
+ erparkplatz Eisgrund<br><b>Ausdauer:</b> ⭐⭐ ca. 42 km\, 500hm\,  mittleres 
+ Tempo<br><b>Fahrtechnik:</b> ⭐⭐<br><b>Trail-Anteil:</b> Hoch<br><b>Schwieri
+ gkeitsgrad:</b> flowig - wurzelig<br><br>Du überlegst\, ob wir der richtige
+  Verein für dich sind und würdest gerne Mal eine unserer Vereinsausfahrten 
+ ausprobieren? Dann nimm gerne <u><a href="https://mtb-bielefeld.de/kontakt"
+ >Kontakt</a></u> mit uns auf.<br><a href="https://mtb-bielefeld.de/angebote
+ /#biken">https://mtb-bielefeld.de/angebote/#biken</a>
+LAST-MODIFIED:20230717T091208Z
+LOCATION:Parkplatz Eisgrund\, Parkplatz\, Lämershagener Str.\, 33699 Bielef
+ eld\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Furlbachtal Tour
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20230701T100000
+DTEND;TZID=Europe/Berlin:20230701T143000
+DTSTAMP:20260801T203616Z
+UID:4ijjag5956nkeh79oqu8qcqjfg@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20230701T100000
+CREATED:20221221T170456Z
+DESCRIPTION:<b>Euer Guide:</b> <i>Malte</i><br><br><b>Tag:</b> 01.07.23<br>
+ <b>Uhrzeit &amp\; Dauer:</b> 10Uhr\, ca. 4\,5 Std <br><b>Abfahrtsort: </b>W
+ anderparkplatz Welschenweg\, Oerlinghausen <br><b>Ausdauer:</b> ⭐⭐ ca. 42 k
+ m\, 600hm\,  mittleres Tempo<br><b>Fahrtechnik:</b> <span>⭐</span>/⭐⭐<br><b
+ >Trail-Anteil:</b> mittel<br><b>Schwierigkeitsgrad:</b> flowig<br><br>Du üb
+ erlegst\, ob wir der richtige Verein für dich sind und würdest gerne Mal ei
+ ne unserer Vereinsausfahrten ausprobieren? Dann nimm gerne <u><a href="http
+ s://mtb-bielefeld.de/kontakt">Kontakt</a></u> mit uns auf.<br><a href="http
+ s://mtb-bielefeld.de/angebote/#biken">https://mtb-bielefeld.de/angebote/#bi
+ ken</a>
+LAST-MODIFIED:20230717T091208Z
+LOCATION:Welschenweg\, 33813 Oerlinghausen\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Furlbachtal-Tour
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;VALUE=DATE:20260529
+DTEND;VALUE=DATE:20260601
+DTSTAMP:20260801T203616Z
+UID:1kkauuorvt3hhlbsemvvh5lvl9@google.com
+CREATED:20260513T051635Z
+DESCRIPTION:<p><b>Bike Festival Willingen (29.–31.05.26): Zuschauen statt s
+ elbst fahren</b></p><p>Dieses Wochenende steht ganz im Zeichen der Entspann
+ ung: Statt selbst zu biken\, gönnen wir uns eine Pause und genießen das Tre
+ iben beim <b>Bike Festival in Willingen</b>. Kommt vorbei\, schaut den ande
+ ren Fahrern zu und lasst euch vom Flair des Events mitreißen!</p><p><b>Info
+ s zum Festival:</b></p><b>Datum: </b>29.–31. Mai 2026<b><br>Ort: </b>Willin
+ gen <br><b> </b><br><b>Hinweis:</b><br>Es geht nicht um eine eigene Tour\, 
+ sondern um ein gemeinsames Erlebnis als Zuschauer. Wer Lust hat\, ist herzl
+ ich eingeladen\, dabei zu sein!
+LAST-MODIFIED:20260518T084356Z
+LOCATION:Willingen (Upland)\, 34508 Willingen (Upland)\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:BIKE Festival Willingen
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20230311T110000
+DTEND;TZID=Europe/Berlin:20230311T133000
+DTSTAMP:20260801T203616Z
+UID:4p04m0fvv0fmvqslslsu5k93m7@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20230311T110000
+CREATED:20220331T074817Z
+DESCRIPTION:<b>Euer Guide:</b> Dirk<br><b>Tag:</b> 13.01.2<b>4  </b><b></b>
+ <br><b>Uhrzeit &amp\; Dauer:</b> 11Uhr\, ca. 2\,5 Std  <b> </b><br><b>Abfah
+ rtsort: </b>P+R Senne\, Oetkerstraße\, 33659 Bielefeld<b><br></b><b>Ausdaue
+ r:</b> <span>⭐</span><span><span>⭐</span></span><span><span>⭐</span></span>
+  ca. 35 km\, ca. 600 HM\, moderates Tempo<b> </b><b> </b><br><b>Fahrtechnik
+ :</b> <span>⭐</span><span><span>⭐</span></span><br><b>Trail-Anteil:</b> ger
+ ing<br><b>Schwierigkeitsgrad:</b> flowig<p> <br><b>Anmeldung unter</b> <a h
+ ref="https://mtb-bielefeld.de/angebote/#termine">https://mtb-bielefeld.de/a
+ ngebote/#termine</a> oder per <a href="https://wa.me/4917611751036">WhatsAp
+ p</a></p>
+LAST-MODIFIED:20240510T210224Z
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:-ABGESAGT- Tour für Fortgeschrittene
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20230407T090000Z
+DTEND:20230407T120000Z
+DTSTAMP:20260801T203616Z
+UID:43uep8jdf65898ntjcjfbjodta@google.com
+CREATED:20230402T172454Z
+DESCRIPTION:<b><u>Wichterg Hinweis: </u>Aufgrund von zu wenig Zusagen wurde
+  die Tour abgesagt und wird nach den Osterferien nachgeholt!<br></b><br><b>
+  </b><br><b>Euer Guide: </b>Werner<br><br><b>Tag<u></u>:</b> 07.04.23<br><b
+ >Uhrze<u></u>it &amp\; Dauer:</b> 11Uhr\, ca. 3 Std <br><b>Abfahrtsort:</b>
+  Parkplatz Rathaus\, Rudolph-Brandes-Allee 19\, 32105 Bad Salzuflen<br><b>A
+ usdauer:</b> ⭐/⭐⭐  ca. 30 km\, 700hm\,  mittleres Tempo<br><b>Fahrtechni<u>
+ </u>k:</b> ⭐/⭐⭐<br><b>Trail-Anteil:</b> niedrig/mittel<br><b>Schwierig<u></
+ u>keitsgrad:</b> flowig<br><br>Dies ist eine reine eMTB-Tour. Wir fahren in
+ sbesondere Bergauf Passagen deutlich schneller als bei gemischten Touren. D
+ er Treffpunkt ist am neuen Rathaus in Bad Salzuflen\, und wir bewegen uns a
+ uf Hauptwegen und Singletrails durch den Bad Salzufler und Herforder Stadtw
+ ald. Unterwegs steuern wir die Bismarcktürme in Bad Salzuflen und Herford a
+ n.<br><br>Du überlegst\, ob wir der richtige Verein für dich sind und würde
+ st gerne Mal eine unserer Vereinsausfahrt<u></u>en ausprobieren? Dann nimm 
+ gerne <u><a href="https://mtb-bielefeld.de/kontakt"><u>Kontakt</u></a></u> 
+ m<u></u>it uns auf.<br><a href="https://mtb-bielefeld.de/angebote/#biken"><
+ u>https://mtb<u></u>-bielefeld.de/a<u></u>ngebote/#biken</u></a>
+LAST-MODIFIED:20230406T135104Z
+LOCATION:Rathaus der Stadt Bad Salzuflen\, Rudolph-Brandes-Allee 19\, 32105
+  Bad Salzuflen\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:(abgesagt) eMTB-Tour Bad Salzuflen/Herford
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20230114T100000
+DTEND;TZID=Europe/Berlin:20230114T130000
+DTSTAMP:20260801T203616Z
+UID:4p04m0fvv0fmvqslslsu5k93m7@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20230114T110000
+CREATED:20220331T074817Z
+DESCRIPTION:<b>Euer Guide:</b> Dirk<br><b>Tag:</b> 13.01.2<b>4  </b><b></b>
+ <br><b>Uhrzeit &amp\; Dauer:</b> 11Uhr\, ca. 2\,5 Std  <b> </b><br><b>Abfah
+ rtsort: </b>P+R Senne\, Oetkerstraße\, 33659 Bielefeld<b><br></b><b>Ausdaue
+ r:</b> <span>⭐</span><span><span>⭐</span></span><span><span>⭐</span></span>
+  ca. 35 km\, ca. 600 HM\, moderates Tempo<b> </b><b> </b><br><b>Fahrtechnik
+ :</b> <span>⭐</span><span><span>⭐</span></span><br><b>Trail-Anteil:</b> ger
+ ing<br><b>Schwierigkeitsgrad:</b> flowig<p> <br><b>Anmeldung unter</b> <a h
+ ref="https://mtb-bielefeld.de/angebote/#termine">https://mtb-bielefeld.de/a
+ ngebote/#termine</a> oder per <a href="https://wa.me/4917611751036">WhatsAp
+ p</a></p>
+LAST-MODIFIED:20240510T210224Z
+LOCATION:Bielefeld\, P+R Senne\, Oetkerstraße\, 33659 Bielefeld\, Deutschla
+ nd
+SEQUENCE:2
+STATUS:CONFIRMED
+SUMMARY:Tour für Fortgeschrittene (fällt witterungsbedingt leider aus!!)
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20230205T100000
+DTEND;TZID=Europe/Berlin:20230205T130000
+DTSTAMP:20260801T203616Z
+UID:6bdob7ffsafind4lph7u3asdjj@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20230205T100000
+CREATED:20230109T092930Z
+DESCRIPTION:<u></u><u></u><b>Euer Guide:</b> <i>Malte</i><br> <br><b>Tag:</
+ b> 05.02.23<br><b>Uhrzeit &amp\; Dauer:</b> 10Uhr\, ca. 2\,5 Std <br><b>Abf
+ ahrtsort:</b> Parkplatz Zweischlingen<br><b>Ausdauer:</b> ⭐/⭐⭐ ca. 20 km\, 
+ 400hm\,  geringes Tempo<br><b>Fahrtechnik:</b> ⭐ <br><b>Trail-Anteil:</b> g
+ ering<br><b>Schwierigkeitsgrad:</b> flowig<br><br>Du überlegst\, ob wir der
+  richtige Verein für dich sind und würdest gerne Mal eine unserer Vereinsau
+ sfahrten ausprobieren? Dann nimm gerne <u><a href="https://mtb-bielefeld.de
+ /kontakt">Kontakt</a></u> mit uns auf.<br><a href="https://mtb-bielefeld.de
+ /angebote/#biken">https://mtb-bielefeld.de/angebote/#biken</a><u></u><u></u
+ >
+LAST-MODIFIED:20230706T054957Z
+LOCATION:Zweischlingen Gastro\, Osnabrücker Str. 200\, 33649 Bielefeld\, De
+ utschland
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:Ladies Only Tour
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20250309T090000Z
+DTEND:20250309T120000Z
+DTSTAMP:20260801T203616Z
+UID:5akud75bdl1cmfqjjkl3qj5onu@google.com
+CREATED:20250220T120706Z
+DESCRIPTION:<b>Euer Guide:</b> <i>Malte</i><br><b>Ausdauer:</b> ⭐ ca. 14 km
+ \, 250hm\,  geringes Tempo<b> </b><br><b>Fahrtechnik:</b> ⭐<br><b>Trail-Ant
+ eil:</b> gering<br><b>Charakter: </b>Einsteigertour mit gemäßigtem Tempo un
+ d wenig Schlüsselstellen<br><br><b> </b><br><b>Anmeldung unter:</b> <a href
+ ="https://mtb-bielefeld.de/angebote/#termine">https://mtb-bielefeld.de/ange
+ bote/#termine</a>
+LAST-MODIFIED:20250305T110147Z
+LOCATION:Bielefeld\, P+R Senne\, Oetkerstraße\, 33659 Bielefeld\, Deutschla
+ nd
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:Ladies Only Einsteigertour
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20251109T090000Z
+DTEND:20251109T120000Z
+DTSTAMP:20260801T203616Z
+UID:11o7s9v2igf902kd3s6o896gpa@google.com
+CREATED:20251030T081224Z
+DESCRIPTION:<span><span><b>Euer Guide:</b> <i>Malte</i></span><br><span><b>
+ Ausdauer:</b> </span></span><span><span>⭐⭐ ca. 20 km\, 400hm\,  mittleres T
+ empo<b> </b><br><b>Fahrtechnik:</b> ⭐<br><b>Trail-Anteil:</b> gering</span>
+ </span><br><span><span><b>Charakter: </b></span></span>T<span><span>our mit
+  gemäßigtem Tempo und wenig Schlüsselstellen</span></span><br><span><span><
+ b> </b><br><b>Anmeldung unter: </b></span></span><span><a href="https://mtb
+ -bielefeld.de/angebote/#termine" target="_blank">https://mtb-bielefeld.de/a
+ ngebote/#termine</a></span>
+LAST-MODIFIED:20251030T090202Z
+LOCATION:P&R Senne\, Oetkerstraße\, 33659 Bielefeld
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Ladies Only Tour
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART;TZID=Europe/Berlin:20230218T100000
+DTEND;TZID=Europe/Berlin:20230218T130000
+DTSTAMP:20260801T203616Z
+UID:6bf90mtjnle0917eorje9bpltm@google.com
+RECURRENCE-ID;TZID=Europe/Berlin:20230218T100000
+CREATED:20221221T170657Z
+DESCRIPTION:<b>Euer Guide:</b> <i>Malte</i><br><br><b>Tag:</b> 18.02.22<br>
+ <b>Uhrzeit &amp\; Dauer:</b> 10Uhr\, ca. 3 Std <br><b>Abfahrtsort:</b> Park
+ platz Eisgrund <br><b>Ausdauer:</b> ⭐/⭐⭐ ca. 22 km\, 450hm\,  mittleres Tem
+ po<br><b>Fahrtechnik:</b> ⭐<br><b>Trail-Anteil:</b> gering<br><b>Schwierigk
+ eitsgrad:</b> flowig<br><br>Du überlegst\, ob wir der richtige Verein für d
+ ich sind und würdest gerne Mal eine unserer Vereinsausfahrten ausprobieren?
+  Dann nimm gerne <u><a href="https://mtb-bielefeld.de/kontakt">Kontakt</a><
+ /u> mit uns auf.<br><a href="https://mtb-bielefeld.de/angebote/#biken">http
+ s://mtb-bielefeld.de/angebote/#biken</a>
+LAST-MODIFIED:20230727T062625Z
+LOCATION:Wanderparkplatz Eisgrund
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Tour
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20221211T090000Z
+DTEND:20221211T120000Z
+DTSTAMP:20260801T203616Z
+UID:6i8cj3ukk4a3n635s14t83cjiu@google.com
+CREATED:20221130T100519Z
+DESCRIPTION:<html-blob><u></u><b>Euer Guide:</b>&nbsp\;<i>Arndt</i><br><br>
+ <b>Tag:</b>&nbsp\;11.12.22<br><b>Uhrzeit &amp\; Dauer:</b> 10 Uhr\, ca. 3 h
+ <br><b>Abfahrtsort:</b>&nbsp\;Kletterpark Johannisberg&nbsp\; &nbsp\;<br><b
+ >Ausdauer:</b>&nbsp\; ⭐<span>⭐</span><span>&nbsp\;</span><span>ca. 25 km\, 
+ 500 hm\,&nbsp\; lockeres Tempo</span><br><b>Fahrtechnik:</b>&nbsp\;⭐&nbsp\;
+ <br><b>Trail-Anteil:</b>&nbsp\;gering&nbsp\;<br><b>Schwierigkeitsgrad:</b>&
+ nbsp\;fahrtechnisch leicht\, konditionell mittel&nbsp\;<br><br>Wir treffen 
+ uns am Kletterpark und fahren zunächst hoch zum Sender. Über den Hermannswe
+ g geht es dann Richtung Werther und über den X25 zurück zum Johannisberg.<u
+ ></u><br><u></u>Wir bewegen uns größtenteils auf Hauptwegen ohne echte fahr
+ technische Herausforderungen. Aufgrund der Länge der Tour und einiger Ansti
+ ege ist eine gute Grundkondition aber erforderlich.&nbsp\; &nbsp\;&nbsp\;<b
+ r><br>Du überlegst\, ob wir der richtige Verein für dich sind und würdest g
+ erne Mal eine unserer Vereinsausfahrten ausprobieren? Dann nimm gerne&nbsp\
+ ;<u><a href="https://mtb-bielefeld.de/kontakt"><u>Kontakt</u></a></u>&nbsp\
+ ;mit uns auf.<br><a href="https://mtb-bielefeld.de/angebote/#biken"><u>http
+ s://mtb-bielefeld.de/angebote/#biken</u></a><u></u></html-blob>
+LAST-MODIFIED:20221130T100519Z
+LOCATION:Kletterpark Bielefeld am Johannisberg\, Am Johannisberg 3\, 33615 
+ Bielefeld\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Tour für Ein- und Aufsteiger mit Grundkondition (unabhängig von Ges
+ chlecht\, Alter und Motorisierung)
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20221229T123000Z
+DTEND:20221229T153000Z
+DTSTAMP:20260801T203616Z
+UID:48rjoeps6u9rc70qkhokv1gkn3@google.com
+CREATED:20221130T100232Z
+DESCRIPTION:<html-blob><b>Euer Guide:</b>&nbsp\;<i>Arndt</i><br><br><b>Tag:
+ </b>&nbsp\;29.12.22<br><b>Uhrzeit &amp\; Dauer:</b> 10 Uhr\, ca. 3 h<br><b>
+ Abfahrtsort:</b>&nbsp\;Kletterpark Johannisberg&nbsp\; &nbsp\;<br><b>Ausdau
+ er:</b>&nbsp\; ⭐<span>⭐</span><span>&nbsp\;</span><span>ca. 25 km\, 500 hm\
+ ,&nbsp\; lockeres Tempo</span><br><b>Fahrtechnik:</b>&nbsp\;⭐&nbsp\;<br><b>
+ Trail-Anteil:</b>&nbsp\;gering&nbsp\;<br><b>Schwierigkeitsgrad:</b>&nbsp\;f
+ ahrtechnisch leicht\, konditionell mittel&nbsp\;<br><br>Wir treffen uns am 
+ Kletterpark und fahren zunächst hoch zum Sender. Über den Hermannsweg geht 
+ es dann Richtung Werther und über den X25 zurück zum Johannisberg.</html-bl
+ ob><br><html-blob>Wir bewegen uns größtenteils auf Hauptwegen ohne echte fa
+ hrtechnische Herausforderungen. Aufgrund der Länge der Tour und einiger Ans
+ tiege ist eine gute Grundkondition aber erforderlich.&nbsp\; &nbsp\;&nbsp\;
+ <br><br>Du überlegst\, ob wir der richtige Verein für dich sind und würdest
+  gerne Mal eine unserer Vereinsausfahrten ausprobieren? Dann nimm gerne&nbs
+ p\;<u><a href="https://mtb-bielefeld.de/kontakt"><u>Kontakt</u></a></u>&nbs
+ p\;mit uns auf.<br><a href="https://mtb-bielefeld.de/angebote/#biken"><u>ht
+ tps://mtb-bielefeld.de/angebote/#biken</u></a></html-blob>
+LAST-MODIFIED:20221229T091423Z
+LOCATION:Kletterpark Bielefeld am Johannisberg\, Am Johannisberg 3\, 33615 
+ Bielefeld\, Deutschland
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:Tour für Ein- und Aufsteiger mit Grundkondition (unabhängig von Ges
+ chlecht\, Alter und Motorisierung)
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20230521T130000Z
+DTEND:20230521T153000Z
+DTSTAMP:20260801T203616Z
+UID:0k8h0vs330bfggl3mmkt9folqm@google.com
+CREATED:20230423T092223Z
+DESCRIPTION:<u></u><b>Euer Guide:</b> <i>Arndt</i><br><br><b>Tag:</b> 21.05
+ .23<br><b>Uhrzeit &amp\; Dauer:</b> 15:00 Uhr\, ca. 2\,5 h<br><b>Treffpunkt
+ :</b> Bikepark Bad Wünnenberg am Pumptrack<br><b>Ausdauer:</b>  ⭐ / ⭐⭐ indi
+ viduell steuerbar<br><b>Fahrtechnik:</b> ⭐ /⭐⭐ individuell steuerbar       
+ <br><b>Trail-Anteil:</b> gigantisch \;-)<br><b>Schwierigkeitsgrad:</b> von 
+ leicht bis durchaus schwer<br><b>Max. Teilnehmerzahl:</b> 6<br><br>Wir tref
+ fen uns am Pumptrack des Bikeparks (also "unten").<br>Fahrgelegenheiten las
+ sen sich sicher koordinieren\, 2 Plätze kann ich in meinem Wagen anbieten.<
+ br>Selbst wenn du bislang noch keinen Bikepark besucht hast\, ist dieses An
+ gebot für dich sehr gut geeignet\, weil du in Bad Wünnenberg ohne Druck und
+  Überfüllung typische Bikepark Strecken kennenlernen kannst.  <br>Achtung! 
+ Da es sich um einen Bikepark handelt\, empfehle ich einen Integral-Helm\, K
+ nieschoner\, Rückenptrotektor\, Brustpanzer\, Langfingerhandschuhe und Elle
+ nbogenschoner. <br>Es herrscht seitens des Betreibers eine Helm- und Protek
+ torenpflicht! Sollte sich jemand diesbezüglich unsicher sein\, bitte vorher
+  PN an mich.<br><br>Du überlegst\, ob wir der richtige Verein für dich sind
+  und würdest gerne Mal eine unserer Vereinsausfahrten ausprobieren? Dann ni
+ mm gerne <u><a href="https://mtb-bielefeld.de/kontakt"><u>Kontakt</u></a></
+ u> mit uns auf.<br><a href="https://mtb-bielefeld.de/angebote/#biken"><u>ht
+ tps://mtb-bielefeld.de/angebote/#biken</u></a><u></u>
+LAST-MODIFIED:20230423T092223Z
+LOCATION:Im Aatal 80\, 33181 Bad Wünnenberg
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Bikepark für Aufsteiger (unabhängig von Geschlecht\, Alter und Moto
+ risierung)
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20230409T120000Z
+DTEND:20230409T133000Z
+DTSTAMP:20260801T203616Z
+UID:19ied66ed8mt6uj26embepvr3v@google.com
+CREATED:20230215T073240Z
+DESCRIPTION:<u></u><b>Euer Guide:</b> <i>Arndt</i><br><br><b>Tag:</b> 09.04
+ .23<br><b>Uhrzeit &amp\; Dauer:</b> 14:00 Uhr\, ca. 1\,5 h<br><b>Abfahrtsor
+ t:</b> Kletterpark Johannisberg   <br><b>Ausdauer:</b>  ⭐<span> </span><spa
+ n>ca. 15 km\, 300 hm\,  geringes Tempo</span><br><b>Fahrtechnik:</b> ⭐   <b
+ r><b>Trail-Anteil:</b> mittel<br><b>Schwierigkeitsgrad:</b> fahrtechnisch l
+ eicht\, konditionell leicht<br><b>Max. Teilnehmerzahl:</b> 6<br><br>Wir tre
+ ffen uns am Kletterpark und bewegen uns auf Hauptwegen und Singletrails. Se
+ lbst wenn du bislang nur auf Forstautobahnen unterwegs warst\, ist diese To
+ ur für dich genau richtig\, da wir nur leichte Trails fahren und so ein san
+ fter Einstieg ins "echte" Mountainbiking geboten wird.         <br><br>Du ü
+ berlegst\, ob wir der richtige Verein für dich sind und würdest gerne Mal e
+ ine unserer Vereinsausfahrten ausprobieren? Dann nimm gerne <u><a href="htt
+ ps://mtb-bielefeld.de/kontakt"><u>Kontakt</u></a></u> mit uns auf.<br><a hr
+ ef="https://mtb-bielefeld.de/angebote/#biken"><u>https://mtb-bielefeld.de/a
+ ngebote/#biken</u></a><u></u>
+LAST-MODIFIED:20230220T085614Z
+LOCATION:Kletterpark Bielefeld am Johannisberg\, Am Johannisberg 3\, 33615 
+ Bielefeld\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Trail-Tour für Einsteiger (unabhängig von Geschlecht\, Alter und Mo
+ torisierung)
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240720T130000Z
+DTEND:20240720T150000Z
+DTSTAMP:20260801T203616Z
+UID:2hikoju0lu5rlnfbpshusna421@google.com
+X-GOOGLE-CONFERENCE:https://meet.google.com/rto-uxse-uko
+CREATED:20240716T084256Z
+DESCRIPTION:<u></u><b>Euer Guide:</b> <i>Arndt</i><br><br><b>Ausdauer:</b> 
+ ⭐<br><b>Fahrtechnik: </b>⭐<br><b>Trail-Anteil:</b> mittel<br><b>Schwierigke
+ itsgrad: </b>leicht<br><b>Max. Teilnehmerzahl:</b> 6<br><br><b>Anmeldung un
+ ter</b>  <a href="https://mtb-bielefeld.de/angebote/#termine">https://mtb-b
+ ielefeld.de/angebote/#termine</a> <span><span><br></span></span>\n\nJoin wi
+ th Google Meet: https://meet.google.com/rto-uxse-uko\n\nLearn more about Me
+ et at: https://support.google.com/a/users/answer/9282720
+LAST-MODIFIED:20240717T070819Z
+LOCATION:Parkplatz\, Dornberger Str. 53\, 33615 Bielefeld\, Deutschland - I
+ nfopunkt Johannisberg 
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:Samstagsrunde
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20260425T080000Z
+DTEND:20260425T150000Z
+DTSTAMP:20260801T203616Z
+UID:11m6p69e1ef7fa9rdbfq01u1oj@google.com
+CREATED:20260309T123305Z
+DESCRIPTION:<span><span><span><span><b>Ausdauer:</b>  variabel  <br><b>Fahr
+ technik:</b> ⭐ bis ⭐⭐⭐⭐       <br><b>Trail-Anteil:</b> hoch<b> </b><br><b>S
+ chwierigkeitsgrad:</b> einfach bis schwer<br><b>Charakter: </b>offenes Ange
+ bot ohne Guidung<br><br>Wir fahren nach Brilon zum Trailground</span></span
+ ></span><span><span><span> und wollen ein wenig die Trails vor Ort erkunden
+ . <b> </b></span></span></span><br><span><span><span><b> </b></span></span>
+ </span><br><span><span><span><b>Alle Mitglieder die Zeit und Lust haben\, s
+ ind herzlich eingeladen mitzukommen. </b></span></span></span><br><span><sp
+ an><span><br><i>Wichtiger Hinweis: Wir übernehmen vor Ort kein offizielles 
+ Guiding\, aber stehen euch für ein paar Tipps gerne zur Verfügung.</i><br><
+ i> </i><br><i>Treffen vor Ort: </i><i><b>10.</b></i><i><b>00</b></i><b><i>U
+ hr</i></b><i>  </i></span></span></span></span>(Am Hängeberg 1\, 59929 Bril
+ on<span><span><span><span></span></span></span>)</span>
+LAST-MODIFIED:20260309T123312Z
+LOCATION:Am Hängeberg 1\, 59929 Brilon\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Trailground Brilon
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20231210T130000Z
+DTEND:20231210T150000Z
+DTSTAMP:20260801T203616Z
+UID:2uts48k332moh00mm6tag6is95@google.com
+CREATED:20230627T155652Z
+DESCRIPTION:<u></u><b>Euer Guide:</b> <i>Arndt</i><br><br><b>Tag:</b> 10.12
+ .23<br><b>Uhrzeit &amp\; Dauer:</b> 14:00 Uhr\, ca. 2 h<br><b>Treffpunkt:</
+ b> Pumptrack Oelde<br><b>Ausdauer:</b> individuell steuerbar<br><b>Fahrtech
+ nik:</b> individuell steuerbar       <br><b>Trail-Anteil:</b> heute 0<br><b
+ >Schwierigkeitsgrad:</b> von leicht bis durchaus schwer<br><b>Max. Teilnehm
+ erzahl:</b> keine<br><br>Bei Schmuddelwetter ist ein Asphalt-Pumptrack eine
+  feine Sache! <br>Fahrgelegenheiten lassen sich sicher koordinieren\, einen
+  Platz kann ich in meinem Wagen anbieten.<br>Hier gibt's erste Eindrücke:<b
+ r><a href="https://www.youtube.com/watch?v=PDCCYnOOTnk">https://www.youtube
+ .com/watch?v=PDCCYnOOTnk</a><br><br>Achtung! Zum Thema <span>Protektorenpfl
+ icht habe ich im Netz noch nichts gefunden\, aber ich empfehle dringend ein
+ e </span><span>Bikepark-Ausstattung: Integral-Helm\, Knieschoner\, Rückenpt
+ rotektor\, Brustpanzer\, Langfingerhandschuhe und Ellenbogenschoner. </span
+ ><br><span> </span><br><span><b>Anmeldung unter:</b> <a href="https://mtb-b
+ ielefeld.de/angebote/#termine">https://mtb-bielefeld.de/angebote/#termine</
+ a></span><a href="https://mtb-bielefeld.de/angebote/#biken"><u></u></a><u><
+ /u>
+LAST-MODIFIED:20231121T150317Z
+LOCATION:Pumptrack Oelde\, Bergelerweg\, 59302 Oelde\, Deutschland
+SEQUENCE:2
+STATUS:CONFIRMED
+SUMMARY:Exkursion zum Pumptrack Oelde (unabhängig von Geschlecht\, Alter un
+ d Motorisierung)
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20220526T090000Z
+DTEND:20220526T140000Z
+DTSTAMP:20260801T203616Z
+UID:526abeh596mtajqfj29ff65tl2@google.com
+CREATED:20220524T073911Z
+DESCRIPTION:<html-blob><span><span><b>Guide: </b>Tobi<br><b>Treffpunk:</b> 
+ Parkplatz Gondel<br><b>Ausdauer:</b> **<br><b>Fahrtechnik:</b> ***<br>Der A
+ usflug in den Bikepark Willingen richtet sich an Könner. Bei diesem Ausflug
+  werden wir lediglich die Freeride und Downhillstrecke unter die Stollen ne
+ hmen. Für das befahren der Strecken benötigt ihr einen Helm (Vorgeschrieben
+ ) bzw. einen Fullface Helm und Knie-Protektoren. Zu empfehlen sind auch Obe
+ rkörper- und Arm-Protektoren. <br>Da es sich um einen Tagesausflug handelt 
+ ist es ratsam Essen und Trinken <span>mitzunehmen</span>. Der Lift befindet
+  sich am Parkplatz und so könnt ihr zwischendurch an Eure Autos.<br>Eintrit
+ tsgebühren müssen selbst entrichtet werden.</span></span></html-blob>
+LAST-MODIFIED:20220524T074301Z
+LOCATION:MTB ZONE Bikepark Willingen\, Zur Ruthenaar 3\, 34508 Willingen (U
+ pland)\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Bikepark Willingen
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20250329T090000Z
+DTEND:20250329T160000Z
+DTSTAMP:20260801T203616Z
+UID:00khhrate1rtiucbie528ba0ic@google.com
+CREATED:20250323T183404Z
+DESCRIPTION:Es ist soweit – vom 28. bis 29. März heißt es in der Kulisse de
+ s <a href="https://maps.app.goo.gl/Dbyk6NSbknHQ67cv7" target="_blank">Kult-
+ Hotel im Quellental</a> Outlet-Verkauf\, Bike-Flohmarkt und Test-D<span>ays
+ . Ihr könnt unschlagbar günstige Bikes\, E-Bikes\, Rennräder\, Gravelbikes\
+ , Enduro-Bikes\, Cargo-Bikes und Kids-Bikes der Marken </span><a href="http
+ s://harobikes.de/" target="_blank">HARO</a><span>\, </span><a href="https:/
+ /scool.de/" target="_blank">S’cool</a><span>\, </span><a href="https://acad
+ emy-bikes.de/" target="_blank">Academy</a><span>\, </span><a href="https://
+ mytaxxi.de/" target="_blank">TAXXI</a><span> und </span><a href="https://ww
+ w.wittich-bikes.de/" target="_blank">Wittich-Bikes</a><span> shoppen.</span
+ ><br><br>Details siehe <a href="https://mtb-bielefeld.de/outlet-und-flohmar
+ kt-im-berghotel-quellental" target="_blank">https://mtb-bielefeld.de/outlet
+ -und-flohmarkt-im-berghotel-quellental</a>
+LAST-MODIFIED:20250323T183617Z
+LOCATION:Berghotel Quellental
+SEQUENCE:1
+STATUS:CONFIRMED
+SUMMARY:Outlet und Flohmarkt im Berghotel Quellental
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20241214T150000Z
+DTEND:20241214T170000Z
+DTSTAMP:20260801T203616Z
+UID:40716kp2dkariq3lc34ojjfd72@google.com
+CREATED:20241114T080842Z
+DESCRIPTION:<p><span><span>Das Jahr neigt sich dem Ende zu und es ist wiede
+ r Zeit für unsere Weihnachtsfeier inkl. Weihnachtstour.</span></span><span>
+ <span> </span><br></span><span><span> </span><br></span><span><span>Bei lec
+ kerem Kuchen\, frischen Waffeln\, bei </span><span>Heiss</span><span>- und 
+ Kaltgetränken wollen wir auf das Jahr 2024 zurückblicken und einen Ausblick
+  auf das Jahr 2025 werfen. </span></span><span><span> </span><br></span><sp
+ an><span>Dieses Jahr freuen wir uns besonders die Feier gemeinsam mit und b
+ ei unserem Partner Liquid-Life mit allen Vereinsmitgliedern zu veranstalten
+ .</span></span><span><span> </span><br></span><span><span>Seid dabei und ve
+ rbringt einen tollen Nachmittag mit uns!</span></span><span><span> </span><
+ /span><span><br></span><span><span> </span><br></span><span><span> <b>Weite
+ re Infos folgen in Kürze</b></span></span><span></span><span><span>  </span
+ ></span><span><span></span></span><span><span><br></span></span></p>
+LAST-MODIFIED:20241125T055232Z
+LOCATION:Liquid-Life | Bike & E-Bike Shop | Bielefeld\, Herforder Str. 155\
+ , 33609 Bielefeld\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Weihnachtsfeier
+TRANSP:OPAQUE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20251220T120000Z
+DTEND:20251220T140000Z
+DTSTAMP:20260801T203616Z
+UID:1n7hq5ecp1n981qs8u2l59lsti@google.com
+CREATED:20251106T113416Z
+DESCRIPTION:<span><span><p><span><span>Das Jahr neigt sich dem Ende zu und 
+ es ist wieder Zeit für unsere Weihnachtsfeier inkl. Weihnachtstour.</span><
+ /span><span><span> </span><br></span><span><span> </span><br></span><span><
+ span>Bei leckerem Kuchen\, frischen Waffeln\, bei </span><span>Heiss</span>
+ <span>- und Kaltgetränken wollen wir auf das Jahr 2025 zurückblicken und ei
+ nen Ausblick auf das Jahr 2025 werfen. </span></span><span><span> </span><b
+ r></span><span><span>Dieses Jahr freuen wir uns besonders die Feier gemeins
+ am mit und bei unserem Partner Liquid-Life mit allen Vereinsmitgliedern zu 
+ veranstalten.</span></span><span><span> </span><br></span><span><span>Seid 
+ dabei und verbringt einen tollen Nachmittag mit uns!</span></span> <span><b
+ r></span><span><span> </span><br></span><span><span> <b>Weitere Infos folge
+ n in Kürze</b></span></span><span><span>  </span></span><span><span><br></s
+ pan></span></p></span></span>
+LAST-MODIFIED:20251106T113850Z
+LOCATION:Liquid-Life | Dein Bike. Dein Style. | Fahrrad & E-Bike Shop | Bie
+ lefeld\, Herforder Str. 155\, 33609 Bielefeld\, Deutschland
+SEQUENCE:0
+STATUS:CONFIRMED
+SUMMARY:Weihnachtsfeier
+TRANSP:OPAQUE
+END:VEVENT
+END:VCALENDAR
