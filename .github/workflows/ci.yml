@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruefen:
+    name: Tests und Typprüfung
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Die .npmrc des Projekts setzt legacy-peer-deps — nötig wegen einer
+      # React-Versionsunstimmigkeit in Expo SDK 57.
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Typprüfung
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      # Fängt Importfehler, die weder Tests noch Typprüfung sehen.
+      - name: Bündeln prüfen
+        run: npx expo export --platform android --output-dir /tmp/export-check
