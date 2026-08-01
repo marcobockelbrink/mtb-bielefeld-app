@@ -7,6 +7,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { asyncStorageStore } from '../data/asyncStorageStore';
 import { useAppData } from '../data/AppDataContext';
+import { isBackgroundRefreshAvailable, updateBackgroundRefreshRegistration } from './backgroundTask';
 import { cancelAllReminders, hasPermission, requestPermission, syncReminders } from './index';
 import { defaultSettings, loadSettings, saveSettings, type NotificationSettings } from './settings';
 
@@ -16,6 +17,12 @@ interface NotificationState {
   loading: boolean;
   /** Erlaubnis für Mitteilungen liegt vor. */
   permitted: boolean;
+  /**
+   * Das System lässt Aktualisierungen im Hintergrund zu. Ist das nicht der Fall
+   * (Energiesparmodus, Beschränkungen), bemerkt die App Absagen erst beim
+   * nächsten Öffnen — und sagt das in den Einstellungen auch.
+   */
+  backgroundAvailable: boolean;
   /**
    * Ändert die Einstellungen. Beim Einschalten wird die Erlaubnis angefragt;
    * wird sie verweigert, bleiben die Erinnerungen aus.
@@ -30,15 +37,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<NotificationSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [permitted, setPermitted] = useState(false);
+  const [backgroundAvailable, setBackgroundAvailable] = useState(false);
 
   useEffect(() => {
     void (async () => {
       const gespeichert = await loadSettings(asyncStorageStore);
       setSettings(gespeichert);
       setPermitted(await hasPermission());
+      setBackgroundAvailable(await isBackgroundRefreshAvailable());
       setLoading(false);
     })();
   }, []);
+
+  // Der Hintergrundauftrag folgt den Einstellungen: Wer keine Erinnerungen
+  // will, dessen Handy soll auch nicht dafür aufgeweckt werden.
+  useEffect(() => {
+    if (loading) return;
+    void updateBackgroundRefreshRegistration(settings.enabled);
+  }, [loading, settings.enabled]);
 
   const update = useCallback(
     async (changes: Partial<NotificationSettings>) => {
@@ -78,8 +94,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [events.data, events.fetchedAt, events.loading, loading, settings]);
 
   const value = useMemo<NotificationState>(
-    () => ({ settings, loading, permitted, update }),
-    [settings, loading, permitted, update],
+    () => ({ settings, loading, permitted, backgroundAvailable, update }),
+    [settings, loading, permitted, backgroundAvailable, update],
   );
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;

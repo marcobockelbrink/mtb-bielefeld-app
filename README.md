@@ -39,8 +39,12 @@ Frage von zwei Fingertipps — im Kalender-Abo ist sie unbeantwortbar.
 - **Absagen sichtbar** — der Verein markiert sie im Titel, mal als
   `-ABGESAGT-`, mal als „(fällt witterungsbedingt leider aus!!)". Die App
   erkennt beides.
-- **Erinnerungen** — das Handy meldet sich vor einem Termin und sofort, wenn ein
-  vorgemerkter Termin abgesagt wird.
+- **Erinnerungen** — das Handy meldet sich vor einem Termin und wenn ein
+  vorgemerkter Termin abgesagt wird. Dafür sieht die App etwa alle drei Stunden
+  im Hintergrund nach. Wann das tatsächlich geschieht, entscheidet das
+  Betriebssystem: Android hält sich meist grob daran, iOS führt solche Aufträge
+  oft nur in eigenen Zeitfenstern aus. Der Absage-Alarm ist deshalb ein Zusatz,
+  keine Zusage — das sagt die App in den Einstellungen auch so.
 - **Treffpunkt in der Karten-App** — ein Tipp, und die Navigation läuft.
 - **Aktuelles** — die Beiträge der Website mit Bildern, offline lesbar.
 - **Verein & Mitmachen** — Angebote, Beiträge, Mitglied werden, Kontakt.
@@ -131,7 +135,7 @@ tests/                   Tests, u.a. gegen echte Kalenderdaten
 
 ## Über die Tests
 
-142 Tests, die ohne Gerät und ohne Netz laufen. Nennenswert:
+149 Tests, die ohne Gerät und ohne Netz laufen. Nennenswert:
 
 - **Echte Daten als Prüfstein.** `tests/fixtures/kalender-auszug.ics` ist ein
   eingefrorener Auszug des Vereinskalenders — bewusst mit den kniffligen Fällen:
@@ -156,13 +160,11 @@ bei 100 % — die einzigen Ausreißer sind die Scherzeinträge der Bike&Beer-Ter
 ## Was noch offen ist
 
 - **Auf echten Geräten testen.** Termine, Filter und Auswertung sind geprüft;
-  die Erinnerungen sind bisher nur als Rechenlogik getestet, nicht auf einem
-  Gerät. Vor der Veröffentlichung nötig.
+  Erinnerungen und Hintergrund-Aktualisierung sind bisher nur als Rechenlogik
+  getestet, nicht auf einem Gerät. Vor der Veröffentlichung nötig. Zum Auslösen
+  ohne Warten hilft `BackgroundTask.triggerTaskWorkerForTestingAsync()`.
 - **App-Symbol und Startbild.** Aktuell die Expo-Platzhalter — hier gehört das
   Vereinslogo hin.
-- **Hintergrund-Aktualisierung.** `expo-background-task` ist eingebunden, wird
-  aber noch nicht genutzt. Damit könnte die App Absagen auch bemerken, ohne dass
-  jemand sie öffnet.
 - **Vereinstexte pflegen.** `src/content/club.ts` ist von Hand geschrieben
   (Stand August 2026). Ändern sich die Beiträge, muss es dort nachgezogen
   werden — jeder Abschnitt verlinkt deshalb auf die Website als verbindliche

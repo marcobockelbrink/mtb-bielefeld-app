@@ -29,7 +29,7 @@ const KATEGORIEN: EventCategory[] = [
 export default function EinstellungenScreen() {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
-  const { settings, loading, permitted, update } = useNotifications();
+  const { settings, loading, permitted, backgroundAvailable, update } = useNotifications();
   const { events, news } = useAppData();
 
   if (loading) return <LoadingState />;
@@ -105,19 +105,38 @@ export default function EinstellungenScreen() {
           <Card>
             <View style={styles.schalterZeile}>
               <View style={styles.schalterText}>
-                <Text style={[styles.titel, { color: palette.text }]}>Bei Absagen sofort melden</Text>
+                <Text style={[styles.titel, { color: palette.text }]}>Bei Absagen melden</Text>
                 <Text style={[styles.hinweis, { color: palette.textMuted }]}>
-                  Sagt der Verein einen vorgemerkten Termin ab, meldet sich die App sofort — statt
-                  dass du umsonst zum Treffpunkt fährst.
+                  Sagt der Verein einen vorgemerkten Termin ab, meldet sich die App — statt dass du
+                  umsonst zum Treffpunkt fährst.
                 </Text>
               </View>
               <Switch
                 value={settings.notifyOnCancellation}
                 onValueChange={(notifyOnCancellation) => void update({ notifyOnCancellation })}
                 trackColor={{ true: palette.primary }}
-                accessibilityLabel="Bei Absagen sofort melden"
+                accessibilityLabel="Bei Absagen melden"
               />
             </View>
+
+            {settings.notifyOnCancellation ? (
+              <View style={styles.bannerAbstand}>
+                {/*
+                  Bewusst deutlich formuliert: Wann das Betriebssystem die App im
+                  Hintergrund aufweckt, lässt sich nicht zusagen — besonders auf
+                  iOS. Ein Versprechen, das die App nicht halten kann, wäre hier
+                  schlimmer als gar keins.
+                */}
+                <Banner
+                  tone={backgroundAvailable ? 'info' : 'warning'}
+                  text={
+                    backgroundAvailable
+                      ? 'Die App sieht dazu etwa alle drei Stunden im Hintergrund nach. Wann genau, entscheidet das Betriebssystem — verlässlich ist nur der Blick in die App.'
+                      : 'Dein Gerät lässt Aktualisierungen im Hintergrund derzeit nicht zu (etwa im Energiesparmodus). Absagen bemerkt die App dann erst, wenn du sie öffnest.'
+                  }
+                />
+              </View>
+            ) : null}
           </Card>
         </>
       ) : null}

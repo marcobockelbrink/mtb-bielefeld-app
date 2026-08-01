@@ -5,6 +5,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppDataProvider } from '../src/data/AppDataContext';
 import { configureNotificationHandler } from '../src/notifications';
+// Nur wegen der Nebenwirkung: Das Modul meldet den Hintergrundauftrag im
+// Modulrumpf an. Weckt das System die App im Hintergrund, startet sie in einer
+// frischen Umgebung — der Auftrag muss dann schon bekannt sein, bevor
+// irgendeine Komponente gezeichnet wird.
+import '../src/notifications/backgroundTask';
 import { NotificationProvider } from '../src/notifications/NotificationContext';
 import { darkPalette, lightPalette } from '../src/theme';
 import { useTheme } from '../src/ui/theme';
