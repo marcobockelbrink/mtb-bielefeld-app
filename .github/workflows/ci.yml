@@ -32,3 +32,30 @@ jobs:
       # Fängt Importfehler, die weder Tests noch Typprüfung sehen.
       - name: Bündeln prüfen
         run: npx expo export --platform android --output-dir /tmp/export-check
+
+  abhaengigkeiten:
+    name: Abhängigkeiten auf Schwachstellen prüfen
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Zwei Stufen mit Absicht:
+      #
+      # Blockierend nur ab "hoch". Ein Verein arbeitet ehrenamtlich — eine CI,
+      # die wegen einer mittelschweren Lücke im Build-Werkzeug rot steht, wird
+      # nach der dritten Woche abgeschaltet. Dann ist gar nichts gewonnen.
+      - name: Schwerwiegende Schwachstellen (blockiert)
+        run: npm audit --audit-level=high
+
+      # Zur Kenntnis: läuft immer durch, macht den Stand aber sichtbar.
+      - name: Vollständiger Bericht (nur zur Information)
+        if: always()
+        run: npm audit || true

@@ -1,0 +1,48 @@
+# CodeQL — GitHubs statische Sicherheitsanalyse.
+#
+# Sucht im Quelltext nach Mustern wie unsicherer Auswertung von Fremddaten oder
+# fehlerhaften regulären Ausdrücken. Für öffentliche Repositories kostenlos.
+#
+# Für dieses Projekt besonders naheliegend: Die App wertet Fremddaten aus (den
+# Kalender und den RSS-Feed) und tut das mit vielen regulären Ausdrücken. Genau
+# dort entstehen Fehler, die man beim Lesen übersieht — etwa ein Ausdruck, der
+# bei ungünstiger Eingabe die App zum Stehen bringt.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Montags früh: Findet auch Lücken, die erst nach dem letzten Commit
+    # bekannt geworden sind.
+    - cron: '0 5 * * 1'
+
+jobs:
+  analyse:
+    name: Quelltext analysieren
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: CodeQL vorbereiten
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # "security-and-quality" meldet zusätzlich Qualitätsprobleme, nicht
+          # nur Sicherheitslücken.
+          queries: security-and-quality
+
+      - name: Analyse
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'

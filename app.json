@@ -20,9 +20,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "package": "de.mtbbielefeld.app",
-      "edgeToEdgeEnabled": true
+      "package": "de.mtbbielefeld.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -36,7 +34,8 @@
         {
           "color": "#00679a"
         }
-      ]
+      ],
+      "expo-system-ui"
     ],
     "scheme": "mtbie"
   }

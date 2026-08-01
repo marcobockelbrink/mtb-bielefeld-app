@@ -170,6 +170,15 @@ bei 100 % — die einzigen Ausreißer sind die Scherzeinträge der Bike&Beer-Ter
   werden — jeder Abschnitt verlinkt deshalb auf die Website als verbindliche
   Quelle.
 
+## Sicherheit
+
+Automatisch laufen CodeQL (statische Analyse, wöchentlich und bei jedem Pull
+Request), Dependabot und eine Schwachstellenprüfung der Abhängigkeiten in der CI.
+Stand aktuell: **0 bekannte Schwachstellen**.
+
+Wie eine Lücke zu melden ist und was die App überhaupt angreifbar macht, steht in
+[SECURITY.md](SECURITY.md).
+
 ## Lizenz
 
 Der Quelltext steht unter der [MIT-Lizenz](LICENSE) — andere Vereine dürfen ihn

@@ -1,0 +1,56 @@
+# Dependabot hält die Abhängigkeiten aktuell und meldet bekannte Schwachstellen.
+#
+# Sicherheitsmeldungen kommen unabhängig von dieser Datei, sobald "Dependabot
+# alerts" in den Repo-Einstellungen aktiv ist. Hier geht es um die regelmäßigen
+# Aktualisierungen — damit das Projekt nicht still veraltet, bis eine Lücke
+# auftaucht.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Berlin
+    # Ein Verein hat keine Zeit für zwanzig offene Pull Requests. Lieber wenige,
+    # die auch jemand anschaut.
+    open-pull-requests-limit: 5
+    labels:
+      - abhängigkeiten
+    commit-message:
+      prefix: 'deps'
+      prefix-development: 'deps-dev'
+
+    groups:
+      # Expo-Pakete gehören zusammen: Einzeln aktualisiert brechen sie
+      # gegeneinander. Ein Pull Request je SDK-Stand ist richtig, zwanzig
+      # einzelne sind es nicht.
+      expo:
+        patterns:
+          - 'expo'
+          - 'expo-*'
+          - '@expo/*'
+          - 'react-native'
+          - 'react-native-*'
+          - 'react'
+          - 'react-dom'
+      entwicklung:
+        dependency-type: development
+
+    ignore:
+      # Expo gibt die passenden Versionen vor; `npx expo install --check` ist
+      # dafür zuständig. Ein Sprung auf ein neues Haupt-SDK will geplant sein
+      # und nicht von einem Bot vorgeschlagen werden.
+      - dependency-name: 'expo'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels:
+      - abhängigkeiten
