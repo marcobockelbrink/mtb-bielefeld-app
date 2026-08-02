@@ -1,9 +1,22 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { pool } from '../src/datenbank.ts';
 import { wendeMigrationenAn } from '../src/migrationen/laufen.ts';
 
 describe('Migrationen', () => {
+  beforeAll(async () => {
+    // Das Postgres der Entwicklungsumgebung liegt auf einem dauerhaften
+    // Docker-Volume. Ohne diesen Rücksetzer blieben Migrationen aus
+    // früheren Testläufen bereits vermerkt, und die Tests unten prüften
+    // nicht mehr das Verhalten, sondern nur den Zufall der Umgebung. Das
+    // ganze Schema neu aufzusetzen ist der einzig sichere Weg: Spätere
+    // Migrationen (z. B. einladung) halten Fremdschlüssel auf mitglied und
+    // lassen sich nicht mehr einzeln und in beliebiger Reihenfolge löschen.
+    // `wendeMigrationenAn` baut danach alles wieder von Grund auf auf.
+    await pool.query('DROP SCHEMA public CASCADE');
+    await pool.query('CREATE SCHEMA public');
+  });
+
   afterAll(async () => {
     await pool.end();
   });
