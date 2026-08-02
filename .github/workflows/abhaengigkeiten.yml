@@ -1,0 +1,50 @@
+# Prüft die Abhängigkeiten auf bekannte Schwachstellen.
+#
+# Bewusst ein eigener Workflow mit **Zeitplan**, nicht nur bei Commits: Neue
+# Sicherheitslücken werden veröffentlicht, ohne dass sich am Projekt etwas
+# ändert. Ein Vereinsprojekt, an dem monatelang niemand arbeitet, würde sonst
+# nie nachsehen — gerade dann ist es aber am wichtigsten.
+#
+# Das ist derzeit die einzige automatische Prüfung der Abhängigkeiten:
+# Dependabot-Sicherheitswarnungen sind in den Repo-Einstellungen abgeschaltet
+# und lassen sich nur dort einschalten. Solange das so bleibt, hängt alles an
+# diesem Workflow.
+name: Abhängigkeiten
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Montags früh, damit ein Fund am Wochenanfang auffällt.
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+jobs:
+  schwachstellen:
+    name: Auf Schwachstellen prüfen
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # Zwei Stufen mit Absicht:
+      #
+      # Blockierend nur ab "hoch". Ein Verein arbeitet ehrenamtlich — eine
+      # Prüfung, die wegen einer mittelschweren Lücke im Build-Werkzeug rot
+      # steht, wird nach der dritten Woche abgeschaltet. Dann ist gar nichts
+      # gewonnen.
+      - name: Schwerwiegende Schwachstellen (blockiert)
+        run: npm audit --audit-level=high
+
+      # Zur Kenntnis: läuft immer durch, macht den Stand aber sichtbar.
+      - name: Vollständiger Bericht (nur zur Information)
+        if: always()
+        run: npm audit || true
