@@ -24,47 +24,36 @@ updates:
       prefix-development: 'deps-dev'
 
     groups:
-      # Expo-Pakete gehören zusammen: Einzeln aktualisiert brechen sie
-      # gegeneinander. Ein Pull Request je SDK-Stand ist richtig, zwanzig
-      # einzelne sind es nicht.
-      expo:
-        patterns:
-          - 'expo'
-          - 'expo-*'
-          - '@expo/*'
-          - 'react-native'
-          - 'react-native-*'
-          - 'react'
-          - 'react-dom'
+      # Was übrig bleibt, sind Werkzeuge ohne Vorgabe durch Expo — die dürfen
+      # gebündelt kommen.
       entwicklung:
         dependency-type: development
 
     ignore:
       # Für alle Pakete, die Expo mitbringt, gibt das SDK die Version vor —
-      # teils auf die Stelle genau. Ein Haupt-Versionssprung ist dort kein
-      # Fortschritt, sondern ein Bruch: Die App bündelt weiterhin, die Tests
-      # laufen durch, und kaputt geht es erst auf einem echten Telefon.
+      # teils auf die Stelle genau (React etwa auf exakt 19.2.3). Jede
+      # Abweichung ist dort kein Fortschritt, sondern ein Bruch: Die App bündelt
+      # weiterhin, die Tests laufen durch, und kaputt geht es erst auf einem
+      # echten Telefon.
       #
-      # Der richtige Weg zu neueren Versionen ist `npx expo install`, nicht ein
-      # einzelner Pull Request. `npx expo install --check` in der CI wacht
-      # zusätzlich darüber.
+      # Deshalb **alle** Aktualisierungen ignorieren, nicht nur
+      # Hauptversionssprünge. Der richtige Weg zu neueren Versionen ist
+      # `npx expo install` beim Wechsel auf ein neues SDK, nicht ein einzelner
+      # Pull Request. `npx expo install --check` in der CI wacht darüber.
       #
-      # Anlass war Dependabots Vorschlag, async-storage von 2.2.0 auf 3.1.1 zu
-      # heben — SDK 57 legt dort exakt 2.2.0 fest.
+      # Anlass waren drei Vorschläge, die alle an dieser Regel scheiterten:
+      # async-storage 2.2.0 -> 3.1.1, React 19.2.3 -> 19.2.8 und TypeScript
+      # 6.0.3 -> 7.0.2. Auch TypeScript gibt Expo vor.
       - dependency-name: 'expo'
-        update-types: ['version-update:semver-major']
       - dependency-name: 'expo-*'
-        update-types: ['version-update:semver-major']
       - dependency-name: '@expo/*'
-        update-types: ['version-update:semver-major']
       - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-dom'
       - dependency-name: 'react-native'
-        update-types: ['version-update:semver-major']
       - dependency-name: 'react-native-*'
-        update-types: ['version-update:semver-major']
       - dependency-name: '@react-native-async-storage/*'
-        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+      - dependency-name: '@types/react'
 
   - package-ecosystem: github-actions
     directory: /
