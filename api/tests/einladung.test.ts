@@ -28,13 +28,17 @@ describe('erzeugeEinladung', () => {
 });
 
 describe('loeseEinladungEin', () => {
-  it('nimmt einen frischen Code an', async () => {
+  it('nimmt einen frischen Code mit passender Adresse an', async () => {
     const code = await erzeugeEinladung(pool, 'malte@example.org');
-    expect(await loeseEinladungEin(pool, code, jetzt)).toEqual({ ok: true });
+    expect(await loeseEinladungEin(pool, code, 'malte@example.org', jetzt)).toEqual({
+      ok: true,
+    });
   });
 
   it('lehnt einen unbekannten Code ab', async () => {
-    expect(await loeseEinladungEin(pool, 'ausgedacht', jetzt)).toEqual({
+    expect(
+      await loeseEinladungEin(pool, 'ausgedacht', 'malte@example.org', jetzt),
+    ).toEqual({
       ok: false,
       grund: 'unbekannt',
     });
@@ -42,9 +46,9 @@ describe('loeseEinladungEin', () => {
 
   it('lehnt einen bereits verbrauchten Code ab', async () => {
     const code = await erzeugeEinladung(pool, 'malte@example.org');
-    await loeseEinladungEin(pool, code, jetzt);
+    await loeseEinladungEin(pool, code, 'malte@example.org', jetzt);
 
-    expect(await loeseEinladungEin(pool, code, jetzt)).toEqual({
+    expect(await loeseEinladungEin(pool, code, 'malte@example.org', jetzt)).toEqual({
       ok: false,
       grund: 'verbraucht',
     });
@@ -54,9 +58,35 @@ describe('loeseEinladungEin', () => {
     const code = await erzeugeEinladung(pool, 'malte@example.org');
     const inEinemJahr = new Date('2027-08-02T12:00:00Z');
 
-    expect(await loeseEinladungEin(pool, code, inEinemJahr)).toEqual({
+    expect(
+      await loeseEinladungEin(pool, code, 'malte@example.org', inEinemJahr),
+    ).toEqual({
       ok: false,
       grund: 'abgelaufen',
     });
+  });
+
+  it('lehnt eine falsche Adresse ab, ohne den Code zu verbrauchen', async () => {
+    const code = await erzeugeEinladung(pool, 'malte@example.org');
+
+    expect(await loeseEinladungEin(pool, code, 'fremd@example.org', jetzt)).toEqual({
+      ok: false,
+      grund: 'falsche-adresse',
+    });
+
+    // Der Fehlversuch mit der falschen Adresse darf den Code nicht
+    // entwertet haben — sonst könnte ein Fremder mit einem einzigen
+    // falschen Versuch den Zugang des Mitglieds zerstören.
+    expect(await loeseEinladungEin(pool, code, 'malte@example.org', jetzt)).toEqual({
+      ok: true,
+    });
+  });
+
+  it('vergleicht die Adresse ohne Rücksicht auf Groß- und Kleinschreibung', async () => {
+    const code = await erzeugeEinladung(pool, 'malte@example.org');
+
+    expect(
+      await loeseEinladungEin(pool, code, 'MALTE@EXAMPLE.ORG', jetzt),
+    ).toEqual({ ok: true });
   });
 });

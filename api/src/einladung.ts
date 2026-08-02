@@ -16,7 +16,7 @@ const GUELTIG_TAGE = 60;
 
 export type Einloesung =
   | { ok: true }
-  | { ok: false; grund: 'unbekannt' | 'verbraucht' | 'abgelaufen' };
+  | { ok: false; grund: 'unbekannt' | 'verbraucht' | 'abgelaufen' | 'falsche-adresse' };
 
 /** Legt einen Code an und gibt ihn **einmalig** im Klartext zurück. */
 export async function erzeugeEinladung(
@@ -36,7 +36,18 @@ export async function erzeugeEinladung(
 }
 
 /**
- * Prüft einen Code und entwertet ihn.
+ * Prüft einen Code gegen die hinterlegte Adresse und entwertet ihn.
+ *
+ * Ein Code gilt nur für die Adresse, für die er ausgestellt wurde — sonst
+ * würde ein weitergereichter Code (Screenshot, weitergeleitete Mail)
+ * Vereinsfremden ein Konto verschaffen und der Nachweis der Mitgliedschaft
+ * wäre wertlos. Verglichen wird ohne Rücksicht auf Groß- und
+ * Kleinschreibung, wie beim eindeutigen Index auf `lower(email)` in
+ * `mitglied` (001-mitglied.sql).
+ *
+ * Bei falscher Adresse wird der Code **nicht** verbraucht: Sonst könnte ein
+ * Fremder mit einem einzigen falschen Versuch den Zugang des Mitglieds
+ * zerstören, ohne selbst hineinzukommen.
  *
  * Der Grund wird zurückgegeben, aber **nicht nach außen weitergereicht** —
  * die API antwortet immer gleich. Er dient dem Protokoll und den Tests.
@@ -44,6 +55,7 @@ export async function erzeugeEinladung(
 export async function loeseEinladungEin(
   pool: pg.Pool,
   code: string,
+  email: string,
   jetzt: Date,
 ): Promise<Einloesung> {
   const verbindung = await pool.connect();
@@ -51,13 +63,16 @@ export async function loeseEinladungEin(
     await verbindung.query('BEGIN');
 
     // FOR UPDATE: Zwei gleichzeitige Einlösungen desselben Codes sollen
-    // nicht beide durchgehen.
+    // nicht beide durchgehen. Die Adresse wird innerhalb derselben
+    // Transaktion und hinter demselben Lock geprüft, damit zwischen Prüfung
+    // und Entwertung keine Lücke entsteht.
     const { rows } = await verbindung.query<{
       id: string;
+      ausgestellt_fuer: string;
       gueltig_bis: Date;
       eingeloest_am: Date | null;
     }>(
-      `SELECT id, gueltig_bis, eingeloest_am FROM einladung
+      `SELECT id, ausgestellt_fuer, gueltig_bis, eingeloest_am FROM einladung
        WHERE code_hash = $1 FOR UPDATE`,
       [hashe(code)],
     );
@@ -66,6 +81,10 @@ export async function loeseEinladungEin(
     if (!eintrag) {
       await verbindung.query('ROLLBACK');
       return { ok: false, grund: 'unbekannt' };
+    }
+    if (eintrag.ausgestellt_fuer.toLowerCase() !== email.toLowerCase()) {
+      await verbindung.query('ROLLBACK');
+      return { ok: false, grund: 'falsche-adresse' };
     }
     if (eintrag.eingeloest_am !== null) {
       await verbindung.query('ROLLBACK');

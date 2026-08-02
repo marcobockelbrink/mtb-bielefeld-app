@@ -32,6 +32,24 @@ describe('POST /anmeldung/anfordern', () => {
     await app.close();
   });
 
+  it('antwortet bei gültigem Code aber falscher Adresse genauso, verschickt aber nichts', async () => {
+    const mailer = new GemerkterMailer();
+    const app = baueApp({ pool, mailer });
+    const code = await erzeugeEinladung(pool, 'malte@example.org');
+
+    const antwort = await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'fremd@example.org', einladungscode: code },
+    });
+
+    // Der Code ist an malte@example.org gebunden — ein weitergereichter Code
+    // darf nicht mit jeder beliebigen Adresse funktionieren.
+    expect(antwort.statusCode).toBe(202);
+    expect(mailer.versendet).toHaveLength(0);
+    await app.close();
+  });
+
   it('antwortet bei falschem Code genauso, verschickt aber nichts', async () => {
     const mailer = new GemerkterMailer();
     const app = baueApp({ pool, mailer });
@@ -60,7 +78,23 @@ describe('POST /anmeldung/anfordern', () => {
     });
 
     const text = JSON.stringify(antwort.json());
-    expect(text).not.toMatch(/unbekannt|verbraucht|abgelaufen/);
+    expect(text).not.toMatch(/unbekannt|verbraucht|abgelaufen|falsche-adresse|adresse/i);
+    await app.close();
+  });
+
+  it('verrät im Text auch bei falscher Adresse nichts', async () => {
+    const mailer = new GemerkterMailer();
+    const app = baueApp({ pool, mailer });
+    const code = await erzeugeEinladung(pool, 'malte@example.org');
+
+    const antwort = await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'fremd@example.org', einladungscode: code },
+    });
+
+    const text = JSON.stringify(antwort.json());
+    expect(text).not.toMatch(/unbekannt|verbraucht|abgelaufen|falsche-adresse|adresse/i);
     await app.close();
   });
 

@@ -31,7 +31,7 @@ export async function fordereMagicLinkAn(
   einladungscode: string,
   jetzt: Date,
 ): Promise<void> {
-  const einloesung = await loeseEinladungEin(pool, einladungscode, jetzt);
+  const einloesung = await loeseEinladungEin(pool, einladungscode, email, jetzt);
   if (!einloesung.ok) return;
 
   const token = erzeugeToken();
