@@ -1,0 +1,16 @@
+# Nur für die Entwicklung. Die Inbetriebnahme kommt in Plan 4.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mtbie
+      POSTGRES_PASSWORD: entwicklung
+      POSTGRES_DB: mtbie
+    ports:
+      # Nur auf localhost. Niemals nach außen öffnen.
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres-daten:/var/lib/postgresql/data
+
+volumes:
+  postgres-daten:
