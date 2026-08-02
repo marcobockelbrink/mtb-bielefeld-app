@@ -26,6 +26,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "./plugins/ohne-push-berechtigung",
       "expo-router",
       "expo-web-browser",
       "expo-background-task",
