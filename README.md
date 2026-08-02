@@ -3,6 +3,15 @@
 Die App zum [MTB Bielefeld e.V.](https://mtb-bielefeld.de) für iOS und Android.
 Termine, Aktuelles und Vereinsinfos — aus den Daten, die der Verein ohnehin pflegt.
 
+| Termine | Verein | Einstellungen |
+| --- | --- | --- |
+| ![Terminliste mit Filterleiste und nach Tagen gruppierten Terminen](docs/screenshots/termine.png) | ![Vereinsseite mit Beschreibung und Angeboten](docs/screenshots/verein.png) | ![Einstellungen für Termin-Erinnerungen](docs/screenshots/einstellungen.png) |
+
+> Die Aufnahmen entstehen aus der **Web-Fassung** der App mit echten Daten aus
+> dem Vereinskalender (`npm run vorschau`). Auf iOS und Android sehen Schriften,
+> Schatten und die Reiterleiste etwas anders aus — Aufbau und Inhalt sind
+> dieselben.
+
 ## Worum es geht
 
 Der Verein hat einen guten Kalender und eine gute Website. Was fehlt, ist die
@@ -91,7 +100,50 @@ npm test           # Tests (ohne Gerät, reines Node)
 npm run typecheck  # TypeScript prüfen
 npm run android    # auf Android-Gerät/Emulator starten
 npm run ios        # auf iOS-Gerät/Simulator starten (macOS nötig)
+npm run vorschau   # Web-Fassung bauen und Screenshots aufnehmen
 ```
+
+### Auf dem Mac testen
+
+Drei Wege, vom schnellsten zum gründlichsten:
+
+**1. Auf dem eigenen Handy (kein Xcode nötig, zwei Minuten)**
+
+```bash
+npm install
+npm start
+```
+
+Expo Go aus dem App Store laden, den QR-Code mit der Kamera scannen. Handy und
+Mac müssen im selben WLAN sein. Für den Alltag der beste Weg — Änderungen sind
+sofort auf dem Gerät sichtbar.
+
+Eine Einschränkung: Expo Go bringt nur die Standard-Module mit. Erinnerungen
+lassen sich darin eingeschränkt testen, die Hintergrund-Aktualisierung gar nicht.
+
+**2. Im iOS-Simulator (braucht Xcode, ca. 8 GB)**
+
+```bash
+npm run ios
+```
+
+Xcode aus dem App Store, dann einmalig `xcode-select --install`. Beim ersten
+Aufruf wird das native Projekt erzeugt und übersetzt — das dauert.
+
+**3. Als eigenständige App auf dem Gerät (für Erinnerungen und Hintergrundlauf)**
+
+```bash
+npx expo run:ios --device
+```
+
+Nur so laufen Termin-Erinnerungen und die Hintergrund-Aktualisierung wie später
+im Store. Nötig für den Test, der noch aussteht. Zum Auslösen des
+Hintergrundlaufs ohne Wartezeit hilft
+`BackgroundTask.triggerTaskWorkerForTestingAsync()`.
+
+**Ohne Handy und ohne Xcode:** `npm run vorschau` baut die Web-Fassung, nimmt
+Screenshots auf und meldet Render-Fehler. Kein Ersatz für einen Gerätetest, aber
+es findet Dinge, die `expo export` nicht sieht — siehe unten.
 
 > **Hinweis zu `npm install`:** Das Projekt enthält eine `.npmrc` mit
 > `legacy-peer-deps=true`. Grund ist eine Unstimmigkeit zwischen den
@@ -156,6 +208,18 @@ tests/                   Tests, u.a. gegen echte Kalenderdaten
 Bei den anderen Angaben liegt der Erfassungsgrad gemessen an den echten Daten
 bei 100 % — die einzigen Ausreißer sind die Scherzeinträge der Bike&Beer-Termine
 („Ausdauer: 🌭", „Fahrtechnik: 🍺"), die korrekt keine Sternebewertung ergeben.
+
+### Warum `npm run vorschau` dazugehört
+
+Tests und `expo export` beweisen, dass sich die App übersetzen und bündeln
+lässt. Sie beweisen **nicht**, dass sie etwas Sinnvolles anzeigt. Genau
+dazwischen liegen Fehler, die sonst erst auf dem Gerät auffallen.
+
+Der erste Lauf der Vorschau hat prompt einen gefunden: Die Terminkarten hatten
+weder Hintergrund noch Rahmen, und Uhrzeit und Titel standen untereinander statt
+nebeneinander. Ursache war `Link asChild` — es ersetzt das äußere Element, wobei
+dessen Stil verlorengeht. Tests, Typprüfung und Bündeln waren dabei die ganze
+Zeit grün.
 
 ## Was noch offen ist
 

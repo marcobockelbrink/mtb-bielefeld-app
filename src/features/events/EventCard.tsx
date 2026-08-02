@@ -28,67 +28,82 @@ export function EventCard({ event }: { event: ClubEvent }) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${event.title}, ${formatTimeRange(event)}`}
-        style={({ pressed }) => [
-          styles.card,
-          {
-            backgroundColor: palette.surface,
-            borderColor: palette.border,
-            opacity: pressed ? 0.8 : 1,
-          },
-        ]}
       >
-        <View style={styles.zeitspalte}>
-          <Text style={[styles.zeit, { color: palette.primary }]}>
-            {event.allDay ? '––:––' : formatTimeRange(event).split(' – ')[0]}
-          </Text>
-          <Text style={styles.symbol}>{kategorie.icon}</Text>
-        </View>
-
-        <View style={styles.inhalt}>
-          <Text
+        {/*
+          Die Gestaltung sitzt bewusst auf dieser inneren Ansicht und nicht auf
+          dem Pressable: `Link asChild` ersetzt das äußere Element, wobei dessen
+          Stil verlorengeht — die Karte verlor dadurch Hintergrund, Rahmen und
+          die zweispaltige Anordnung. Nach innen verlagert greift sie sicher.
+        */}
+        {({ pressed }) => (
+          <View
             style={[
-              styles.titel,
-              { color: palette.text },
-              event.cancelled && { textDecorationLine: 'line-through', color: palette.textMuted },
+              styles.card,
+              {
+                backgroundColor: palette.surface,
+                borderColor: palette.border,
+                opacity: pressed ? 0.8 : 1,
+              },
             ]}
-            numberOfLines={2}
           >
-            {event.title}
-          </Text>
-
-          {event.location ? (
-            <View style={styles.ortzeile}>
-              <Ionicons name="location-outline" size={13} color={palette.textMuted} />
-              <Text style={[styles.ort, { color: palette.textMuted }]} numberOfLines={1}>
-                {event.details.meetingPoint ?? event.location}
+            <View style={styles.zeitspalte}>
+              <Text style={[styles.zeit, { color: palette.primary }]}>
+                {event.allDay ? '––:––' : formatTimeRange(event).split(' – ')[0]}
               </Text>
+              <Text style={styles.symbol}>{kategorie.icon}</Text>
             </View>
-          ) : null}
 
-          {eckdaten ? <Text style={[styles.eckdaten, { color: palette.textMuted }]}>{eckdaten}</Text> : null}
+            <View style={styles.inhalt}>
+              <Text
+                style={[
+                  styles.titel,
+                  { color: palette.text },
+                  event.cancelled && { textDecorationLine: 'line-through', color: palette.textMuted },
+                ]}
+                numberOfLines={2}
+              >
+                {event.title}
+              </Text>
 
-          <View style={styles.markierungen}>
-            {event.cancelled ? <Badge label="Abgesagt" tone="danger" /> : null}
-            {event.ladiesOnly ? <Badge label="Ladies only" tone="accent" /> : null}
-            <Badge label={kategorie.label} />
-            {event.levels.map((level) => (
-              <Badge key={level} label={levelDisplay[level]} />
-            ))}
+              {event.location ? (
+                <View style={styles.ortzeile}>
+                  <Ionicons name="location-outline" size={13} color={palette.textMuted} />
+                  <Text style={[styles.ort, { color: palette.textMuted }]} numberOfLines={1}>
+                    {event.details.meetingPoint ?? event.location}
+                  </Text>
+                </View>
+              ) : null}
+
+              {eckdaten ? (
+                <Text style={[styles.eckdaten, { color: palette.textMuted }]}>{eckdaten}</Text>
+              ) : null}
+
+              <View style={styles.markierungen}>
+                {event.cancelled ? <Badge label="Abgesagt" tone="danger" /> : null}
+                {event.ladiesOnly ? <Badge label="Ladies only" tone="accent" /> : null}
+                <Badge label={kategorie.label} />
+                {event.levels.map((level) => (
+                  <Badge key={level} label={levelDisplay[level]} />
+                ))}
+              </View>
+
+              {fahrtechnik || ausdauer ? (
+                <View style={styles.sterne}>
+                  {fahrtechnik ? (
+                    <Text style={[styles.sterneText, { color: palette.textMuted }]}>
+                      Fahrtechnik {fahrtechnik}
+                    </Text>
+                  ) : null}
+                  {ausdauer ? (
+                    <Text style={[styles.sterneText, { color: palette.textMuted }]}>
+                      Ausdauer {ausdauer}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
           </View>
-
-          {fahrtechnik || ausdauer ? (
-            <View style={styles.sterne}>
-              {fahrtechnik ? (
-                <Text style={[styles.sterneText, { color: palette.textMuted }]}>
-                  Fahrtechnik {fahrtechnik}
-                </Text>
-              ) : null}
-              {ausdauer ? (
-                <Text style={[styles.sterneText, { color: palette.textMuted }]}>Ausdauer {ausdauer}</Text>
-              ) : null}
-            </View>
-          ) : null}
-        </View>
+        )}
       </Pressable>
     </Link>
   );

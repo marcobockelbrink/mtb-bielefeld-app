@@ -64,36 +64,44 @@ function NewsCard({ item }: { item: NewsItem }) {
 
   return (
     <Link href={{ pathname: '/news/[id]', params: { id: item.id } }} asChild>
-      <Pressable
-        accessibilityRole="button"
-        style={({ pressed }) => [
-          styles.karte,
-          { backgroundColor: palette.surface, borderColor: palette.border, opacity: pressed ? 0.85 : 1 },
-        ]}
-      >
-        {item.imageUrl ? (
-          <Image
-            source={{ uri: item.imageUrl }}
-            style={styles.bild}
-            contentFit="cover"
-            transition={150}
-            // Beiträge im Wald ohne Empfang: das Bild kommt aus dem Gerätespeicher.
-            cachePolicy="disk"
-          />
-        ) : null}
+      <Pressable accessibilityRole="button">
+        {/*
+          Gestaltung auf der inneren Ansicht, nicht auf dem Pressable: `Link
+          asChild` ersetzt das äußere Element und dessen Stil geht dabei
+          verloren — die Karte stand sonst ohne Hintergrund und Rahmen da.
+        */}
+        {({ pressed }) => (
+          <View
+            style={[
+              styles.karte,
+              { backgroundColor: palette.surface, borderColor: palette.border, opacity: pressed ? 0.85 : 1 },
+            ]}
+          >
+            {item.imageUrl ? (
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={styles.bild}
+                contentFit="cover"
+                transition={150}
+                // Beiträge im Wald ohne Empfang: das Bild kommt aus dem Gerätespeicher.
+                cachePolicy="disk"
+              />
+            ) : null}
 
-        <View style={styles.karteninhalt}>
-          <Text style={[styles.datumZeile, { color: palette.textMuted }]}>
-            {formatDateWithYear(item.publishedAt)}
-            {item.author ? ` · ${item.author}` : ''}
-          </Text>
-          <Text style={[styles.titel, { color: palette.text }]} numberOfLines={3}>
-            {item.title}
-          </Text>
-          <Text style={[styles.anriss, { color: palette.textMuted }]} numberOfLines={3}>
-            {item.summary}
-          </Text>
-        </View>
+            <View style={styles.karteninhalt}>
+              <Text style={[styles.datumZeile, { color: palette.textMuted }]}>
+                {formatDateWithYear(item.publishedAt)}
+                {item.author ? ` · ${item.author}` : ''}
+              </Text>
+              <Text style={[styles.titel, { color: palette.text }]} numberOfLines={3}>
+                {item.title}
+              </Text>
+              <Text style={[styles.anriss, { color: palette.textMuted }]} numberOfLines={3}>
+                {item.summary}
+              </Text>
+            </View>
+          </View>
+        )}
       </Pressable>
     </Link>
   );
