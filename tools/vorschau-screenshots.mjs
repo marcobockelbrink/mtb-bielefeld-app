@@ -65,7 +65,11 @@ const { CALENDAR_ICS_URL, NEWS_RSS_URL } = await import(
 );
 
 const kalender = await hole(CALENDAR_ICS_URL, 'tests/fixtures/kalender-auszug.ics', 'Kalender');
-const news = await hole(NEWS_RSS_URL, 'tests/fixtures/news-feed.xml', 'Aktuelles');
+const news = await hole(NEWS_RSS_URL, 'tests/fixtures/news-feed.xml', 'Aktuelles (Feed)');
+
+// Die Beitragsübersicht holt die App im Browser über den Vermittler; für die
+// Aufnahme reicht es, die erste Seite vorzulegen.
+const beitraege = await hole(`${'https://mtb-bielefeld.de'}/`, 'tests/fixtures/beitragsliste.html', 'Beiträge');
 
 // Normalerweise findet Playwright seinen eigenen Chromium. In Umgebungen mit
 // vorinstalliertem Browser (etwa CI-Abbildern) lässt sich der Pfad über
@@ -85,16 +89,17 @@ const fehler = [];
 context.on('weberror', (e) => fehler.push(String(e.error().message)));
 
 await context.addInitScript(
-  ([ics, rss, jetzt]) => {
+  ([ics, rss, jetzt, html]) => {
     // AsyncStorage nutzt im Browser localStorage mit demselben Schlüssel.
     localStorage.setItem('mtbie.cache.kalender', JSON.stringify({ raw: ics, fetchedAt: jetzt }));
     localStorage.setItem('mtbie.cache.news', JSON.stringify({ raw: rss, fetchedAt: jetzt }));
+    localStorage.setItem('mtbie.cache.beitraege-1', JSON.stringify({ raw: html, fetchedAt: jetzt }));
     localStorage.setItem(
       'mtbie.notifications',
       JSON.stringify({ enabled: true, leadMinutes: 120, categories: [], notifyOnCancellation: true }),
     );
   },
-  [kalender, news, Date.now()],
+  [kalender, news, Date.now(), beitraege],
 );
 
 const page = await context.newPage();
@@ -107,6 +112,7 @@ await page.screenshot({ path: path.join(ausgabe, 'termine.png') });
 console.log('aufgenommen: termine.png');
 
 for (const [reiter, datei] of [
+  ['Aktuelles', 'aktuelles.png'],
   ['Verein', 'verein.png'],
   ['Einstellungen', 'einstellungen.png'],
 ]) {

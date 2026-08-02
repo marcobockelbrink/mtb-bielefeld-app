@@ -62,6 +62,10 @@ export function parseFeed(xml: string, baseUrl: string = WEBSITE_BASE_URL): News
       contentText,
       author: extractTag(block, 'dc:creator')?.trim() || undefined,
       imageUrl: firstImageUrl(contentHtml, baseUrl),
+      // Der Feed nennt keine Themen — die stehen nur in den HTML-Seiten.
+      tags: [],
+      // Der Feed kürzt lange Beiträge und hängt "Lies mehr…" an.
+      truncated: /Lies mehr…\s*$/.test(contentText),
     });
   }
 

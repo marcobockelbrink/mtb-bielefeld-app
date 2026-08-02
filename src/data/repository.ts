@@ -12,10 +12,11 @@
  * ist. Im Wald ohne Empfang ist das der Normalfall, nicht die Ausnahme.
  */
 
-import { CACHE_TTL_MS, CALENDAR_ICS_URL, NEWS_RSS_URL } from '../config';
+import { CACHE_TTL_MS, CALENDAR_ICS_URL, NEWS_RSS_URL, newsPageUrl, websiteUrl } from '../config';
 import type { ClubEvent, LoadResult, NewsItem } from '../domain/types';
 import { parseCalendar, type ParseCalendarOptions } from './ical/parseCalendar';
 import { parseFeed } from './rss/parseFeed';
+import { hasNextPage, parseArticle, parseEntries } from './web/parseEntries';
 import { readCache, writeCache, type KeyValueStore } from './store';
 
 /** Nach dieser Zeit gilt ein Abruf als gescheitert. */
@@ -100,7 +101,55 @@ export async function loadEvents(
   return { ...result, data: parseCalendar(result.data, options) };
 }
 
-/** Die Beiträge aus "Aktuelles", neueste zuerst. */
+/**
+ * Eine Seite der Beitragsübersicht.
+ *
+ * Gelesen wird die HTML-Seite der Website, nicht der RSS-Feed: Nur dort stehen
+ * die Themen ("Racing", "Jugend", …) und nur dort lässt sich blättern. Näheres
+ * in `data/web/parseEntries.ts`.
+ *
+ * Scheitert das Auswerten — etwa weil die Website umgebaut wurde —, greift der
+ * RSS-Feed als Rückfallebene. Der kennt keine Themen, liefert aber wenigstens
+ * die neuesten Beiträge.
+ */
+export async function loadNewsPage(
+  deps: RepositoryDeps,
+  seite: number,
+  options: LoadOptions = {},
+): Promise<LoadResult<{ items: NewsItem[]; hasMore: boolean }>> {
+  const result = await loadRaw(deps, `beitraege-${seite}`, newsPageUrl(seite), options);
+  const items = parseEntries(result.data);
+
+  if (items.length > 0) {
+    return { ...result, data: { items, hasMore: hasNextPage(result.data) } };
+  }
+
+  // Rückfallebene: nur für die erste Seite sinnvoll, der Feed kennt keine
+  // Seitenzahlen.
+  if (seite > 1) return { ...result, data: { items: [], hasMore: false } };
+
+  const feed = await loadRaw(deps, 'news', NEWS_RSS_URL, options);
+  return { ...feed, data: { items: parseFeed(feed.data), hasMore: false } };
+}
+
+/**
+ * Der vollständige Text eines Beitrags.
+ *
+ * Sowohl die Übersicht als auch der RSS-Feed kürzen nach wenigen Zeilen ab und
+ * hängen "Lies mehr…" an. Der ganze Beitrag steht nur auf seiner eigenen Seite
+ * und wird deshalb erst geholt, wenn ihn jemand öffnet.
+ */
+export async function loadArticle(
+  deps: RepositoryDeps,
+  link: string,
+  options: LoadOptions = {},
+): Promise<LoadResult<NewsItem | null>> {
+  const pfad = link.replace(/^https?:\/\/[^/]+/, '');
+  const result = await loadRaw(deps, `beitrag${pfad.replace(/\W+/g, '-')}`, websiteUrl(pfad), options);
+  return { ...result, data: parseArticle(result.data, link) };
+}
+
+/** Die Beiträge aus dem RSS-Feed, neueste zuerst. Rückfallebene und Notnagel. */
 export async function loadNews(
   deps: RepositoryDeps,
   options: LoadOptions = {},

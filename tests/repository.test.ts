@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { loadEvents, loadNews } from '../src/data/repository';
+import { loadArticle, loadEvents, loadNews, loadNewsPage } from '../src/data/repository';
 import { createMemoryStore, readCache } from '../src/data/store';
 
 const kalender = fs.readFileSync(path.join(__dirname, 'fixtures/kalender-auszug.ics'), 'utf8');
@@ -110,5 +110,61 @@ describe('Daten beschaffen', () => {
     const result = await loadNews(shared);
     expect(result.data).toHaveLength(6);
     expect(result.fromCache).toBe(false);
+  });
+});
+
+const beitragsliste = fs.readFileSync(path.join(__dirname, 'fixtures/beitragsliste.html'), 'utf8');
+const beitragSeite = fs.readFileSync(path.join(__dirname, 'fixtures/beitrag.html'), 'utf8');
+
+describe('Beiträge beschaffen', () => {
+  it('liest eine Übersichtsseite samt Themen', async () => {
+    const result = await loadNewsPage(deps(async () => beitragsliste), 1);
+
+    expect(result.data.items).toHaveLength(5);
+    expect(result.data.hasMore).toBe(true);
+    expect(result.data.items[0].tags.length).toBeGreaterThan(0);
+  });
+
+  it('fällt auf den RSS-Feed zurück, wenn die Seite unbrauchbar ist', async () => {
+    // Etwa nach einem Umbau der Website: Der Feed kennt keine Themen, liefert
+    // aber wenigstens die neuesten Beiträge.
+    const fetchText = vi.fn(async (url: string) =>
+      url.includes('feed') ? feed : '<html><body>Ganz andere Seite</body></html>',
+    );
+    const result = await loadNewsPage(deps(fetchText), 1);
+
+    expect(result.data.items).toHaveLength(6);
+    expect(result.data.items.every((b) => b.tags.length === 0)).toBe(true);
+    expect(result.data.hasMore).toBe(false);
+  });
+
+  it('greift für spätere Seiten nicht auf den Feed zurück', async () => {
+    // Der Feed kennt keine Seitenzahlen — sein Inhalt wäre hier schlicht falsch.
+    const result = await loadNewsPage(deps(async () => '<html>leer</html>'), 3);
+    expect(result.data.items).toEqual([]);
+    expect(result.data.hasMore).toBe(false);
+  });
+
+  it('holt den vollständigen Beitrag von seiner eigenen Seite', async () => {
+    const link = 'https://mtb-bielefeld.de/pilgerreise-nach-farchant-zum-vpace-kids-cup';
+    const result = await loadArticle(deps(async () => beitragSeite), link);
+
+    expect(result.data?.link).toBe(link);
+    expect(result.data?.truncated).toBe(false);
+    expect(result.data!.contentText.length).toBeGreaterThan(3000);
+  });
+
+  it('fragt für jede Seite eine eigene Adresse ab', async () => {
+    const gefragt: string[] = [];
+    const shared = deps(async (url) => {
+      gefragt.push(url);
+      return beitragsliste;
+    });
+
+    await loadNewsPage(shared, 1);
+    await loadNewsPage(shared, 2);
+
+    expect(gefragt[0]).not.toBe(gefragt[1]);
+    expect(gefragt[1]).toContain('page:2');
   });
 });

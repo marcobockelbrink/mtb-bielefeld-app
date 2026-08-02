@@ -97,6 +97,19 @@ export interface NewsItem {
   author?: string;
   /** Erstes Bild im Beitrag, als absolute URL. */
   imageUrl?: string;
+  /**
+   * Themen des Beitrags, wie der Verein sie auf der Website vergibt —
+   * z.B. "Racing", "Jugend", "Naturschutz".
+   *
+   * Grundlage der Themenfilter im Reiter "Aktuelles". Leer, wenn der Beitrag
+   * aus dem RSS-Feed stammt: Der Feed nennt keine Themen.
+   */
+  tags: string[];
+  /**
+   * Der Text ist nur ein Anriss; der vollständige Beitrag steht auf der
+   * Website. Übersichtsseiten kürzen nach wenigen Zeilen ab.
+   */
+  truncated?: boolean;
 }
 
 /**

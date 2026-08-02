@@ -48,6 +48,37 @@ export const NEWS_RSS_URL = imBrowserWaehrendEntwicklung
   ? `${DEV_PROXY_BASE}/news`
   : `${WEBSITE_BASE_URL}/feed/page:feed.xml`;
 
+/**
+ * Adresse einer Seite der Vereinswebsite.
+ *
+ * Im Browser während der Entwicklung führt der Weg über den lokalen Vermittler,
+ * sonst direkt. Für die Beitragsübersicht (`/page:2`) und einzelne Beiträge
+ * (`/pilgerreise-nach-farchant…`) gilt dasselbe wie für die Feeds.
+ */
+export function websiteUrl(pfad: string): string {
+  const sauber = pfad.startsWith('/') ? pfad : `/${pfad}`;
+  return imBrowserWaehrendEntwicklung
+    ? `${DEV_PROXY_BASE}/web?pfad=${encodeURIComponent(sauber)}`
+    : `${WEBSITE_BASE_URL}${sauber}`;
+}
+
+/**
+ * Adresse der Beitragsübersicht.
+ *
+ * Seite 1 ist die Startseite; ab Seite 2 hängt die Website `page:N` an.
+ */
+export function newsPageUrl(seite: number): string {
+  return websiteUrl(seite <= 1 ? '/' : `/page:${seite}`);
+}
+
+/**
+ * Wie viele Übersichtsseiten beim ersten Laden geholt werden.
+ *
+ * Die Website zeigt fünf Beiträge je Seite. Vier Seiten sind ein guter
+ * Kompromiss: genug zum Blättern, ohne beim Start zwanzig Abrufe auszulösen.
+ */
+export const NEWS_INITIAL_PAGES = 4;
+
 /** Zeitzone, in der der Verein plant. Termine ohne Zeitzonenangabe gelten als diese. */
 export const CLUB_TIMEZONE = 'Europe/Berlin';
 

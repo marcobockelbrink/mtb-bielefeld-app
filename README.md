@@ -57,7 +57,10 @@ Frage von zwei Fingertipps — im Kalender-Abo ist sie unbeantwortbar.
   oft nur in eigenen Zeitfenstern aus. Der Absage-Alarm ist deshalb ein Zusatz,
   keine Zusage — das sagt die App in den Einstellungen auch so.
 - **Treffpunkt in der Karten-App** — ein Tipp, und die Navigation läuft.
-- **Aktuelles** — die Beiträge der Website mit Bildern, offline lesbar.
+- **Aktuelles mit Themenfilter** — alle rund 150 Beiträge der Website, nicht nur
+  die neuesten. Filtern nach Thema (Racing, Jugend, Naturschutz, Fahrtechnik …),
+  wie der Verein sie vergibt. Ein Tipp auf „Racing" zeigt die Rennberichte,
+  sonst nichts.
 - **Verein & Mitmachen** — Angebote, Beiträge, Mitglied werden, Kontakt.
 - **Funktioniert ohne Empfang** — im Wald zählt, was auf dem Gerät liegt.
 
@@ -68,7 +71,14 @@ Die App fragt zwei öffentliche Quellen direkt ab:
 | Quelle | Adresse |
 | --- | --- |
 | Termine | öffentlicher Google-Kalender „MTBie Angebote" (ICS) |
-| Aktuelles | RSS-Feed von mtb-bielefeld.de |
+| Aktuelles | die Beitragsseiten von mtb-bielefeld.de (RSS als Rückfallebene) |
+
+Für die Beiträge werden die HTML-Seiten gelesen statt des RSS-Feeds. Der Feed
+kann zwei Dinge nicht: Er nennt zu keinem Beitrag das Thema, und er liefert nur
+die 30 neuesten ohne Möglichkeit zu blättern. Beides steckt in den
+Übersichtsseiten — das Thema sogar maschinenlesbar in der CSS-Klasse
+(`<div class="entry tag-Jugend/ tag-Racing/">`). Scheitert das Auswerten, etwa
+nach einem Umbau der Website, greift der Feed als Rückfallebene.
 
 **Es gibt keinen Server und keine laufenden Kosten.** Der Verein pflegt weiter
 nur seinen Google-Kalender und seine Website — die App zieht automatisch nach.

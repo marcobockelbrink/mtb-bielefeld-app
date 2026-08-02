@@ -32,9 +32,30 @@ const ZIELE = {
   '/news': NEWS_RSS_URL,
 };
 
+/** Nur Seiten dieser Website werden weitergereicht. */
+const ERLAUBTE_HERKUNFT = 'https://mtb-bielefeld.de';
+
+/**
+ * Bestimmt das Ziel einer Anfrage.
+ *
+ * Neben den beiden festen Feeds gibt es `/web?pfad=…` für Seiten der
+ * Vereinswebsite — die Beitragsübersicht und einzelne Beiträge haben keine
+ * feste Adresse. Der Pfad wird an die Vereinsdomain gehängt und kann sie nicht
+ * verlassen; ein offener Weiterleiter entsteht dadurch nicht.
+ */
+function zielBestimmen(url) {
+  const [pfad, abfrage] = (url ?? '/').split('?');
+  if (ZIELE[pfad]) return ZIELE[pfad];
+  if (pfad !== '/web') return null;
+
+  const gewuenscht = new URLSearchParams(abfrage ?? '').get('pfad') ?? '/';
+  const ziel = new URL(gewuenscht, ERLAUBTE_HERKUNFT);
+  return ziel.origin === ERLAUBTE_HERKUNFT ? ziel.toString() : null;
+}
+
 const server = http.createServer(async (anfrage, antwort) => {
   const pfad = (anfrage.url ?? '/').split('?')[0];
-  const ziel = ZIELE[pfad];
+  const ziel = zielBestimmen(anfrage.url);
 
   const corsKopf = {
     'Access-Control-Allow-Origin': '*',
