@@ -145,6 +145,52 @@ Hintergrundlaufs ohne Wartezeit hilft
 Screenshots auf und meldet Render-Fehler. Kein Ersatz für einen Gerätetest, aber
 es findet Dinge, die `expo export` nicht sieht — siehe unten.
 
+#### Was in Expo Go nicht läuft
+
+Expo Go bringt nur die Standard-Module mit. Termine, Filter, Aktuelles und die
+Vereinsseite lassen sich damit vollständig testen — **Erinnerungen und die
+Hintergrund-Aktualisierung nicht**. `expo-notifications` warnt beim Start
+selbst, dass es in Expo Go nur eingeschränkt funktioniert und ein
+Development Build nötig ist; die Hintergrund-Aktualisierung braucht
+Einträge in der nativen Projektdatei, die Expo Go nicht je App bereitstellen
+kann.
+
+Für diese beiden Bereiche führt kein Weg an Variante 3 vorbei.
+
+### Prüfliste für den Gerätetest
+
+Was Tests und Vorschau nicht abdecken können — abzuarbeiten vor der
+Veröffentlichung:
+
+**Termine**
+- [ ] Die Liste zeigt dieselben Termine wie der Vereinskalender, mit denselben
+      Uhrzeiten.
+- [ ] Ein Termin nach der Zeitumstellung Ende Oktober steht weiterhin zur
+      richtigen Ortszeit (MittwochsRudel um 17:00, nicht 16:00 oder 18:00).
+- [ ] Ein abgesagter Termin ist als solcher gekennzeichnet.
+- [ ] „In Karten öffnen" landet am richtigen Treffpunkt.
+
+**Offline** — der Alltag im Wald
+- [ ] Flugmodus einschalten, App neu starten: Die Termine sind noch da.
+- [ ] Der Hinweis auf das Alter der Daten erscheint und stimmt.
+- [ ] Nach unten ziehen meldet einen Fehler, ohne die Liste zu leeren.
+
+**Erinnerungen** (nur im Development Build)
+- [ ] Einschalten fragt nach der Erlaubnis; Ablehnen lässt den Schalter aus.
+- [ ] Eine Erinnerung erscheint zur erwarteten Zeit vor dem Termin.
+- [ ] Vorlaufzeit ändern verschiebt die Erinnerung entsprechend.
+- [ ] Erinnerungen ausschalten entfernt die vorgemerkten Meldungen.
+
+**Hintergrund-Aktualisierung** (nur im Development Build)
+- [ ] `BackgroundTask.triggerTaskWorkerForTestingAsync()` löst einen Lauf aus.
+- [ ] Wird ein vorgemerkter Termin im Kalender abgesagt, kommt die Meldung.
+- [ ] Bei abgeschalteten Erinnerungen lädt der Hintergrundlauf nichts.
+
+**Darstellung**
+- [ ] Dunkles Farbschema auf beiden Plattformen.
+- [ ] Große Systemschrift bricht das Layout nicht.
+- [ ] Lange Termintitel und lange Ortsangaben werden sauber abgeschnitten.
+
 > **Hinweis zu `npm install`:** Das Projekt enthält eine `.npmrc` mit
 > `legacy-peer-deps=true`. Grund ist eine Unstimmigkeit zwischen den
 > React-Versionen, die Expo SDK 57 und dessen Entwicklerwerkzeuge verlangen —
