@@ -11,6 +11,24 @@ export interface Protokoll {
   error(daten: Record<string, unknown>, nachricht: string): void;
 }
 
+/**
+ * Macht aus einem Fehler etwas, das im Protokoll lesbar ankommt.
+ *
+ * Der Logger von Fastify (pino) kennt nur das Feld `err` und schreibt für
+ * jeden anderen Error stur `{}` — Meldung und Stapel wären weg, der
+ * bewusst laute Fehler wieder still. Deshalb der eigene Serialisierer für
+ * unser Feld `fehler`.
+ */
+export function serialisiereFehler(fehler: unknown): unknown {
+  if (!(fehler instanceof Error)) return fehler;
+  return {
+    name: fehler.name,
+    nachricht: fehler.message,
+    stapel: fehler.stack,
+    ursache: fehler.cause === undefined ? undefined : String(fehler.cause),
+  };
+}
+
 /** Schreibt nichts, merkt sich alles. Für Tests. */
 export class GemerktesProtokoll implements Protokoll {
   readonly fehler: { daten: Record<string, unknown>; nachricht: string }[] = [];

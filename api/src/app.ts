@@ -11,7 +11,7 @@ import type pg from 'pg';
 import { fordereMagicLinkAn } from './anmeldung.ts';
 import { holeKontoAuskunft, loescheKonto } from './konto.ts';
 import type { Mailer } from './mailer.ts';
-import type { Protokoll } from './protokoll.ts';
+import { serialisiereFehler, type Protokoll } from './protokoll.ts';
 import { beendeSitzung, erneuereSitzung, loeseMagicLinkEin, pruefeZugang, type Ausweis } from './sitzung.ts';
 
 export interface Abhaengigkeiten {
@@ -21,6 +21,24 @@ export interface Abhaengigkeiten {
   /** Standard: der Logger der Fastify-Instanz. Tests reichen eine Attrappe. */
   protokoll?: Protokoll;
 }
+
+/**
+ * Laut im Betrieb, stumm im Test.
+ *
+ * Ohne Protokoll wäre der bewusst abgefangene Mailer-Fehler (siehe
+ * `verschickeLeise` in `anmeldung.ts`) nur für den Client laut und beim
+ * Betreiber spurlos — der stille Fehlschlag durch die Hintertür. Auch jede
+ * unbehandelte Ausnahme in einem Endpunkt landet über Fastify hier und
+ * sonst nirgends.
+ *
+ * Nur in Tests bleibt es aus, damit deren Ausgabe lesbar bleibt: Jede
+ * Anfrage schriebe sonst zwei JSON-Zeilen dazwischen. Vitest setzt
+ * `NODE_ENV=test` von sich aus.
+ */
+const protokollEinstellung =
+  process.env.NODE_ENV === 'test'
+    ? false
+    : { serializers: { fehler: serialisiereFehler } };
 
 interface AnfordernKoerper {
   email?: unknown;
@@ -33,7 +51,7 @@ export function baueApp({
   jetzt = () => new Date(),
   protokoll,
 }: Abhaengigkeiten): FastifyInstance {
-  const app = Fastify({ logger: false });
+  const app = Fastify({ logger: protokollEinstellung });
   const log = protokoll ?? app.log;
 
   app.get('/gesundheit', async () => ({ zustand: 'bereit' }));
