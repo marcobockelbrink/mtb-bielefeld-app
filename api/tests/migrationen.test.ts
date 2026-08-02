@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { pool } from '../src/datenbank.ts';
 import { wendeMigrationenAn } from '../src/migrationen/laufen.ts';
+import { sichereEntwicklungsdatenbank } from './hilfen/datenbank.ts';
 
 describe('Migrationen', () => {
   beforeAll(async () => {
@@ -13,6 +14,11 @@ describe('Migrationen', () => {
     // Migrationen (z. B. einladung) halten Fremdschlüssel auf mitglied und
     // lassen sich nicht mehr einzeln und in beliebiger Reihenfolge löschen.
     // `wendeMigrationenAn` baut danach alles wieder von Grund auf auf.
+    //
+    // Vor dem Löschen wird geprüft, dass die Verbindung wirklich auf die
+    // lokale Entwicklungsdatenbank zeigt — DROP SCHEMA ist unwiderruflich,
+    // und wohin es trifft, entscheidet allein DATABASE_URL.
+    await sichereEntwicklungsdatenbank(pool);
     await pool.query('DROP SCHEMA public CASCADE');
     await pool.query('CREATE SCHEMA public');
   });
