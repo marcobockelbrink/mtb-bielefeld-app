@@ -1,9 +1,27 @@
 /**
  * Die Terminkarte in der Liste.
  *
- * Wichtigste Gestaltungsentscheidung: Uhrzeit und Titel zuerst, Einstufung
- * darunter. Wer die Liste durchblättert, sucht "wann" und "was" — die Sterne
- * entscheiden erst danach.
+ * Aufgebaut wie eine Zeile im Streckenbuch, von oben nach unten in der
+ * Reihenfolge, in der gefragt wird: **wann**, **was**, **wo**, **wie schwer**.
+ *
+ *     ┌────────────────────────────────────────┐
+ *     │ 18:00   MittwochsRudel                 │
+ *     │ bis 20  Johannisberg info point        │
+ *     │         22 km · 450 hm                 │
+ *     │         TREFF · EINSTEIGER             │
+ *     ├────────────────────────────────────────┤
+ *     │ FAHRTECHNIK ▰▰▱     AUSDAUER ▰▱▱       │
+ *     └────────────────────────────────────────┘
+ *
+ * Die Einstufung steht unter einem Strich statt mitten im Text: Sie ist die
+ * Angabe, die über Mitfahren oder Nicht-Mitfahren entscheidet, und in einem
+ * eigenen Band findet das Auge sie beim Durchblättern immer an derselben
+ * Stelle.
+ *
+ * Was hier bewusst **fehlt**: die früheren grauen Pillen um Kategorie und
+ * Erfahrungsstufe. Vier Pillen je Karte ergeben in einer langen Liste ein
+ * Rauschen, das keine Frage beantwortet. Als Versalienzeile steht dieselbe
+ * Angabe ruhiger da — und lässt dem Einstufungsbalken den Auftritt.
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -11,17 +29,21 @@ import { Link } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { ClubEvent } from '../../domain/types';
-import { categoryDisplay, fontSize, levelDisplay, radius, spacing } from '../../theme';
+import { categoryDisplay, font, fontSize, labelType, levelDisplay, radius, spacing } from '../../theme';
 import { Badge } from '../../ui/components';
+import { SkillSpan } from '../../ui/SkillSpan';
 import { useTheme } from '../../ui/theme';
-import { formatRideSummary, formatStars, formatTimeRange } from './format';
+import { formatRideSummary, formatTime, formatTimeRange } from './format';
 
 export function EventCard({ event }: { event: ClubEvent }) {
   const { palette } = useTheme();
   const kategorie = categoryDisplay[event.category];
-  const fahrtechnik = formatStars(event.details.technique);
-  const ausdauer = formatStars(event.details.endurance);
   const eckdaten = formatRideSummary(event);
+  const einstufung = event.details.technique ?? event.details.endurance;
+
+  // Kategorie und Erfahrungsstufen als eine Zeile — mehrere Angaben, ein Element.
+  const rubrik = [kategorie.label, ...event.levels.map((level) => levelDisplay[level])].join(' · ');
+  const hatEnde = !event.allDay && event.end.getTime() > event.start.getTime();
 
   return (
     <Link href={{ pathname: '/termin/[id]', params: { id: event.id } }} asChild>
@@ -46,62 +68,75 @@ export function EventCard({ event }: { event: ClubEvent }) {
               },
             ]}
           >
-            <View style={styles.zeitspalte}>
-              <Text style={[styles.zeit, { color: palette.primary }]}>
-                {event.allDay ? '––:––' : formatTimeRange(event).split(' – ')[0]}
-              </Text>
-              <Text style={styles.symbol}>{kategorie.icon}</Text>
-            </View>
-
-            <View style={styles.inhalt}>
-              <Text
-                style={[
-                  styles.titel,
-                  { color: palette.text },
-                  event.cancelled && { textDecorationLine: 'line-through', color: palette.textMuted },
-                ]}
-                numberOfLines={2}
-              >
-                {event.title}
-              </Text>
-
-              {event.location ? (
-                <View style={styles.ortzeile}>
-                  <Ionicons name="location-outline" size={13} color={palette.textMuted} />
-                  <Text style={[styles.ort, { color: palette.textMuted }]} numberOfLines={1}>
-                    {event.details.meetingPoint ?? event.location}
-                  </Text>
-                </View>
-              ) : null}
-
-              {eckdaten ? (
-                <Text style={[styles.eckdaten, { color: palette.textMuted }]}>{eckdaten}</Text>
-              ) : null}
-
-              <View style={styles.markierungen}>
-                {event.cancelled ? <Badge label="Abgesagt" tone="danger" /> : null}
-                {event.ladiesOnly ? <Badge label="Ladies only" tone="accent" /> : null}
-                <Badge label={kategorie.label} />
-                {event.levels.map((level) => (
-                  <Badge key={level} label={levelDisplay[level]} />
-                ))}
+            <View style={styles.oben}>
+              <View style={styles.zeitspalte}>
+                {event.allDay ? (
+                  <Text style={[styles.ganztags, { color: palette.primary }]}>Ganztags</Text>
+                ) : (
+                  <>
+                    <Text style={[styles.zeit, { color: palette.primary }]}>
+                      {formatTime(event.start)}
+                    </Text>
+                    {hatEnde ? (
+                      <Text style={[styles.bis, { color: palette.textMuted }]}>
+                        bis {formatTime(event.end)}
+                      </Text>
+                    ) : null}
+                  </>
+                )}
               </View>
 
-              {fahrtechnik || ausdauer ? (
-                <View style={styles.sterne}>
-                  {fahrtechnik ? (
-                    <Text style={[styles.sterneText, { color: palette.textMuted }]}>
-                      Fahrtechnik {fahrtechnik}
+              <View style={styles.inhalt}>
+                <Text
+                  style={[
+                    styles.titel,
+                    { color: palette.text },
+                    event.cancelled && { textDecorationLine: 'line-through', color: palette.textMuted },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {event.title}
+                </Text>
+
+                {event.location ? (
+                  <View style={styles.ortzeile}>
+                    <Ionicons name="location-outline" size={13} color={palette.textMuted} />
+                    <Text style={[styles.ort, { color: palette.textMuted }]} numberOfLines={1}>
+                      {event.details.meetingPoint ?? event.location}
                     </Text>
-                  ) : null}
-                  {ausdauer ? (
-                    <Text style={[styles.sterneText, { color: palette.textMuted }]}>
-                      Ausdauer {ausdauer}
-                    </Text>
-                  ) : null}
+                  </View>
+                ) : null}
+
+                {eckdaten ? (
+                  <Text style={[styles.eckdaten, { color: palette.textMuted }]}>{eckdaten}</Text>
+                ) : null}
+
+                <View style={styles.rubrikzeile}>
+                  <Ionicons name={kategorie.icon} size={13} color={palette.textMuted} />
+                  <Text style={[styles.rubrik, { color: palette.textMuted }]} numberOfLines={1}>
+                    {rubrik}
+                  </Text>
                 </View>
-              ) : null}
+
+                {event.cancelled || event.ladiesOnly ? (
+                  <View style={styles.stempel}>
+                    {event.cancelled ? <Badge label="Abgesagt" tone="danger" /> : null}
+                    {event.ladiesOnly ? <Badge label="Ladies only" tone="accent" /> : null}
+                  </View>
+                ) : null}
+              </View>
             </View>
+
+            {einstufung ? (
+              <View style={[styles.band, { borderTopColor: palette.border }]}>
+                {event.details.technique ? (
+                  <SkillSpan label="Fahrtechnik" range={event.details.technique} />
+                ) : null}
+                {event.details.endurance ? (
+                  <SkillSpan label="Ausdauer" range={event.details.endurance} />
+                ) : null}
+              </View>
+            ) : null}
           </View>
         )}
       </Pressable>
@@ -113,30 +148,41 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: spacing.sm,
+    overflow: 'hidden',
+  },
+  oben: {
     flexDirection: 'row',
     gap: spacing.md,
-    marginBottom: spacing.md,
     padding: spacing.lg,
   },
   zeitspalte: {
-    alignItems: 'center',
-    gap: spacing.xs,
-    width: 54,
+    width: 56,
   },
   zeit: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
+    fontFamily: font.display,
+    fontSize: fontSize.xl,
+    // Der Schmalschnitt setzt Ziffern eng; ohne festen Zeilenabstand rutscht
+    // die Uhrzeit gegen den Termintitel aus dem Lot.
+    lineHeight: 23,
   },
-  symbol: {
-    fontSize: 20,
+  bis: {
+    fontFamily: font.regular,
+    fontSize: fontSize.xs - 1,
+    marginTop: 1,
+  },
+  ganztags: {
+    ...labelType,
+    fontSize: fontSize.xs - 1,
+    lineHeight: 23,
   },
   inhalt: {
     flex: 1,
     gap: spacing.xs,
   },
   titel: {
+    fontFamily: font.semibold,
     fontSize: fontSize.lg,
-    fontWeight: '600',
     lineHeight: 22,
   },
   ortzeile: {
@@ -146,24 +192,36 @@ const styles = StyleSheet.create({
   },
   ort: {
     flex: 1,
+    fontFamily: font.regular,
     fontSize: fontSize.sm,
   },
   eckdaten: {
+    fontFamily: font.regular,
     fontSize: fontSize.sm,
   },
-  markierungen: {
+  rubrikzeile: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs + 1,
+    marginTop: spacing.xs,
+  },
+  rubrik: {
+    ...labelType,
+    flex: 1,
+    fontSize: fontSize.xs - 1,
+  },
+  stempel: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
     marginTop: spacing.xs,
   },
-  sterne: {
+  band: {
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
-    marginTop: spacing.xs,
-  },
-  sterneText: {
-    fontSize: fontSize.xs,
+    gap: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
 });

@@ -18,7 +18,7 @@ import { asyncStorageStore } from '../../src/data/asyncStorageStore';
 import { loadArticle } from '../../src/data/repository';
 import type { NewsItem } from '../../src/domain/types';
 import { formatDateWithYear } from '../../src/features/events/format';
-import { fontSize, radius, spacing } from '../../src/theme';
+import { font, fontSize, labelType, radius, spacing } from '../../src/theme';
 import { ActionButton, Badge, Banner, EmptyState, LoadingState } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
@@ -134,11 +134,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   datum: {
-    fontSize: fontSize.sm,
+    ...labelType,
+    fontSize: fontSize.xs - 1,
   },
   titel: {
+    fontFamily: font.semibold,
     fontSize: fontSize.xxl,
-    fontWeight: '700',
     lineHeight: 32,
   },
   markierungen: {
@@ -147,6 +148,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   text: {
+    fontFamily: font.regular,
     fontSize: fontSize.md,
     lineHeight: 24,
   },
@@ -156,6 +158,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   laedtText: {
+    fontFamily: font.regular,
     fontSize: fontSize.sm,
   },
 });

@@ -11,13 +11,13 @@ import * as WebBrowser from 'expo-web-browser';
 import { Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAppData } from '../../src/data/AppDataContext';
-import { categoryDisplay, fontSize, levelDisplay, spacing } from '../../src/theme';
+import { categoryDisplay, font, fontSize, levelDisplay, spacing } from '../../src/theme';
 import { ActionButton, Badge, Banner, Card, DetailRow, EmptyState, LoadingState } from '../../src/ui/components';
+import { SkillSpan } from '../../src/ui/SkillSpan';
 import { useTheme } from '../../src/ui/theme';
 import {
   formatDateWithYear,
   formatLongDate,
-  formatStars,
   formatTimeRange,
   mapsQuery,
 } from '../../src/features/events/format';
@@ -40,8 +40,7 @@ export default function TerminDetailScreen() {
   }
 
   const kategorie = categoryDisplay[event.category];
-  const fahrtechnik = formatStars(event.details.technique);
-  const ausdauer = formatStars(event.details.endurance);
+  const { technique: fahrtechnik, endurance: ausdauer } = event.details;
   const ziel = mapsQuery(event);
 
   /** Öffnet den Treffpunkt in der Karten-App der jeweiligen Plattform. */
@@ -71,7 +70,8 @@ export default function TerminDetailScreen() {
       </View>
 
       <View style={styles.markierungen}>
-        <Badge label={`${kategorie.icon} ${kategorie.label}`} tone="primary" />
+        <Ionicons name={kategorie.icon} size={16} color={palette.textMuted} />
+        <Badge label={kategorie.label} tone="primary" />
         {event.ladiesOnly ? <Badge label="Ladies only" tone="accent" /> : null}
         {event.levels.map((level) => (
           <Badge key={level} label={levelDisplay[level]} />
@@ -82,8 +82,21 @@ export default function TerminDetailScreen() {
       {fahrtechnik || ausdauer || event.details.trailShare || event.details.difficulty ? (
         <Card>
           <Text style={[styles.abschnittTitel, { color: palette.text }]}>Einstufung</Text>
-          {fahrtechnik ? <DetailRow label="Fahrtechnik" value={fahrtechnik} /> : null}
-          {ausdauer ? <DetailRow label="Ausdauer" value={ausdauer} /> : null}
+          {/*
+            Derselbe Balken wie in der Liste, nur mit mehr Luft: Wer vom
+            Durchblättern hierher kommt, soll die Angabe wiedererkennen und
+            nicht neu entziffern müssen.
+          */}
+          {fahrtechnik ? (
+            <DetailRow label="Fahrtechnik">
+              <SkillSpan label="Fahrtechnik" range={fahrtechnik} showLabel={false} />
+            </DetailRow>
+          ) : null}
+          {ausdauer ? (
+            <DetailRow label="Ausdauer">
+              <SkillSpan label="Ausdauer" range={ausdauer} showLabel={false} />
+            </DetailRow>
+          ) : null}
           {event.details.trailShare ? <DetailRow label="Trail-Anteil" value={event.details.trailShare} /> : null}
           {event.details.difficulty ? <DetailRow label="Schwierigkeit" value={event.details.difficulty} /> : null}
           {event.details.distanceKm ? <DetailRow label="Strecke" value={`${event.details.distanceKm} km`} /> : null}
@@ -152,28 +165,31 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   titel: {
+    fontFamily: font.semibold,
     fontSize: fontSize.xxl,
-    fontWeight: '700',
     lineHeight: 32,
   },
   datum: {
-    fontSize: fontSize.lg,
-    fontWeight: '600',
+    fontFamily: font.display,
+    fontSize: fontSize.xl,
   },
   jahr: {
+    fontFamily: font.regular,
     fontSize: fontSize.sm,
   },
   markierungen: {
+    alignItems: 'center',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
   abschnittTitel: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
+    fontFamily: font.semibold,
+    fontSize: fontSize.lg,
     marginBottom: spacing.sm,
   },
   beschreibung: {
+    fontFamily: font.regular,
     fontSize: fontSize.md,
     lineHeight: 23,
   },
@@ -187,6 +203,7 @@ const styles = StyleSheet.create({
   },
   fussnoteText: {
     flex: 1,
+    fontFamily: font.regular,
     fontSize: fontSize.xs,
     lineHeight: 17,
   },

@@ -37,6 +37,17 @@ const dateWithYearFormat = new Intl.DateTimeFormat('de-DE', {
   year: 'numeric',
 });
 
+const weekdayOnlyFormat = new Intl.DateTimeFormat('de-DE', {
+  timeZone: CLUB_TIMEZONE,
+  weekday: 'long',
+});
+
+const dayMonthFormat = new Intl.DateTimeFormat('de-DE', {
+  timeZone: CLUB_TIMEZONE,
+  day: '2-digit',
+  month: '2-digit',
+});
+
 /** "18:00" */
 export function formatTime(date: Date): string {
   return timeFormat.format(date);
@@ -79,6 +90,30 @@ export function formatDayHeading(date: Date, now: Date = new Date()): string {
   if (tag === heute) return 'Heute';
   if (tag === morgen) return 'Morgen';
   return formatLongDate(date);
+}
+
+/**
+ * Tagesüberschrift in zwei Teilen — Bezug oder Wochentag links, Datum rechts.
+ *
+ * Die Liste trennt damit zwei verschiedene Angaben: **wie weit weg** der Tag
+ * ist ("Heute", "Morgen", sonst der Wochentag) und **welcher Tag** es ist. Der
+ * Wochentag entscheidet beim Durchblättern, ob es überhaupt passt — das Datum
+ * braucht man erst danach, und es bleibt deshalb kurz und rechts.
+ */
+export function formatDayHeadingParts(
+  date: Date,
+  now: Date = new Date(),
+): { label: string; date: string; relative: boolean } {
+  const heute = localDayKey(now, CLUB_TIMEZONE);
+  const morgen = localDayKey(new Date(now.getTime() + 24 * 60 * 60 * 1000), CLUB_TIMEZONE);
+  const tag = localDayKey(date, CLUB_TIMEZONE);
+  const relative = tag === heute || tag === morgen;
+
+  return {
+    label: tag === heute ? 'Heute' : tag === morgen ? 'Morgen' : weekdayOnlyFormat.format(date),
+    date: dayMonthFormat.format(date),
+    relative,
+  };
 }
 
 /** "⭐⭐" bei festem Wert, "⭐ bis ⭐⭐⭐" bei einer Spanne. */

@@ -11,7 +11,7 @@ import type { EventCategory } from '../../src/domain/types';
 import { formatAge } from '../../src/features/events/format';
 import { useNotifications } from '../../src/notifications/NotificationContext';
 import { LEAD_TIME_OPTIONS } from '../../src/notifications/settings';
-import { categoryDisplay, fontSize, spacing } from '../../src/theme';
+import { categoryDisplay, font, fontSize, spacing } from '../../src/theme';
 import { Banner, Card, Chip, LoadingState } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
@@ -88,7 +88,8 @@ export default function EinstellungenScreen() {
               {KATEGORIEN.map((kategorie) => (
                 <Chip
                   key={kategorie}
-                  label={`${categoryDisplay[kategorie].icon} ${categoryDisplay[kategorie].label}`}
+                  icon={categoryDisplay[kategorie].icon}
+                  label={categoryDisplay[kategorie].label}
                   selected={settings.categories.includes(kategorie)}
                   onPress={() =>
                     void update({
@@ -180,10 +181,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   titel: {
+    fontFamily: font.semibold,
     fontSize: fontSize.lg,
-    fontWeight: '700',
   },
   hinweis: {
+    fontFamily: font.regular,
     fontSize: fontSize.sm,
     lineHeight: 20,
     marginTop: spacing.xs,
@@ -204,6 +206,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   quelle: {
+    fontFamily: font.regular,
     fontSize: fontSize.xs,
     lineHeight: 17,
     marginTop: spacing.lg,

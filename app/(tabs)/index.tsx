@@ -13,8 +13,8 @@ import type { ClubEvent } from '../../src/domain/types';
 import { EventCard } from '../../src/features/events/EventCard';
 import { FilterPanel } from '../../src/features/events/FilterPanel';
 import { applyFilter, emptyFilter, isFilterActive, upcomingOnly, type EventFilter } from '../../src/features/events/filter';
-import { formatAge, formatDayHeading } from '../../src/features/events/format';
-import { fontSize, spacing } from '../../src/theme';
+import { formatAge, formatDayHeadingParts } from '../../src/features/events/format';
+import { font, fontSize, labelType, spacing } from '../../src/theme';
 import { Banner, EmptyState, LoadingState } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
@@ -68,11 +68,7 @@ export default function TermineScreen() {
           />
         </View>
       }
-      renderSectionHeader={({ section }) => (
-        <Text style={[styles.tagUeberschrift, { color: palette.text }]}>
-          {formatDayHeading(section.date)}
-        </Text>
-      )}
+      renderSectionHeader={({ section }) => <TagUeberschrift date={section.date} />}
       renderItem={({ item }) => <EventCard event={item} />}
       ListEmptyComponent={
         <EmptyState
@@ -87,6 +83,32 @@ export default function TermineScreen() {
         />
       }
     />
+  );
+}
+
+/**
+ * Die Tagestrennung in der Liste — links der Bezug, rechts das Datum, dazwischen
+ * eine durchlaufende Linie.
+ *
+ *     HEUTE ─────────────────────────────── 05.08.
+ *
+ * Der Aufbau eines Wegweisers: Wohin es geht, steht vorn; die Zahl steht hinten
+ * und wartet, bis sie gebraucht wird. "Heute" und "Morgen" tragen die
+ * Vereinsfarbe — in einer Liste, die Wochen umfasst, sind sie die einzigen
+ * Überschriften, die keine Rechenarbeit verlangen.
+ */
+function TagUeberschrift({ date }: { date: Date }) {
+  const { palette } = useTheme();
+  const { label, date: datum, relative } = formatDayHeadingParts(date);
+
+  return (
+    <View style={styles.tagzeile}>
+      <Text style={[styles.tagLabel, { color: relative ? palette.primary : palette.text }]}>
+        {label}
+      </Text>
+      <View style={[styles.tagLinie, { backgroundColor: palette.border }]} />
+      <Text style={[styles.tagDatum, { color: palette.textMuted }]}>{datum}</Text>
+    </View>
   );
 }
 
@@ -145,10 +167,23 @@ const styles = StyleSheet.create({
   kopf: {
     gap: spacing.md,
   },
-  tagUeberschrift: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
+  tagzeile: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
     marginBottom: spacing.sm,
     marginTop: spacing.lg,
+  },
+  tagLabel: {
+    ...labelType,
+    fontSize: fontSize.sm,
+  },
+  tagLinie: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  tagDatum: {
+    fontFamily: font.displayMedium,
+    fontSize: fontSize.md,
   },
 });

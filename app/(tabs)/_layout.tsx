@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
+import { font, fontSize, labelType } from '../../src/theme';
 import { useTheme } from '../../src/ui/theme';
 
 export default function TabsLayout() {
@@ -10,8 +11,23 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerStyle: { backgroundColor: palette.surface },
-        headerTitleStyle: { color: palette.text },
+        // Der Bildschirmtitel im Schmalschnitt: dieselbe Schrift wie die
+        // Uhrzeiten darunter, damit Kopf und Liste zusammengehören.
+        headerTitleStyle: {
+          color: palette.text,
+          fontFamily: font.display,
+          fontSize: fontSize.xxl,
+        },
+        headerShadowVisible: false,
+        // Ohne das bleibt die Fläche hinter den Listen auf der Voreinstellung
+        // der Navigation stehen — im dunklen Schema stand dann ein weißer
+        // Untergrund hinter dunklen Karten. Der Stack darüber setzt seine
+        // eigene Fläche; die Reiter brauchen ihre eigene Angabe.
+        sceneStyle: { backgroundColor: palette.background },
         tabBarStyle: { backgroundColor: palette.surface, borderTopColor: palette.border },
+        // 10 Punkt: "Einstellungen" in Versalien ist das längste Wort der
+        // Reiterleiste und muss auf schmalen Geräten in eine Zeile passen.
+        tabBarLabelStyle: { ...labelType, fontSize: 10 },
         tabBarActiveTintColor: palette.primary,
         tabBarInactiveTintColor: palette.textMuted,
       }}

@@ -12,8 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CALENDAR_SUBSCRIBE_URL, CONTACT } from '../../src/config';
 import { CLUB_INTRO, CLUB_SECTIONS, MEMBERSHIP_FEES, ORGA_TEAM_NOTE } from '../../src/content/club';
-import { fontSize, spacing } from '../../src/theme';
-import { ActionButton, Card } from '../../src/ui/components';
+import { font, fontSize, labelType, spacing } from '../../src/theme';
+import { ActionButton, Card, Heading } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
 /** Öffnet Web-Adressen im eingebetteten Browser, alles andere (mailto:) im System. */
@@ -38,7 +38,9 @@ export default function VereinScreen() {
 
       {CLUB_SECTIONS.map((abschnitt) => (
         <Card key={abschnitt.title}>
-          <Text style={[styles.abschnittTitel, { color: palette.text }]}>{abschnitt.title}</Text>
+          <View style={styles.abschnittTitel}>
+            <Heading>{abschnitt.title}</Heading>
+          </View>
           {abschnitt.paragraphs.map((absatz) => (
             <Text key={absatz.slice(0, 24)} style={[styles.absatz, { color: palette.text }]}>
               {absatz}
@@ -49,7 +51,9 @@ export default function VereinScreen() {
       ))}
 
       <Card>
-        <Text style={[styles.abschnittTitel, { color: palette.text }]}>Mitglied werden</Text>
+        <View style={styles.abschnittTitel}>
+          <Heading>Mitglied werden</Heading>
+        </View>
 
         {MEMBERSHIP_FEES.entries.map((eintrag) => (
           <View key={eintrag.label} style={styles.beitragszeile}>
@@ -83,7 +87,9 @@ export default function VereinScreen() {
       </Card>
 
       <Card>
-        <Text style={[styles.abschnittTitel, { color: palette.text }]}>Kontakt & Links</Text>
+        <View style={styles.abschnittTitel}>
+          <Heading>Kontakt &amp; Links</Heading>
+        </View>
         <LinkZeile label="Kontakt aufnehmen" icon="mail-outline" onPress={() => open(CONTACT.contactPage)} />
         <LinkZeile label="Instagram" icon="logo-instagram" onPress={() => open(CONTACT.instagram)} />
         <LinkZeile label="mtb-bielefeld.de" icon="globe-outline" onPress={() => open(CONTACT.website)} />
@@ -127,26 +133,26 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   name: {
-    fontSize: fontSize.xxl,
-    fontWeight: '700',
+    fontFamily: font.display,
+    fontSize: fontSize.xxl + 5,
   },
   intro: {
+    fontFamily: font.regular,
     fontSize: fontSize.md,
     lineHeight: 23,
     marginTop: spacing.sm,
   },
   abschnittTitel: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
     marginBottom: spacing.md,
   },
   zwischenTitel: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
+    ...labelType,
+    fontSize: fontSize.xs,
     marginBottom: spacing.sm,
     marginTop: spacing.lg,
   },
   absatz: {
+    fontFamily: font.regular,
     fontSize: fontSize.md,
     lineHeight: 23,
     marginBottom: spacing.md,
@@ -159,13 +165,15 @@ const styles = StyleSheet.create({
   },
   beitragLabel: {
     flex: 1,
+    fontFamily: font.regular,
     fontSize: fontSize.md,
   },
   beitragBetrag: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
+    fontFamily: font.display,
+    fontSize: fontSize.xl,
   },
   stichtag: {
+    fontFamily: font.regular,
     fontSize: fontSize.xs,
     lineHeight: 17,
     marginTop: spacing.sm,
@@ -178,6 +186,7 @@ const styles = StyleSheet.create({
   },
   aufzaehlungText: {
     flex: 1,
+    fontFamily: font.regular,
     fontSize: fontSize.md,
     lineHeight: 21,
   },
@@ -186,6 +195,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   hinweis: {
+    fontFamily: font.regular,
     fontSize: fontSize.sm,
     lineHeight: 20,
     marginTop: spacing.lg,
@@ -197,7 +207,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   linkText: {
+    fontFamily: font.medium,
     fontSize: fontSize.md,
-    fontWeight: '500',
   },
 });

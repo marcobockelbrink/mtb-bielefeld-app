@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppData } from '../../src/data/AppDataContext';
 import type { NewsItem } from '../../src/domain/types';
 import { formatAge, formatDateWithYear } from '../../src/features/events/format';
-import { fontSize, radius, spacing } from '../../src/theme';
+import { font, fontSize, labelType, radius, spacing } from '../../src/theme';
 import { ActionButton, Badge, Banner, Chip, EmptyState, LoadingState } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
@@ -212,14 +212,16 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   datumZeile: {
-    fontSize: fontSize.xs,
+    ...labelType,
+    fontSize: fontSize.xs - 1,
   },
   titel: {
+    fontFamily: font.semibold,
     fontSize: fontSize.lg,
-    fontWeight: '700',
     lineHeight: 23,
   },
   anriss: {
+    fontFamily: font.regular,
     fontSize: fontSize.sm,
     lineHeight: 20,
   },
@@ -234,6 +236,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   ende: {
+    fontFamily: font.regular,
     fontSize: fontSize.sm,
     paddingVertical: spacing.lg,
     textAlign: 'center',

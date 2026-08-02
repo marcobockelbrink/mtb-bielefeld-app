@@ -5,14 +5,19 @@
  * sofort sehen. Die Sterne-Filter sind als "höchstens" formuliert, weil das
  * die tatsächliche Frage ist — "was traue ich mir zu", nicht "was suche ich
  * genau".
+ *
+ * Die Sterne-Knöpfe zeigen denselben Einstufungsbalken wie die Terminkarte,
+ * nur ohne Spanne. Filter und Ergebnis sprechen damit dieselbe Sprache: Wer
+ * „zwei Felder" auswählt, sucht danach in der Liste nach zwei Feldern.
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import type { EventCategory, SkillLevel } from '../../domain/types';
-import { categoryDisplay, fontSize, levelDisplay, radius, spacing } from '../../theme';
-import { Chip } from '../../ui/components';
+import { categoryDisplay, font, fontSize, levelDisplay, MAX_STARS, radius, spacing } from '../../theme';
+import { Chip, Label } from '../../ui/components';
+import { SpanMarks } from '../../ui/SkillSpan';
 import { useTheme } from '../../ui/theme';
 import { activeFilterCount, emptyFilter, type EventFilter } from './filter';
 
@@ -28,6 +33,8 @@ const KATEGORIEN: EventCategory[] = [
 ];
 
 const STUFEN: SkillLevel[] = ['einsteiger', 'aufsteiger', 'fortgeschritten', 'koenner'];
+
+const STERNE = Array.from({ length: MAX_STARS }, (_, index) => index + 1);
 
 export function FilterPanel({
   filter,
@@ -52,6 +59,33 @@ export function FilterPanel({
     onChange({ ...filter, [key]: filter[key] === value ? undefined : value });
   }
 
+  /** Die drei Sterne-Knöpfe einer Einstufung. */
+  function SterneGruppe({
+    titel,
+    schluessel,
+  }: {
+    titel: string;
+    schluessel: 'maxTechniqueStars' | 'maxEnduranceStars';
+  }) {
+    return (
+      <FilterGruppe titel={`${titel} höchstens`}>
+        {STERNE.map((sterne) => {
+          const gewaehlt = filter[schluessel] === sterne;
+          return (
+            <Chip
+              key={sterne}
+              selected={gewaehlt}
+              onPress={() => setStars(schluessel, sterne)}
+              accessibilityLabel={`${titel} höchstens ${sterne} von ${MAX_STARS} Sternen`}
+            >
+              <SpanMarks min={sterne} max={sterne} tone={gewaehlt ? 'onPrimary' : 'grade'} />
+            </Chip>
+          );
+        })}
+      </FilterGruppe>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={[styles.suchzeile, { backgroundColor: palette.surface, borderColor: palette.border }]}>
@@ -70,6 +104,7 @@ export function FilterPanel({
             onPress={() => onChange({ ...filter, search: '' })}
             accessibilityRole="button"
             accessibilityLabel="Suche leeren"
+            hitSlop={8}
           >
             <Ionicons name="close-circle" size={17} color={palette.textMuted} />
           </Pressable>
@@ -82,16 +117,15 @@ export function FilterPanel({
           accessibilityRole="button"
           accessibilityState={{ expanded }}
           style={styles.aufklappen}
+          hitSlop={6}
         >
-          <Ionicons name={expanded ? 'chevron-up' : 'options-outline'} size={16} color={palette.primary} />
-          <Text style={[styles.aufklappenText, { color: palette.primary }]}>
-            Filter{anzahl > 0 ? ` (${anzahl})` : ''}
-          </Text>
+          <Ionicons name={expanded ? 'chevron-up' : 'options-outline'} size={15} color={palette.primary} />
+          <Label tone="primary">Filter{anzahl > 0 ? ` (${anzahl})` : ''}</Label>
         </Pressable>
 
         {anzahl > 0 ? (
-          <Pressable onPress={() => onChange({ ...emptyFilter })} accessibilityRole="button">
-            <Text style={[styles.zuruecksetzen, { color: palette.textMuted }]}>Zurücksetzen</Text>
+          <Pressable onPress={() => onChange({ ...emptyFilter })} accessibilityRole="button" hitSlop={6}>
+            <Label>Zurücksetzen</Label>
           </Pressable>
         ) : null}
       </View>
@@ -102,7 +136,8 @@ export function FilterPanel({
             {KATEGORIEN.map((kategorie) => (
               <Chip
                 key={kategorie}
-                label={`${categoryDisplay[kategorie].icon} ${categoryDisplay[kategorie].label}`}
+                icon={categoryDisplay[kategorie].icon}
+                label={categoryDisplay[kategorie].label}
                 selected={filter.categories.includes(kategorie)}
                 onPress={() => onChange({ ...filter, categories: toggleInList(filter.categories, kategorie) })}
               />
@@ -120,27 +155,8 @@ export function FilterPanel({
             ))}
           </FilterGruppe>
 
-          <FilterGruppe titel="Fahrtechnik höchstens">
-            {[1, 2, 3].map((sterne) => (
-              <Chip
-                key={sterne}
-                label={'⭐'.repeat(sterne)}
-                selected={filter.maxTechniqueStars === sterne}
-                onPress={() => setStars('maxTechniqueStars', sterne)}
-              />
-            ))}
-          </FilterGruppe>
-
-          <FilterGruppe titel="Ausdauer höchstens">
-            {[1, 2, 3].map((sterne) => (
-              <Chip
-                key={sterne}
-                label={'⭐'.repeat(sterne)}
-                selected={filter.maxEnduranceStars === sterne}
-                onPress={() => setStars('maxEnduranceStars', sterne)}
-              />
-            ))}
-          </FilterGruppe>
+          <SterneGruppe titel="Fahrtechnik" schluessel="maxTechniqueStars" />
+          <SterneGruppe titel="Ausdauer" schluessel="maxEnduranceStars" />
 
           <FilterGruppe titel="Sonstiges">
             <Chip
@@ -161,10 +177,9 @@ export function FilterPanel({
 }
 
 function FilterGruppe({ titel, children }: { titel: string; children: React.ReactNode }) {
-  const { palette } = useTheme();
   return (
     <View style={styles.gruppe}>
-      <Text style={[styles.gruppenTitel, { color: palette.textMuted }]}>{titel}</Text>
+      <Label>{titel}</Label>
       <View style={styles.chips}>{children}</View>
     </View>
   );
@@ -173,7 +188,7 @@ function FilterGruppe({ titel, children }: { titel: string; children: React.Reac
 const styles = StyleSheet.create({
   container: {
     gap: spacing.md,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
   },
   suchzeile: {
     alignItems: 'center',
@@ -181,13 +196,14 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: spacing.sm,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
   },
   sucheingabe: {
     flex: 1,
+    fontFamily: font.regular,
     fontSize: fontSize.md,
-    paddingVertical: 2,
+    paddingVertical: spacing.sm,
   },
   kopfzeile: {
     alignItems: 'center',
@@ -197,27 +213,14 @@ const styles = StyleSheet.create({
   aufklappen: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: spacing.xs,
+    gap: spacing.xs + 1,
     paddingVertical: spacing.xs,
-  },
-  aufklappenText: {
-    fontSize: fontSize.md,
-    fontWeight: '600',
-  },
-  zuruecksetzen: {
-    fontSize: fontSize.sm,
   },
   bereich: {
     gap: spacing.lg,
   },
   gruppe: {
     gap: spacing.sm,
-  },
-  gruppenTitel: {
-    fontSize: fontSize.xs,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
   },
   chips: {
     flexDirection: 'row',

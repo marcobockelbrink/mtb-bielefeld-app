@@ -5,19 +5,26 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppDataProvider } from '../src/data/AppDataContext';
 import { configureNotificationHandler } from '../src/notifications';
+import { useAppFonts } from '../src/ui/fonts';
 // Nur wegen der Nebenwirkung: Das Modul meldet den Hintergrundauftrag im
 // Modulrumpf an. Weckt das System die App im Hintergrund, startet sie in einer
 // frischen Umgebung — der Auftrag muss dann schon bekannt sein, bevor
 // irgendeine Komponente gezeichnet wird.
 import '../src/notifications/backgroundTask';
 import { NotificationProvider } from '../src/notifications/NotificationContext';
-import { darkPalette, lightPalette } from '../src/theme';
+import { darkPalette, font, fontSize, lightPalette } from '../src/theme';
 import { useTheme } from '../src/ui/theme';
 
 export default function RootLayout() {
+  const schriftenBereit = useAppFonts();
+
   useEffect(() => {
     configureNotificationHandler();
   }, []);
+
+  // Erst zeichnen, wenn die Schriften stehen — sonst springt beim ersten Bild
+  // jede Zeile um, wenn die Systemschrift durch Barlow ersetzt wird.
+  if (!schriftenBereit) return null;
 
   return (
     <SafeAreaProvider>
@@ -40,7 +47,11 @@ function AppStack() {
         screenOptions={{
           headerStyle: { backgroundColor: palette.surface },
           headerTintColor: palette.primary,
-          headerTitleStyle: { color: palette.text },
+          headerTitleStyle: {
+            color: palette.text,
+            fontFamily: font.display,
+            fontSize: fontSize.xl,
+          },
           contentStyle: { backgroundColor: palette.background },
         }}
       >
