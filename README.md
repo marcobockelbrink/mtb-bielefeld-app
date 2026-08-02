@@ -5,14 +5,16 @@
 Die App zum [MTB Bielefeld e.V.](https://mtb-bielefeld.de) für iOS und Android.
 Termine, Aktuelles und Vereinsinfos — aus den Daten, die der Verein ohnehin pflegt.
 
-| Termine | Verein | Einstellungen |
-| --- | --- | --- |
-| ![Terminliste mit Filterleiste und nach Tagen gruppierten Terminen](docs/screenshots/termine.png) | ![Vereinsseite mit Beschreibung und Angeboten](docs/screenshots/verein.png) | ![Einstellungen für Termin-Erinnerungen](docs/screenshots/einstellungen.png) |
+| Termine | Aktuelles | Verein | Einstellungen |
+| --- | --- | --- | --- |
+| ![Terminliste mit Filterleiste und nach Tagen gruppierten Terminen](docs/screenshots/termine.png) | ![Beitragsliste mit Themenfiltern wie Racing und Jugend](docs/screenshots/aktuelles.png) | ![Vereinsseite mit Beschreibung und Angeboten](docs/screenshots/verein.png) | ![Einstellungen für Termin-Erinnerungen](docs/screenshots/einstellungen.png) |
 
 > Die Aufnahmen entstehen aus der **Web-Fassung** der App mit echten Daten aus
 > dem Vereinskalender (`npm run vorschau`). Auf iOS und Android sehen Schriften,
 > Schatten und die Reiterleiste etwas anders aus — Aufbau und Inhalt sind
-> dieselben.
+> dieselben. Die leeren Bildflächen bei „Aktuelles" sind ein Nebeneffekt der
+> Umgebung, in der die Aufnahmen entstanden: Dort hatte der Browser keinen
+> direkten Netzzugang. Auf einem normalen Rechner sind die Bilder da.
 
 ## Worum es geht
 

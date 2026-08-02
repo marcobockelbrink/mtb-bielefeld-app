@@ -10,6 +10,14 @@
  * Skripts hat aufgedeckt, dass die Terminkarten ihre Gestaltung verloren, weil
  * `Link asChild` den Stil des äußeren Elements ersetzt.
  *
+ * ## Zu den Bildern in den Aufnahmen
+ *
+ * Bilder in den Beiträgen unterliegen **keiner** CORS-Sperre — sie laden im
+ * Browser ganz normal. Bleiben die Bildflächen in den Aufnahmen trotzdem leer,
+ * hat der Browser auf dem ausführenden Rechner keinen direkten Netzzugang
+ * (etwa in einer abgeschotteten Umgebung). Auf einem normalen Arbeitsrechner
+ * sind die Bilder da.
+ *
  * ## Was es nicht ist
  *
  * Kein Ersatz für einen Test auf einem echten Gerät. Die Web-Fassung nutzt
