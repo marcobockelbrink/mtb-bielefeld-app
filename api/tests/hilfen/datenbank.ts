@@ -86,6 +86,8 @@ export async function sichereEntwicklungsdatenbank(pool: pg.Pool): Promise<void>
 export async function frischeDatenbank(): Promise<pg.Pool> {
   await sichereEntwicklungsdatenbank(pool);
   await wendeMigrationenAn(pool);
-  await pool.query('TRUNCATE einladung, mitglied RESTART IDENTITY CASCADE');
+  await pool.query(
+    'TRUNCATE magic_link, einladung, mitglied RESTART IDENTITY CASCADE',
+  );
   return pool;
 }
