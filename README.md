@@ -325,9 +325,29 @@ das Skript dabei ab:
 - Turm, Hügel und Trail sind **Aussparungen in der blauen Fläche**, keine weiße
   Farbe. Wer das Emblem naiv freistellt, bekommt Löcher statt Zeichnung.
 
-Das Vereinsblau **`#076C9B`** stammt direkt aus dem Logo und ist der Grundton der
-gesamten App. (Das Stylesheet der Website nennt `#00679a` — nah dran, aber nicht
-dasselbe; maßgeblich ist das Logo.)
+### Das Vereinsblau
+
+Verbindlich ist die Druckdefinition des Vereins — **C 90 | M 50 | Y 20 | K 5**,
+neben Schwarz die einzige Farbe im Logo. Die Logodatei enthält genau diese Werte
+(nachgemessen: C 90,6 M 52,9 Y 18,8 K 3,9; die Abweichung stammt aus der
+8-Bit-Speicherung).
+
+Für den Bildschirm gibt es daraus kein einzelnes richtiges RGB — es hängt am
+Farbprofil:
+
+| Weg | Ergebnis | Abstand zu `#076C9B` |
+| --- | --- | --- |
+| Faustformel ohne Farbmanagement | `#1879C2` | ΔE 16,5 |
+| ICC-Umrechnung (CMYK → sRGB) | `#25749E` | ΔE 4,6 |
+| so rendert Ghostscript die Logodatei | `#076C9B` | — |
+| Stylesheet der Vereinswebsite | `#00679A` | ΔE 3,5 |
+
+Die App nutzt **`#076C9B`**. Es liegt mit ΔE unter 5 sowohl an der
+farbmetrischen Umrechnung der offiziellen Druckfarbe als auch am Blau der
+Website und hält damit beides zusammen. Die naheliegende Faustformel scheidet
+aus: Mit ΔE über 14 wäre das ein sichtbar anderes, zu helles Blau.
+
+Nachrechnen lässt sich das mit [`tools/farbe-pruefen.py`](tools/farbe-pruefen.py).
 
 ## Sicherheit
 

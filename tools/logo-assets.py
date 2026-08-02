@@ -45,8 +45,13 @@ QUELLE = WURZEL / "assets/logo/MTB_Bielefeld_EV_Logo.eps"
 ZIEL = WURZEL / "assets"
 ARBEIT = WURZEL / ".logo-arbeit"
 
-#: Vereinsblau, aus dem Logo abgelesen.
-BLAU = (7, 108, 155)
+#: Vereinsblau als Bildschirmfarbe.
+#:
+#: Verbindlich ist die Druckdefinition des Vereins: C 90 | M 50 | Y 20 | K 5.
+#: Welches RGB dem entspricht, hängt am Farbprofil — die Abwägung samt Messwerten
+#: steht in ``src/theme.ts``, nachrechnen lässt sie sich mit
+#: ``tools/farbe-pruefen.py``.
+BLAU = (7, 108, 155)  # #076C9B
 
 #: Auflösung fürs Rendern. Hoch genug, dass das Emblem deutlich über 1024 px
 #: breit herauskommt und beim Verkleinern nichts ausfranst.
