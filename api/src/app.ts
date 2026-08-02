@@ -11,12 +11,15 @@ import type pg from 'pg';
 import { fordereMagicLinkAn } from './anmeldung.ts';
 import { holeKontoAuskunft, loescheKonto } from './konto.ts';
 import type { Mailer } from './mailer.ts';
+import type { Protokoll } from './protokoll.ts';
 import { beendeSitzung, erneuereSitzung, loeseMagicLinkEin, pruefeZugang, type Ausweis } from './sitzung.ts';
 
 export interface Abhaengigkeiten {
   pool: pg.Pool;
   mailer: Mailer;
   jetzt?: () => Date;
+  /** Standard: der Logger der Fastify-Instanz. Tests reichen eine Attrappe. */
+  protokoll?: Protokoll;
 }
 
 interface AnfordernKoerper {
@@ -24,8 +27,14 @@ interface AnfordernKoerper {
   einladungscode?: unknown;
 }
 
-export function baueApp({ pool, mailer, jetzt = () => new Date() }: Abhaengigkeiten): FastifyInstance {
+export function baueApp({
+  pool,
+  mailer,
+  jetzt = () => new Date(),
+  protokoll,
+}: Abhaengigkeiten): FastifyInstance {
   const app = Fastify({ logger: false });
+  const log = protokoll ?? app.log;
 
   app.get('/gesundheit', async () => ({ zustand: 'bereit' }));
 
@@ -46,6 +55,7 @@ export function baueApp({ pool, mailer, jetzt = () => new Date() }: Abhaengigkei
     await fordereMagicLinkAn(
       pool,
       mailer,
+      log,
       email,
       einladungscode === undefined || einladungscode.length === 0
         ? undefined

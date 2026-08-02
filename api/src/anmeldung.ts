@@ -16,6 +16,7 @@ import type pg from 'pg';
 
 import { pruefeEinladung } from './einladung.ts';
 import type { Mailer } from './mailer.ts';
+import type { Protokoll } from './protokoll.ts';
 import { erzeugeToken, hashe } from './token.ts';
 
 /** Kurz genug, dass ein abgefangener Link wertlos wird. */
@@ -36,10 +37,14 @@ type Zutritt = { ok: true; einladungId: string | null } | { ok: false };
  * Der Einladungscode wird hier nur **geprüft**. Verbraucht wird er erst
  * beim Einlösen (`loeseMagicLinkEin`), zusammen mit dem Anlegen des
  * Mitglieds. Wer den Link liegen lässt, verliert dadurch nichts.
+ *
+ * Wirft auch **nicht**, wenn der Mailversand scheitert — siehe
+ * `verschickeLeise`.
  */
 export async function fordereMagicLinkAn(
   pool: pg.Pool,
   mailer: Mailer,
+  protokoll: Protokoll,
   email: string,
   einladungscode: string | undefined,
   jetzt: Date,
@@ -56,7 +61,9 @@ export async function fordereMagicLinkAn(
     [hashe(token), email, gueltigBis, zutritt.einladungId],
   );
 
-  await mailer.sende(
+  await verschickeLeise(
+    mailer,
+    protokoll,
     email,
     'Deine Anmeldung beim MTB Bielefeld',
     [
@@ -72,6 +79,40 @@ export async function fordereMagicLinkAn(
       'MTB Bielefeld e.V.',
     ].join('\r\n'),
   );
+}
+
+/**
+ * Verschickt und schluckt einen Fehlschlag **nach außen** — nach innen
+ * nicht.
+ *
+ * Ein durchgereichter Fehler wäre genau die Auskunft, die dieser Endpunkt
+ * nie geben darf: Er entsteht ausschließlich, wenn es überhaupt etwas zu
+ * verschicken gab. Wer einen falschen Code schickt, bekommt 202; wer einen
+ * richtigen schickt und auf eine gestörte Mailstrecke trifft, bekäme 500 —
+ * und wüsste damit, dass die Adresse zum Verein gehört. Der Unterschied
+ * bliebe auch mit echtem Versand offen, bei jeder vorübergehenden Störung.
+ *
+ * Der Fehler verschwindet deshalb nicht, er wechselt nur den Empfänger:
+ * Er geht laut ins Protokoll, wo der Betreiber ihn sieht. Ein stiller
+ * Fehlschlag wäre das nur ohne diesen Eintrag.
+ */
+async function verschickeLeise(
+  mailer: Mailer,
+  protokoll: Protokoll,
+  an: string,
+  betreff: string,
+  text: string,
+): Promise<void> {
+  try {
+    await mailer.sende(an, betreff, text);
+  } catch (fehler) {
+    protokoll.error(
+      { fehler, an },
+      'Magic Link konnte nicht verschickt werden. Der Anfragende hat ' +
+        'trotzdem 202 bekommen, weil eine abweichende Antwort verraten ' +
+        'würde, dass die Adresse zum Verein gehört.',
+    );
+  }
 }
 
 /** Bestehendes Mitglied oder gültige Eintrittskarte — sonst nichts. */

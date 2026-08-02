@@ -3,10 +3,18 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { baueApp } from '../src/app.ts';
 import { pool } from '../src/datenbank.ts';
 import { erzeugeEinladung } from '../src/einladung.ts';
-import { GemerkterMailer } from '../src/mailer.ts';
+import { GemerkterMailer, NichtEingerichteterMailer, type Mailer } from '../src/mailer.ts';
+import { GemerktesProtokoll } from '../src/protokoll.ts';
 import { frischeDatenbank } from './hilfen/datenbank.ts';
 
 const jetzt = new Date('2026-08-02T12:00:00Z');
+
+/** Steht für eine vorübergehend gestörte Mailstrecke. */
+class ScheiterderMailer implements Mailer {
+  async sende(): Promise<void> {
+    throw new Error('Der Mailanbieter antwortet gerade nicht.');
+  }
+}
 
 beforeEach(async () => {
   await frischeDatenbank();
@@ -175,6 +183,80 @@ describe('POST /anmeldung/anfordern', () => {
 
     expect(mitglied.statusCode).toBe(fremd.statusCode);
     expect(mitglied.body).toBe(fremd.body);
+    await app.close();
+  });
+
+  it('bleibt bei scheiterndem Mailversand von außen ununterscheidbar', async () => {
+    const protokoll = new GemerktesProtokoll();
+    const app = baueApp({
+      pool,
+      mailer: new ScheiterderMailer(),
+      jetzt: () => jetzt,
+      protokoll,
+    });
+    const code = await erzeugeEinladung(pool, 'malte@example.org', jetzt);
+
+    // Richtiger Code, aber der Versand scheitert.
+    const echt = await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'malte@example.org', einladungscode: code },
+    });
+    // Falscher Code — hier wird gar nicht erst verschickt.
+    const falsch = await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'fremd@example.org', einladungscode: 'ausgedacht' },
+    });
+
+    // Genau dieser Unterschied wäre die Auskunft, wer Mitglied ist.
+    expect(echt.statusCode).toBe(202);
+    expect(echt.statusCode).toBe(falsch.statusCode);
+    expect(echt.body).toBe(falsch.body);
+    await app.close();
+  });
+
+  it('protokolliert den gescheiterten Versand, statt ihn zu verschlucken', async () => {
+    const protokoll = new GemerktesProtokoll();
+    const app = baueApp({
+      pool,
+      mailer: new ScheiterderMailer(),
+      jetzt: () => jetzt,
+      protokoll,
+    });
+    const code = await erzeugeEinladung(pool, 'malte@example.org', jetzt);
+
+    await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'malte@example.org', einladungscode: code },
+    });
+
+    // Der Fehler verschwindet nicht, er wechselt nur den Empfänger.
+    expect(protokoll.fehler).toHaveLength(1);
+    expect(protokoll.fehler[0]?.daten).toMatchObject({ an: 'malte@example.org' });
+    expect(String(protokoll.fehler[0]?.daten.fehler)).toMatch(/antwortet gerade nicht/);
+    await app.close();
+  });
+
+  it('verrät auch mit dem nicht eingerichteten Mailer nichts', async () => {
+    const protokoll = new GemerktesProtokoll();
+    const app = baueApp({
+      pool,
+      mailer: new NichtEingerichteterMailer(),
+      jetzt: () => jetzt,
+      protokoll,
+    });
+    const code = await erzeugeEinladung(pool, 'malte@example.org', jetzt);
+
+    const antwort = await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'malte@example.org', einladungscode: code },
+    });
+
+    expect(antwort.statusCode).toBe(202);
+    expect(protokoll.fehler).toHaveLength(1);
     await app.close();
   });
 
