@@ -25,15 +25,18 @@ const ERLAUBTE_ADRESSEN = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
  * sie falsch durchreicht), würde ohne diese Prüfung eine produktive
  * Datenbank gelöscht statt der lokalen Testdatenbank.
  *
- * Geprüft wird, was die Verbindung selbst über sich sagt, nicht der Text
- * der Umgebungsvariablen: Der Datenbankname kommt aus einer echten Abfrage
- * an Postgres, und die Server-Adresse ist die tatsächlich aufgelöste
- * Gegenstelle des TCP-Sockets — verschiedene Schreibweisen wie „localhost“
- * oder „127.0.0.1“ landen nach der Namensauflösung auf demselben Wert und
- * können die Prüfung so nicht umgehen. (`inet_server_addr()`, von
- * Postgres selbst berichtet, wäre hier kein verlässliches Signal: Hinter
- * dem Docker-Portmapping meldet der Server seine eigene, containerinterne
- * Adresse — nicht 127.0.0.1.)
+ * Ausschlaggebend ist das Kennzeichen `wegwerf.markierung`
+ * (`db-init/001-wegwerf-markierung.sql`), nicht die Netzwerkadresse: Ein
+ * `remoteAddress` von 127.0.0.1 beweist nur, wo der lokale Socket endet —
+ * bei einer SSH-Portweiterleitung oder einem Tunnel zu einem entfernten
+ * Server (`ssh -L 5432:produktivserver:5432`) terminiert die Verbindung
+ * ebenfalls auf 127.0.0.1, während die Pakete tatsächlich zu einer
+ * entfernten, unter Umständen produktiven Datenbank laufen. Heißt die dort
+ * zufällig auch „mtbie“, würde eine reine Adress-/Namensprüfung das
+ * Löschen fälschlich zulassen. Nur die Datenbank selbst kann verlässlich
+ * beantworten, ob sie zum Wegwerfen da ist — deshalb das Kennzeichen als
+ * härteste Hürde. Datenbankname und Socket-Adresse bleiben als zusätzliche,
+ * aber nachrangige Prüfung erhalten.
  */
 export async function sichereEntwicklungsdatenbank(pool: pg.Pool): Promise<void> {
   const verbindung = await pool.connect();
@@ -41,10 +44,28 @@ export async function sichereEntwicklungsdatenbank(pool: pg.Pool): Promise<void>
     const socket = verbindung.connection.stream as unknown as net.Socket;
     const adresse = socket.remoteAddress;
 
-    const { rows } = await verbindung.query<{ datenbank: string }>(
-      'SELECT current_database() AS datenbank',
+    const { rows } = await verbindung.query<{
+      datenbank: string;
+      kennzeichen: string | null;
+    }>(
+      "SELECT current_database() AS datenbank, to_regclass('wegwerf.markierung') AS kennzeichen",
     );
     const datenbank = rows[0]?.datenbank;
+    const traegtKennzeichen = rows[0]?.kennzeichen != null;
+
+    if (!traegtKennzeichen) {
+      throw new Error(
+        `Sicherheitsabbruch: Die Tabelle "wegwerf.markierung" fehlt in der ` +
+          `Datenbank „${datenbank ?? 'unbekannt'}“ auf „${adresse ?? 'unbekannt'}“. ` +
+          `Ohne dieses Kennzeichen gilt eine Verbindung nicht als lokale ` +
+          `Wegwerf-Datenbank der Entwicklung — unabhängig davon, wie ` +
+          `Datenbankname oder Adresse aussehen —, deshalb wird nichts ` +
+          `gelöscht. Das Kennzeichen entsteht nur beim allerersten Start ` +
+          `eines frischen Docker-Volumes; ein bereits bestehendes Volume ` +
+          `führt das Initialisierungsskript nicht erneut aus. Abhilfe: in ` +
+          `api/ "docker compose down -v && docker compose up -d" ausführen.`,
+      );
+    }
 
     const istLokaleEntwicklungsdatenbank =
       datenbank === 'mtbie' && adresse !== undefined && ERLAUBTE_ADRESSEN.has(adresse);

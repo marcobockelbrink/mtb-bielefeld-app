@@ -11,6 +11,9 @@ services:
       - '127.0.0.1:5432:5432'
     volumes:
       - postgres-daten:/var/lib/postgresql/data
+      # Läuft nur beim allerersten Start eines frischen Volumes — siehe
+      # db-init/001-wegwerf-markierung.sql.
+      - ./db-init:/docker-entrypoint-initdb.d:ro
 
 volumes:
   postgres-daten:
