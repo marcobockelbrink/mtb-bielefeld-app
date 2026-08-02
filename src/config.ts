@@ -8,10 +8,35 @@
 
 export const WEBSITE_BASE_URL = 'https://mtb-bielefeld.de';
 
+/**
+ * Läuft die App gerade als Web-Fassung im Entwicklungsmodus?
+ *
+ * Bewusst ohne `Platform` aus react-native ermittelt: Diese Datei wird auch von
+ * den Tests geladen, die ohne React Native laufen. `document` gibt es nur im
+ * Browser — unter iOS, Android und in Node ist es nicht vorhanden.
+ */
+const imBrowserWaehrendEntwicklung =
+  typeof document !== 'undefined' && typeof __DEV__ !== 'undefined' && __DEV__;
+
+/**
+ * Umweg für die Entwicklung im Browser.
+ *
+ * Weder der Google-Kalender noch mtb-bielefeld.de senden die Kopfzeile
+ * `Access-Control-Allow-Origin`, weshalb ein Browser den direkten Zugriff
+ * verweigert (CORS). `npm run proxy` startet einen kleinen lokalen Vermittler,
+ * der die Feeds mit der fehlenden Kopfzeile weiterreicht.
+ *
+ * Betrifft ausschließlich die Web-Ansicht während der Entwicklung. Auf iOS und
+ * Android gibt es keine CORS-Prüfung — dort wird immer direkt geladen, und in
+ * der veröffentlichten App ebenfalls.
+ */
+const DEV_PROXY_BASE = 'http://127.0.0.1:8090';
+
 /** Öffentlicher Google-Kalender "MTBie Angebote" (Events, Biken, Schrauben, Treffen). */
-export const CALENDAR_ICS_URL =
-  'https://calendar.google.com/calendar/ical/' +
-  'janqj64k0lb8itmh49d9croubk%40group.calendar.google.com/public/basic.ics';
+export const CALENDAR_ICS_URL = imBrowserWaehrendEntwicklung
+  ? `${DEV_PROXY_BASE}/kalender`
+  : 'https://calendar.google.com/calendar/ical/' +
+    'janqj64k0lb8itmh49d9croubk%40group.calendar.google.com/public/basic.ics';
 
 /** Derselbe Kalender zum Abonnieren in der Kalender-App des Handys. */
 export const CALENDAR_SUBSCRIBE_URL =
@@ -19,7 +44,9 @@ export const CALENDAR_SUBSCRIBE_URL =
   'janqj64k0lb8itmh49d9croubk%40group.calendar.google.com&ctz=Europe%2FBerlin';
 
 /** RSS-Feed der Website ("Letzte Änderungen"). */
-export const NEWS_RSS_URL = `${WEBSITE_BASE_URL}/feed/page:feed.xml`;
+export const NEWS_RSS_URL = imBrowserWaehrendEntwicklung
+  ? `${DEV_PROXY_BASE}/news`
+  : `${WEBSITE_BASE_URL}/feed/page:feed.xml`;
 
 /** Zeitzone, in der der Verein plant. Termine ohne Zeitzonenangabe gelten als diese. */
 export const CLUB_TIMEZONE = 'Europe/Berlin';

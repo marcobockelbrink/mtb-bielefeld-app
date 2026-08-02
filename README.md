@@ -105,7 +105,7 @@ npm run vorschau   # Web-Fassung bauen und Screenshots aufnehmen
 
 ### Auf dem Mac testen
 
-Drei Wege, vom schnellsten zum gründlichsten:
+Vier Wege, vom schnellsten zum gründlichsten:
 
 **1. Auf dem eigenen Handy (kein Xcode nötig, zwei Minuten)**
 
@@ -121,7 +121,28 @@ sofort auf dem Gerät sichtbar.
 Eine Einschränkung: Expo Go bringt nur die Standard-Module mit. Erinnerungen
 lassen sich darin eingeschränkt testen, die Hintergrund-Aktualisierung gar nicht.
 
-**2. Im iOS-Simulator (braucht Xcode, ca. 8 GB)**
+**2. Im Browser (am schnellsten zum Draufschauen)**
+
+Braucht **zwei Terminals**:
+
+```bash
+npm run proxy     # Terminal 1 — muss laufen bleiben
+npm start         # Terminal 2, dann "w" drücken
+```
+
+Dann `http://localhost:8081` im Browser.
+
+Der Vermittler in Terminal 1 ist nicht optional: Weder der Google-Kalender noch
+mtb-bielefeld.de senden die Kopfzeile `Access-Control-Allow-Origin`, weshalb ein
+Browser den direkten Zugriff verweigert (CORS). **Ohne ihn bleibt die
+Terminliste leer.** `npm run proxy` reicht die Feeds mit der fehlenden Kopfzeile
+weiter; die App erkennt selbst, dass sie im Browser läuft, und fragt dort an.
+
+Auf iOS und Android gibt es diese Beschränkung nicht — dort lädt die App immer
+direkt, auch in der veröffentlichten Fassung. Der Vermittler ist reines
+Entwicklungswerkzeug.
+
+**3. Im iOS-Simulator (braucht Xcode, ca. 8 GB)**
 
 ```bash
 npm run ios
@@ -130,7 +151,7 @@ npm run ios
 Xcode aus dem App Store, dann einmalig `xcode-select --install`. Beim ersten
 Aufruf wird das native Projekt erzeugt und übersetzt — das dauert.
 
-**3. Als eigenständige App auf dem Gerät (für Erinnerungen und Hintergrundlauf)**
+**4. Als eigenständige App auf dem Gerät (für Erinnerungen und Hintergrundlauf)**
 
 ```bash
 npx expo run:ios --device
@@ -155,7 +176,7 @@ Development Build nötig ist; die Hintergrund-Aktualisierung braucht
 Einträge in der nativen Projektdatei, die Expo Go nicht je App bereitstellen
 kann.
 
-Für diese beiden Bereiche führt kein Weg an Variante 3 vorbei.
+Für diese beiden Bereiche führt kein Weg an Variante 4 vorbei.
 
 ### Prüfliste für den Gerätetest
 
