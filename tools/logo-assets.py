@@ -31,6 +31,7 @@ Das Skript läuft selten — es wird nur gebraucht, wenn der Verein sein Logo
 
 from __future__ import annotations
 
+import re
 import struct
 import subprocess
 import sys
@@ -45,13 +46,22 @@ QUELLE = WURZEL / "assets/logo/MTB_Bielefeld_EV_Logo.eps"
 ZIEL = WURZEL / "assets"
 ARBEIT = WURZEL / ".logo-arbeit"
 
-#: Vereinsblau als Bildschirmfarbe.
-#:
-#: Verbindlich ist die Druckdefinition des Vereins: C 90 | M 50 | Y 20 | K 5.
-#: Welches RGB dem entspricht, hängt am Farbprofil — die Abwägung samt Messwerten
-#: steht in ``src/theme.ts``, nachrechnen lässt sie sich mit
-#: ``tools/farbe-pruefen.py``.
-BLAU = (7, 108, 155)  # #076C9B
+def vereinsblau() -> tuple[int, int, int]:
+    """Liest das Vereinsblau aus ``src/brand.ts``.
+
+    Bewusst gelesen statt hier noch einmal hingeschrieben: Eine zweite Stelle
+    für dieselbe Farbe läuft irgendwann auseinander, und dann hat das
+    App-Symbol einen anderen Blauton als die Oberfläche.
+    """
+    quelle = (WURZEL / "src/brand.ts").read_text(encoding="utf-8")
+    treffer = re.search(r"BRAND_BLUE\s*=\s*'#([0-9a-fA-F]{6})'", quelle)
+    if not treffer:
+        raise SystemExit("BRAND_BLUE nicht in src/brand.ts gefunden")
+    hexwert = treffer.group(1)
+    return tuple(int(hexwert[i : i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
+
+
+BLAU = None  # wird in main() gesetzt
 
 #: Auflösung fürs Rendern. Hoch genug, dass das Emblem deutlich über 1024 px
 #: breit herauskommt und beim Verkleinern nichts ausfranst.
@@ -210,6 +220,9 @@ def schrift_aufhellen(bild: Image.Image) -> Image.Image:
 
 
 def main() -> None:
+    global BLAU
+    BLAU = vereinsblau()
+
     if not QUELLE.exists():
         raise SystemExit(f"Logo nicht gefunden: {QUELLE}")
 
@@ -249,7 +262,7 @@ def main() -> None:
     auf_breite(banner_zuschneiden(banner), 900).save(WURZEL / "docs/logo.png")
     print("  docs/logo.png: 900 px breit")
 
-    print(f"\nVereinsblau: #{BLAU[0]:02X}{BLAU[1]:02X}{BLAU[2]:02X}")
+    print(f"\nVereinsblau aus src/brand.ts: #{BLAU[0]:02X}{BLAU[1]:02X}{BLAU[2]:02X}")
 
 
 if __name__ == "__main__":

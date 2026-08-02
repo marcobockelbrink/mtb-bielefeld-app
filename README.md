@@ -335,17 +335,22 @@ neben Schwarz die einzige Farbe im Logo. Die Logodatei enthält genau diese Wert
 Für den Bildschirm gibt es daraus kein einzelnes richtiges RGB — es hängt am
 Farbprofil:
 
-| Weg | Ergebnis | Abstand zu `#076C9B` |
+| Weg | Ergebnis | Abstand zur Umrechnung |
 | --- | --- | --- |
-| Faustformel ohne Farbmanagement | `#1879C2` | ΔE 16,5 |
-| ICC-Umrechnung (CMYK → sRGB) | `#25749E` | ΔE 4,6 |
-| so rendert Ghostscript die Logodatei | `#076C9B` | — |
-| Stylesheet der Vereinswebsite | `#00679A` | ΔE 3,5 |
+| **ICC-Umrechnung der Druckfarbe** | **`#25749E`** | — |
+| so rendert Ghostscript die Logodatei | `#076C9B` | ΔE 4,6 |
+| Stylesheet der Vereinswebsite | `#00679A` | ΔE 7,9 |
+| Faustformel ohne Farbmanagement | `#1879C2` | ΔE 18,8 |
 
-Die App nutzt **`#076C9B`**. Es liegt mit ΔE unter 5 sowohl an der
-farbmetrischen Umrechnung der offiziellen Druckfarbe als auch am Blau der
-Website und hält damit beides zusammen. Die naheliegende Faustformel scheidet
-aus: Mit ΔE über 14 wäre das ein sichtbar anderes, zu helles Blau.
+Die App nutzt die **ICC-Umrechnung**: Sie ist der einzige Wert, der sich
+unmittelbar aus der offiziellen Druckdefinition ergibt statt aus einer
+Wiedergabe davon. Die ersten drei liegen ohnehin in derselben Farbfamilie.
+
+Die naheliegende Faustformel scheidet aus: Mit ΔE über 18 wäre das ein sichtbar
+helleres, bunteres Blau.
+
+Geändert wird die Farbe an genau einer Stelle — [`src/brand.ts`](src/brand.ts).
+Danach `python3 tools/logo-assets.py`, damit Symbole und Startbild nachziehen.
 
 Nachrechnen lässt sich das mit [`tools/farbe-pruefen.py`](tools/farbe-pruefen.py).
 

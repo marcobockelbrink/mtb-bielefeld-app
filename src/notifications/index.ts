@@ -13,6 +13,8 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import { BRAND_BLUE } from '../brand';
+
 import type { ClubEvent } from '../domain/types';
 import { formatShortDate, formatTime } from '../features/events/format';
 import { diffReminders, planReminders, type PlannedReminder } from './scheduler';
@@ -45,7 +47,7 @@ export async function requestPermission(): Promise<boolean> {
     await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
       name: 'Termin-Erinnerungen',
       importance: Notifications.AndroidImportance.DEFAULT,
-      lightColor: '#076c9b',
+      lightColor: BRAND_BLUE,
     });
   }
 

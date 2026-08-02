@@ -25,8 +25,8 @@ from PIL import Image, ImageCms
 #: Die verbindliche Druckdefinition des Vereins, in Prozent.
 DRUCKFARBE_CMYK = (90, 50, 20, 5)
 
-#: Was die App tatsächlich verwendet.
-APP_BLAU = "076C9B"
+#: Was die App tatsächlich verwendet (siehe ``src/brand.ts``).
+APP_BLAU = "25749E"
 
 CMYK_PROFIL = Path("/usr/share/color/icc/ghostscript/default_cmyk.icc")
 SRGB_PROFIL = Path("/usr/share/color/icc/ghostscript/srgb.icc")
