@@ -48,3 +48,7 @@ yarn-error.*
 
 # Arbeitsbereich der Umsetzungsabläufe (Zwischenstände, kein Quelltext)
 .superpowers/
+
+# Backend
+api/node_modules/
+api/dist/
