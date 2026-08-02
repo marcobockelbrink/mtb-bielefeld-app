@@ -500,7 +500,19 @@ Ohne gültigen Code entsteht kein Konto. Erst die reine Logik, dann die Speicher
 - Liefert: `erzeugeToken(): string` — 32 zufällige Bytes als base64url
 - Liefert: `hashe(token: string): string` — SHA-256 als Hex
 - Liefert: `erzeugeEinladung(pool, ausgestelltFuer: string): Promise<string>` — gibt den Klartext-Code zurück, gespeichert wird nur der Hash
-- Liefert: `loeseEinladungEin(pool, code: string, jetzt: Date): Promise<{ ok: true } | { ok: false; grund: 'unbekannt' | 'verbraucht' | 'abgelaufen' }>`
+- Liefert: `loeseEinladungEin(pool, code: string, email: string, jetzt: Date): Promise<{ ok: true } | { ok: false; grund: 'unbekannt' | 'verbraucht' | 'abgelaufen' | 'falsche-adresse' }>`
+
+> **Nachträgliche Festlegung vom 02.08.2026.** Ursprünglich prüfte diese
+> Funktion die Adresse nicht — ein gültiger Code hätte mit **jeder** E-Mail
+> funktioniert. Damit wäre ein weitergereichter Code genug gewesen, um
+> Vereinsfremden ein Konto zu verschaffen, und der Nachweis der Mitgliedschaft
+> wäre wertlos geworden. Auf Entscheidung des Auftraggebers ist der Code jetzt
+> an `ausgestellt_fuer` gebunden. Verglichen wird ohne Rücksicht auf
+> Groß- und Kleinschreibung, und **innerhalb derselben Transaktion** wie die
+> Entwertung — sonst entstünde zwischen Prüfung und Entwertung eine Lücke.
+> Bei falscher Adresse wird der Code **nicht** verbraucht: Sonst könnte ein
+> Fremder mit einem einzigen falschen Versuch den Zugang des Mitglieds
+> zerstören.
 
 - [ ] **Schritt 1: Den fehlschlagenden Test für Token schreiben**
 
@@ -711,7 +723,7 @@ const GUELTIG_TAGE = 60;
 
 export type Einloesung =
   | { ok: true }
-  | { ok: false; grund: 'unbekannt' | 'verbraucht' | 'abgelaufen' };
+  | { ok: false; grund: 'unbekannt' | 'verbraucht' | 'abgelaufen' | 'falsche-adresse' };
 
 /** Legt einen Code an und gibt ihn **einmalig** im Klartext zurück. */
 export async function erzeugeEinladung(
