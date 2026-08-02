@@ -127,3 +127,73 @@ export async function loeseMagicLinkEin(
     verbindung.release();
   }
 }
+
+/**
+ * Tauscht ein Erneuerungs-Token gegen ein frisches Paar.
+ *
+ * **Wiederverwendungserkennung:** Taucht ein bereits ersetztes Token wieder
+ * auf, gibt es nur zwei Erklärungen — es wurde kopiert, oder ein Gerät hat
+ * die Antwort nicht mitbekommen. Beide Fälle behandeln wir gleich streng:
+ * Alle Sitzungen dieses Mitglieds fliegen raus. Wer wirklich der Eigentümer
+ * ist, meldet sich neu an; wer es nicht ist, hält nichts mehr in der Hand.
+ */
+export async function erneuereSitzung(
+  pool: pg.Pool,
+  erneuerung: string,
+  jetzt: Date,
+): Promise<{ ok: true; zugang: string; erneuerung: string } | { ok: false }> {
+  const verbindung = await pool.connect();
+  try {
+    await verbindung.query('BEGIN');
+
+    const { rows } = await verbindung.query<{
+      id: string;
+      mitglied_id: string;
+      erneuerung_bis: Date;
+      ersetzt_am: Date | null;
+    }>(
+      `SELECT id, mitglied_id, erneuerung_bis, ersetzt_am FROM sitzung
+        WHERE erneuerung_hash = $1 FOR UPDATE`,
+      [hashe(erneuerung)],
+    );
+
+    const sitzung = rows[0];
+    if (!sitzung) {
+      await verbindung.query('ROLLBACK');
+      return { ok: false };
+    }
+
+    if (sitzung.ersetzt_am !== null) {
+      // Kopiert. Alles dieses Mitglieds entwerten.
+      await verbindung.query('DELETE FROM sitzung WHERE mitglied_id = $1', [
+        sitzung.mitglied_id,
+      ]);
+      await verbindung.query('COMMIT');
+      return { ok: false };
+    }
+
+    if (sitzung.erneuerung_bis.getTime() < jetzt.getTime()) {
+      await verbindung.query('ROLLBACK');
+      return { ok: false };
+    }
+
+    await verbindung.query('UPDATE sitzung SET ersetzt_am = $2 WHERE id = $1', [
+      sitzung.id,
+      jetzt,
+    ]);
+
+    const paar = await legeSitzungAn(verbindung, sitzung.mitglied_id, jetzt);
+    await verbindung.query('COMMIT');
+    return { ok: true, ...paar };
+  } catch (fehler) {
+    await verbindung.query('ROLLBACK');
+    throw fehler;
+  } finally {
+    verbindung.release();
+  }
+}
+
+/** Abmelden: die Sitzung zu diesem Erneuerungs-Token verschwindet. */
+export async function beendeSitzung(pool: pg.Pool, erneuerung: string): Promise<void> {
+  await pool.query('DELETE FROM sitzung WHERE erneuerung_hash = $1', [hashe(erneuerung)]);
+}

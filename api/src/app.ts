@@ -10,7 +10,7 @@ import type pg from 'pg';
 
 import { fordereMagicLinkAn } from './anmeldung.ts';
 import type { Mailer } from './mailer.ts';
-import { loeseMagicLinkEin } from './sitzung.ts';
+import { beendeSitzung, erneuereSitzung, loeseMagicLinkEin } from './sitzung.ts';
 
 export interface Abhaengigkeiten {
   pool: pg.Pool;
@@ -62,6 +62,32 @@ export function baueApp({ pool, mailer, jetzt = () => new Date() }: Abhaengigkei
     }
 
     return antwort.send({ zugang: ergebnis.zugang, erneuerung: ergebnis.erneuerung });
+  });
+
+  app.post('/sitzung/erneuern', async (anfrage, antwort) => {
+    const { erneuerung } = (anfrage.body ?? {}) as { erneuerung?: unknown };
+
+    if (typeof erneuerung !== 'string' || erneuerung.length === 0) {
+      return antwort.code(400).send({ fehler: 'Token fehlt.' });
+    }
+
+    const ergebnis = await erneuereSitzung(pool, erneuerung, jetzt());
+    if (!ergebnis.ok) {
+      return antwort.code(401).send({ fehler: 'Bitte melde dich neu an.' });
+    }
+
+    return antwort.send({ zugang: ergebnis.zugang, erneuerung: ergebnis.erneuerung });
+  });
+
+  app.delete('/sitzung', async (anfrage, antwort) => {
+    const { erneuerung } = (anfrage.body ?? {}) as { erneuerung?: unknown };
+
+    if (typeof erneuerung === 'string' && erneuerung.length > 0) {
+      await beendeSitzung(pool, erneuerung);
+    }
+
+    // Immer 204: Abmelden soll nie fehlschlagen.
+    return antwort.code(204).send();
   });
 
   return app;
