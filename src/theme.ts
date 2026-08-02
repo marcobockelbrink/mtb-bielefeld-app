@@ -1,9 +1,9 @@
 /**
  * Farben, Abstände und Schriftgrößen der App.
  *
- * Der Grundton `#00679a` ist die einzige vereinseigene Farbe im Stylesheet der
- * Website — alles andere dort ist Bootstrap-Standard. Damit bleibt die App
- * optisch mit mtb-bielefeld.de verwandt, ohne sie nachzubauen.
+ * Der Grundton `#076c9b` ist das Blau aus dem Vereinslogo, direkt aus der
+ * EPS-Datei abgelesen. (Das Stylesheet der Website nennt `#00679a` — nah dran,
+ * aber nicht dasselbe. Maßgeblich ist das Logo.)
  *
  * Beide Farbschemata sind gepflegt: Wer im Wald bei Dämmerung aufs Handy
  * schaut, will nicht geblendet werden.
@@ -33,7 +33,7 @@ export const lightPalette: Palette = {
   border: '#dfe4ea',
   text: '#16202b',
   textMuted: '#5d6b7a',
-  primary: '#00679a',
+  primary: '#076c9b',
   onPrimary: '#ffffff',
   accent: '#2f8f4e',
   danger: '#c0392b',

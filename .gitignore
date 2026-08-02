@@ -42,3 +42,6 @@ yarn-error.*
 
 # Web-Vorschau für die Screenshots
 .vorschau-web/
+
+# Zwischenstand der Logo-Aufbereitung
+.logo-arbeit/

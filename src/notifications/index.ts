@@ -45,7 +45,7 @@ export async function requestPermission(): Promise<boolean> {
     await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
       name: 'Termin-Erinnerungen',
       importance: Notifications.AndroidImportance.DEFAULT,
-      lightColor: '#00679a',
+      lightColor: '#076c9b',
     });
   }
 

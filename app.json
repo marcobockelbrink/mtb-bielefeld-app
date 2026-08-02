@@ -15,7 +15,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#00679a",
+        "backgroundColor": "#076C9B",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -32,10 +32,23 @@
       [
         "expo-notifications",
         {
-          "color": "#00679a"
+          "color": "#076C9B"
         }
       ],
-      "expo-system-ui"
+      "expo-system-ui",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 280,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "image": "./assets/splash-icon-dark.png",
+            "backgroundColor": "#0f1519"
+          }
+        }
+      ]
     ],
     "scheme": "mtbie"
   }

@@ -1,4 +1,6 @@
-# MTB Bielefeld — Vereins-App
+<img src="docs/logo.png" alt="MTB Bielefeld e.V." width="380">
+
+# Vereins-App
 
 Die App zum [MTB Bielefeld e.V.](https://mtb-bielefeld.de) für iOS und Android.
 Termine, Aktuelles und Vereinsinfos — aus den Daten, die der Verein ohnehin pflegt.
@@ -294,12 +296,38 @@ Zeit grün.
   Erinnerungen und Hintergrund-Aktualisierung sind bisher nur als Rechenlogik
   getestet, nicht auf einem Gerät. Vor der Veröffentlichung nötig. Zum Auslösen
   ohne Warten hilft `BackgroundTask.triggerTaskWorkerForTestingAsync()`.
-- **App-Symbol und Startbild.** Aktuell die Expo-Platzhalter — hier gehört das
-  Vereinslogo hin.
+- **Symbole auf echten Geräten ansehen.** App-Symbol und Startbild stammen aus
+  dem Vereinslogo (siehe unten), sind aber bisher nur als Bilddatei geprüft —
+  nicht auf einem Startbildschirm.
 - **Vereinstexte pflegen.** `src/content/club.ts` ist von Hand geschrieben
   (Stand August 2026). Ändern sich die Beiträge, muss es dort nachgezogen
   werden — jeder Abschnitt verlinkt deshalb auf die Website als verbindliche
   Quelle.
+
+## Das Logo
+
+Das Original liegt als Vektordatei unter
+[`assets/logo/`](assets/logo/MTB_Bielefeld_EV_Logo.eps). Alle Symbole der App
+werden daraus erzeugt:
+
+```bash
+python3 tools/logo-assets.py     # braucht Ghostscript, Pillow, numpy, scipy
+```
+
+Läuft nur, wenn der Verein sein Logo ändert. Drei Eigenheiten der Vorlage nimmt
+das Skript dabei ab:
+
+- Die Datei ist eine **DOS-EPS** mit Binärkopf — Ghostscript bekommt nur den
+  PostScript-Teil zu sehen.
+- Sie stammt von einer **Aufkleber-Vorlage** und enthält eine magentafarbene
+  Schneidekontur für die Druckerei. Die gehört nicht ins Logo und wird
+  weggeschnitten.
+- Turm, Hügel und Trail sind **Aussparungen in der blauen Fläche**, keine weiße
+  Farbe. Wer das Emblem naiv freistellt, bekommt Löcher statt Zeichnung.
+
+Das Vereinsblau **`#076C9B`** stammt direkt aus dem Logo und ist der Grundton der
+gesamten App. (Das Stylesheet der Website nennt `#00679a` — nah dran, aber nicht
+dasselbe; maßgeblich ist das Logo.)
 
 ## Sicherheit
 
