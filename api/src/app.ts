@@ -10,6 +10,7 @@ import type pg from 'pg';
 
 import { fordereMagicLinkAn } from './anmeldung.ts';
 import type { Mailer } from './mailer.ts';
+import { loeseMagicLinkEin } from './sitzung.ts';
 
 export interface Abhaengigkeiten {
   pool: pg.Pool;
@@ -45,6 +46,22 @@ export function baueApp({ pool, mailer, jetzt = () => new Date() }: Abhaengigkei
     return antwort.code(202).send({
       hinweis: 'Wenn die Angaben stimmen, ist eine Mail unterwegs.',
     });
+  });
+
+  app.post('/anmeldung/einloesen', async (anfrage, antwort) => {
+    const { token } = (anfrage.body ?? {}) as { token?: unknown };
+
+    if (typeof token !== 'string' || token.length === 0) {
+      return antwort.code(400).send({ fehler: 'Token fehlt.' });
+    }
+
+    const ergebnis = await loeseMagicLinkEin(pool, token, jetzt());
+    if (!ergebnis.ok) {
+      // Ein Grund würde verraten, ob der Link existiert hat.
+      return antwort.code(401).send({ fehler: 'Der Link gilt nicht mehr.' });
+    }
+
+    return antwort.send({ zugang: ergebnis.zugang, erneuerung: ergebnis.erneuerung });
   });
 
   return app;
