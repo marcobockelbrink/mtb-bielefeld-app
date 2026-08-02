@@ -9,8 +9,9 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type pg from 'pg';
 
 import { fordereMagicLinkAn } from './anmeldung.ts';
+import { holeKontoAuskunft, loescheKonto } from './konto.ts';
 import type { Mailer } from './mailer.ts';
-import { beendeSitzung, erneuereSitzung, loeseMagicLinkEin } from './sitzung.ts';
+import { beendeSitzung, erneuereSitzung, loeseMagicLinkEin, pruefeZugang, type Ausweis } from './sitzung.ts';
 
 export interface Abhaengigkeiten {
   pool: pg.Pool;
@@ -87,6 +88,31 @@ export function baueApp({ pool, mailer, jetzt = () => new Date() }: Abhaengigkei
     }
 
     // Immer 204: Abmelden soll nie fehlschlagen.
+    return antwort.code(204).send();
+  });
+
+  /** Liest das Zugangs-Token aus dem Kopf und löst es auf. */
+  async function holeAusweis(anfrage: { headers: Record<string, unknown> }): Promise<Ausweis | null> {
+    const kopf = anfrage.headers.authorization;
+    if (typeof kopf !== 'string' || !kopf.startsWith('Bearer ')) return null;
+    return pruefeZugang(pool, kopf.slice('Bearer '.length), jetzt());
+  }
+
+  app.get('/konto', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const auskunft = await holeKontoAuskunft(pool, ausweis.mitgliedId);
+    if (!auskunft) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    return antwort.send(auskunft);
+  });
+
+  app.delete('/konto', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    await loescheKonto(pool, ausweis.mitgliedId);
     return antwort.code(204).send();
   });
 
