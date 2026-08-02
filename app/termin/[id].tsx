@@ -10,7 +10,9 @@ import { useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { CONTACT } from '../../src/config';
 import { useAppData } from '../../src/data/AppDataContext';
+import { buildSignupMailto, offersMailSignup } from '../../src/features/events/signup';
 import { categoryDisplay, font, fontSize, levelDisplay, spacing } from '../../src/theme';
 import { ActionButton, Badge, Banner, Card, DetailRow, EmptyState, LoadingState } from '../../src/ui/components';
 import { SkillSpan } from '../../src/ui/SkillSpan';
@@ -53,6 +55,22 @@ export default function TerminDetailScreen() {
     const kannOeffnen = await Linking.canOpenURL(url);
     // Ohne Karten-App bleibt der Weg über den Browser.
     await Linking.openURL(kannOeffnen ? url : `https://www.google.com/maps/search/?api=1&query=${suche}`);
+  }
+
+  /**
+   * Öffnet die Mail-App mit einem fertigen Entwurf.
+   *
+   * Abgeschickt wird nichts — der Entwurf landet in der Mail-App und geht
+   * erst los, wenn dort auf Senden getippt wird. Ist gar kein Mail-Programm
+   * eingerichtet, meldet sich das Betriebssystem selbst; deshalb bleibt es
+   * hier bei der Weitergabe des Fehlers an die Konsole.
+   */
+  async function anmeldungOeffnen(mailto: string) {
+    try {
+      await Linking.openURL(mailto);
+    } catch (fehler) {
+      console.warn('Mail-App ließ sich nicht öffnen:', fehler);
+    }
   }
 
   return (
@@ -130,12 +148,29 @@ export default function TerminDetailScreen() {
         ) : null}
       </Card>
 
+      {/*
+        Zwei Wege zur Anmeldung, nie beide gleichzeitig: Nennt der Verein in
+        der Terminbeschreibung eine eigene Adresse, führt der Weg dorthin.
+        Sonst öffnet die App einen Mail-Entwurf an die Angebote-Adresse.
+      */}
       {event.details.signupUrl ? (
         <ActionButton
           label="Zur Anmeldung"
           tone="secondary"
           onPress={() => void WebBrowser.openBrowserAsync(event.details.signupUrl!)}
         />
+      ) : offersMailSignup(event) ? (
+        <View style={styles.anmeldung}>
+          <ActionButton
+            label="Per E-Mail anmelden"
+            tone="secondary"
+            onPress={() => void anmeldungOeffnen(buildSignupMailto(event, CONTACT.offersEmail))}
+          />
+          <Text style={[styles.anmeldungHinweis, { color: palette.textMuted }]}>
+            Öffnet einen fertigen Entwurf an {CONTACT.offersEmail}. Abgeschickt wird er erst, wenn
+            du in der Mail-App auf Senden tippst.
+          </Text>
+        </View>
       ) : null}
 
       {event.descriptionText ? (
@@ -195,6 +230,15 @@ const styles = StyleSheet.create({
   },
   knopf: {
     marginTop: spacing.md,
+  },
+  anmeldung: {
+    gap: spacing.sm,
+  },
+  anmeldungHinweis: {
+    fontFamily: font.regular,
+    fontSize: fontSize.xs,
+    lineHeight: 17,
+    paddingHorizontal: spacing.xs,
   },
   fussnote: {
     flexDirection: 'row',

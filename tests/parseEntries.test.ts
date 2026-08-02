@@ -18,6 +18,16 @@ describe('Themenschlagworte', () => {
   it('kommt mit einem Beitrag ohne Thema zurecht', () => {
     expect(parseTags('')).toEqual([]);
   });
+
+  it('übersetzt prozentkodierte Umlaute zurück', () => {
+    // Die Website kodiert Umlaute in den Klassennamen; ohne Rückübersetzung
+    // stand "Ausfl%C3%BCge" als Beschriftung auf dem Filterknopf.
+    expect(parseTags(' tag-Ausfl%C3%BCge/')).toEqual(['Ausflüge']);
+  });
+
+  it('lässt kaputte Kodierung stehen, statt daran zu scheitern', () => {
+    expect(parseTags(' tag-100%/ tag-Racing/')).toEqual(['100%', 'Racing']);
+  });
 });
 
 describe('Übersichtsseite einlesen', () => {

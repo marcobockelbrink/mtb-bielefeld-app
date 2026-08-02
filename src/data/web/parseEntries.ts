@@ -63,11 +63,30 @@ function extractBlock(html: string, klasse: string): string | undefined {
  *
  * Die Website schreibt sie als `tag-Jugend/ tag-Racing/` — mit Schrägstrich am
  * Ende, der nicht zum Namen gehört.
+ *
+ * Umlaute stehen dort prozentkodiert, weil die Klassennamen aus den Adressen
+ * stammen: `tag-Ausfl%C3%BCge`. Ohne Rückübersetzung stand genau das als
+ * Beschriftung auf dem Filterknopf.
  */
 export function parseTags(klassen: string): string[] {
   return [...klassen.matchAll(/tag-([^\s"/]+)/g)]
-    .map((treffer) => decodeEntities(treffer[1]).trim())
+    .map((treffer) => decodePercent(decodeEntities(treffer[1])).trim())
     .filter((name) => name.length > 0);
+}
+
+/**
+ * Prozent-Kodierung zurückübersetzen, soweit sie sich zurückübersetzen lässt.
+ *
+ * `decodeURIComponent` wirft bei unvollständigen Folgen wie `100%`. Ein
+ * Schlagwort ist das nicht wert: Dann bleibt der Rohtext stehen, und die App
+ * zeigt weiterhin alle Beiträge an, statt beim Auswerten abzubrechen.
+ */
+function decodePercent(text: string): string {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
 }
 
 /** Absolute Adresse aus einem Verweis der Website. */

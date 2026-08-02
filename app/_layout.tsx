@@ -52,6 +52,12 @@ function AppStack() {
             fontFamily: font.display,
             fontSize: fontSize.xl,
           },
+          // Ohne das schreibt iOS den Titel des vorigen Bildschirms neben den
+          // Pfeil. Von der Terminliste aus ist das die Reitergruppe, die
+          // intern "(tabs)" heißt und keinen Titel trägt — genau dieser
+          // Routenname stand dann in der Oberfläche.
+          headerBackTitle: 'Zurück',
+          headerBackTitleStyle: { fontFamily: font.medium, fontSize: fontSize.md },
           contentStyle: { backgroundColor: palette.background },
         }}
       >
