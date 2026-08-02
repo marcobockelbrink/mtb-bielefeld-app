@@ -77,7 +77,7 @@ export async function pruefeEinladung(
 ): Promise<Pruefung> {
   const { rows } = await pool.query<{
     id: string;
-    ausgestellt_fuer: string;
+    ausgestellt_fuer: string | null;
     gueltig_bis: Date;
     eingeloest_am: Date | null;
   }>(
@@ -88,7 +88,9 @@ export async function pruefeEinladung(
 
   const eintrag = rows[0];
   if (!eintrag) return { ok: false, grund: 'unbekannt' };
-  if (eintrag.ausgestellt_fuer.toLowerCase() !== email.toLowerCase()) {
+  // `null` heißt: Das Konto wurde gelöscht, die Adresse ist weg (Migration
+  // 006). Zu einer Adresse, die es nicht mehr gibt, passt keine Anfrage.
+  if (eintrag.ausgestellt_fuer?.toLowerCase() !== email.toLowerCase()) {
     return { ok: false, grund: 'falsche-adresse' };
   }
   if (eintrag.eingeloest_am !== null) return { ok: false, grund: 'verbraucht' };
