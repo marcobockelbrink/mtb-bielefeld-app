@@ -45,3 +45,6 @@ yarn-error.*
 
 # Zwischenstand der Logo-Aufbereitung
 .logo-arbeit/
+
+# Arbeitsbereich der Umsetzungsabläufe (Zwischenstände, kein Quelltext)
+.superpowers/
