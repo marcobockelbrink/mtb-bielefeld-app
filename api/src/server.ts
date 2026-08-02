@@ -4,12 +4,13 @@
 
 import { baueApp } from './app.ts';
 import { pool } from './datenbank.ts';
-// Der echte Mailversand ist noch offen (siehe `mailer.ts`) — bis dahin
-// verschickt der Server keine Mails, sondern merkt sie sich nur.
-import { GemerkterMailer } from './mailer.ts';
+// Der echte Mailversand ist noch offen (siehe `mailer.ts`, Plan 4). Bis
+// dahin scheitert ein Anmeldeversuch laut statt eine Mail vorzutäuschen,
+// die nie ankommt.
+import { NichtEingerichteterMailer } from './mailer.ts';
 
 const port = Number(process.env.PORT ?? 3000);
-const app = baueApp({ pool, mailer: new GemerkterMailer() });
+const app = baueApp({ pool, mailer: new NichtEingerichteterMailer() });
 
 try {
   await app.listen({ port, host: '0.0.0.0' });
