@@ -35,11 +35,23 @@ export function baueApp({ pool, mailer, jetzt = () => new Date() }: Abhaengigkei
     if (typeof email !== 'string' || !email.includes('@')) {
       return antwort.code(400).send({ fehler: 'E-Mail-Adresse fehlt oder ist ungültig.' });
     }
-    if (typeof einladungscode !== 'string' || einladungscode.length === 0) {
-      return antwort.code(400).send({ fehler: 'Einladungscode fehlt.' });
+    // Der Code darf fehlen: Wer schon Mitglied ist, braucht keinen mehr.
+    // Ein Code vom falschen Typ ist dagegen ein Fehler des Aufrufers und
+    // wird benannt, statt stillschweigend als „keiner“ zu gelten — er
+    // verrät nichts über die Adresse.
+    if (einladungscode !== undefined && typeof einladungscode !== 'string') {
+      return antwort.code(400).send({ fehler: 'Einladungscode muss Text sein.' });
     }
 
-    await fordereMagicLinkAn(pool, mailer, email, einladungscode, jetzt());
+    await fordereMagicLinkAn(
+      pool,
+      mailer,
+      email,
+      einladungscode === undefined || einladungscode.length === 0
+        ? undefined
+        : einladungscode,
+      jetzt(),
+    );
 
     // Immer dieselbe Antwort. Ob die Angaben stimmten, erfährt nur, wer die
     // Mail bekommt — sonst wäre dieser Endpunkt ein Werkzeug, um

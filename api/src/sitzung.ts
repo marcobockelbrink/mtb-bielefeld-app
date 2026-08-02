@@ -8,6 +8,7 @@
 
 import type pg from 'pg';
 
+import { verbraucheEinladung } from './einladung.ts';
 import { erzeugeToken, hashe } from './token.ts';
 
 const ZUGANG_MINUTEN = 15;
@@ -72,6 +73,13 @@ export async function pruefeZugang(
  *
  * Alles in einer Transaktion — sonst könnte ein Abbruch nach dem Entwerten
  * ein Mitglied ohne Sitzung und mit verbrauchtem Link hinterlassen.
+ *
+ * **Hier** wird die Eintrittskarte entwertet, nicht beim Anfordern: erst
+ * jetzt gibt es eine Mitglieds-ID für `einladung.eingeloest_von`, und erst
+ * jetzt ist das Konto wirklich entstanden. Ein Link ohne Einladung
+ * (`einladung_id IS NULL`) darf nur ein **bestehendes** Mitglied anmelden —
+ * gäbe es keines mehr, weil das Konto zwischenzeitlich gelöscht wurde,
+ * entstünde sonst ohne jede Karte ein neues.
  */
 export async function loeseMagicLinkEin(
   pool: pg.Pool,
@@ -87,8 +95,9 @@ export async function loeseMagicLinkEin(
       email: string;
       gueltig_bis: Date;
       verbraucht_am: Date | null;
+      einladung_id: string | null;
     }>(
-      `SELECT id, email, gueltig_bis, verbraucht_am FROM magic_link
+      `SELECT id, email, gueltig_bis, verbraucht_am, einladung_id FROM magic_link
         WHERE token_hash = $1 FOR UPDATE`,
       [hashe(token)],
     );
@@ -108,14 +117,17 @@ export async function loeseMagicLinkEin(
       jetzt,
     ]);
 
-    const { rows: mitglieder } = await verbindung.query<{ id: string }>(
-      `INSERT INTO mitglied (email) VALUES ($1)
-       ON CONFLICT (lower(email)) DO UPDATE SET gesehen_am = now()
-       RETURNING id`,
-      [eintrag.email],
+    const mitgliedId = await findeOderLegeMitgliedAn(
+      verbindung,
+      eintrag.email,
+      eintrag.einladung_id,
+      jetzt,
     );
+    if (mitgliedId === null) {
+      await verbindung.query('ROLLBACK');
+      return { ok: false };
+    }
 
-    const mitgliedId = mitglieder[0]!.id;
     const token_paar = await legeSitzungAn(verbindung, mitgliedId, jetzt);
 
     await verbindung.query('COMMIT');
@@ -126,6 +138,50 @@ export async function loeseMagicLinkEin(
   } finally {
     verbindung.release();
   }
+}
+
+/**
+ * Gibt die Mitglieds-ID zurück — vorhanden oder frisch angelegt. `null`,
+ * wenn es kein Mitglied gibt und keine Eintrittskarte mehr zieht.
+ *
+ * Läuft ausschließlich innerhalb der Transaktion von `loeseMagicLinkEin`.
+ */
+async function findeOderLegeMitgliedAn(
+  verbindung: pg.PoolClient,
+  email: string,
+  einladungId: string | null,
+  jetzt: Date,
+): Promise<string | null> {
+  const { rows: vorhanden } = await verbindung.query<{ id: string }>(
+    'SELECT id FROM mitglied WHERE lower(email) = lower($1)',
+    [email],
+  );
+
+  const bekannt = vorhanden[0];
+  if (bekannt) {
+    await verbindung.query('UPDATE mitglied SET gesehen_am = $2 WHERE id = $1', [
+      bekannt.id,
+      jetzt,
+    ]);
+    return bekannt.id;
+  }
+
+  if (einladungId === null) return null;
+
+  // ON CONFLICT: Zwei gleichzeitige Einlösungen für dieselbe Adresse haben
+  // oben beide „kein Mitglied“ gesehen. Die zweite bekommt hier dieselbe
+  // Zeile statt eines Fehlers am eindeutigen Index — und scheitert gleich
+  // darauf sauber an der schon entwerteten Einladung.
+  const { rows: angelegt } = await verbindung.query<{ id: string }>(
+    `INSERT INTO mitglied (email) VALUES ($1)
+     ON CONFLICT (lower(email)) DO UPDATE SET gesehen_am = $2
+     RETURNING id`,
+    [email, jetzt],
+  );
+  const mitgliedId = angelegt[0]!.id;
+
+  const verbrauch = await verbraucheEinladung(verbindung, einladungId, mitgliedId, jetzt);
+  return verbrauch.ok ? mitgliedId : null;
 }
 
 /**
