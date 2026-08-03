@@ -67,6 +67,26 @@ const SPERR_ZEITSCHRANKE = '3s';
  */
 export const ZAEHLFENSTER_MINUTEN = 60;
 
+/**
+ * Wie viele Magic Links insgesamt je Zählfenster verschickt werden dürfen —
+ * über alle Adressen zusammen, nicht je einzelne.
+ *
+ * Die Begrenzung je Adresse schützt die einzelne Adresse, nicht den
+ * Mailversand des Vereins als Ganzes: Wer mit tausend **verschiedenen**
+ * Adressen anfragt, löst tausend Mails aus — jede für sich regelkonform. Der
+ * Schaden trifft die Zustellbarkeit, nicht ein einzelnes Postfach: Ein
+ * Mailanbieter, der plötzlich massenhaft Mails von der Vereinsdomain sieht
+ * (viele an erfundene Adressen, die hart abprallen), stuft die Domain als
+ * Spamquelle ein — danach landen auch die echten Magic Links im Spamordner,
+ * für alle, auf Wochen. Das lässt sich nicht per Neustart reparieren.
+ *
+ * Die Zahl ist an der Mitgliederschaft gemessen, nicht geschätzt: Bei rund
+ * 200 Mitgliedern gibt es keine 30 echten Anmeldewünsche in einer Stunde.
+ * Wer mehr sieht, sieht keinen Ansturm, sondern einen Angriff auf den Ruf der
+ * Domain.
+ */
+const GLOBALES_STUNDENBUDGET = 30;
+
 /** `einladungId: null` heißt: bestehendes Mitglied, keine Karte nötig. */
 type Zutritt = { ok: true; einladungId: string | null } | { ok: false };
 
@@ -149,7 +169,7 @@ async function fuehreBerechtigtenZutrittLeiseAus(
   einladungId: string | null,
 ): Promise<void> {
   try {
-    const angelegt = await legeAnWennDieBegrenzungEsZulaesst(
+    const ergebnis = await legeAnWennDieBegrenzungEsZulaesst(
       pool,
       email,
       hashe(token),
@@ -157,10 +177,25 @@ async function fuehreBerechtigtenZutrittLeiseAus(
       gueltigBis,
       einladungId,
     );
+
+    // Das globale Budget ist der Alarmfall, nicht der Normalfall: Anders als
+    // eine greifende Begrenzung je Adresse (die bleibt stumm, siehe oben)
+    // ist das hier ein Hinweis, dass gerade etwas mit dem Ruf der
+    // Vereinsdomain passiert — das soll der Betreiber sofort sehen, nicht
+    // erst beim nächsten Blick ins Zustellbarkeits-Dashboard.
+    if (!ergebnis.angelegt && ergebnis.budgetErschoepft) {
+      protokoll.error(
+        { an: email, budget: GLOBALES_STUNDENBUDGET, fensterMinuten: ZAEHLFENSTER_MINUTEN },
+        'Globales Stundenbudget für Magic Links erschöpft — kein Versand. ' +
+          'Das ist kein normaler Ansturm: Bei rund 200 Mitgliedern deutet das ' +
+          'auf einen Angriff auf die Zustellbarkeit der Vereinsdomain hin.',
+      );
+    }
+
     // Nur verschicken, wenn auch wirklich eine Zeile entstanden ist. Sonst
     // wäre die Begrenzung nur eine Buchhaltung über Zeilen und keine über
     // Mails — und genau die Mails sind es, die das Postfach fluten.
-    if (!angelegt) return;
+    if (!ergebnis.angelegt) return;
 
     await mailer.sende(
       email,
@@ -208,8 +243,17 @@ async function pruefeZutritt(
 }
 
 /**
+ * Ergebnis von `legeAnWennDieBegrenzungEsZulaesst`: entweder ist die Zeile
+ * entstanden, oder sie ist es nicht — und dann ist von Interesse, ob das am
+ * globalen Budget lag. Nur dieser Fall soll laut ins Protokoll, die
+ * Begrenzung je Adresse bleibt bewusst stumm (siehe `fordereMagicLinkAn`).
+ */
+type Anlegeergebnis = { angelegt: true } | { angelegt: false; budgetErschoepft: boolean };
+
+/**
  * Prüft die Begrenzung und legt den Magic Link an — als **eine**
- * untrennbare Einheit. Gibt zurück, ob eine Zeile entstanden ist.
+ * untrennbare Einheit. Gibt zurück, ob eine Zeile entstanden ist und, falls
+ * nicht, ob das am globalen Stundenbudget lag.
  *
  * Getrennt war beides ein Wettlauf: Zwei gleichzeitige Anfragen für
  * dieselbe Adresse lesen denselben Zählstand, finden beide Platz und
@@ -245,6 +289,10 @@ async function pruefeZutritt(
  * ihn ohnehin schon abfängt, protokolliert und nach außen wie eine
  * greifende Begrenzung behandelt — kein Link, aber 202. Ein eigener Zweig
  * dafür würde nur verdoppeln, was es schon gibt.
+ *
+ * Nach der Begrenzung je Adresse folgt, noch hinter derselben Sperre und in
+ * derselben Transaktion, die Prüfung des globalen Stundenbudgets
+ * (`unterGlobalemBudget`) — beide zusammen entscheiden, ob eingefügt wird.
  */
 async function legeAnWennDieBegrenzungEsZulaesst(
   pool: pg.Pool,
@@ -253,7 +301,7 @@ async function legeAnWennDieBegrenzungEsZulaesst(
   jetzt: Date,
   gueltigBis: Date,
   einladungId: string | null,
-): Promise<boolean> {
+): Promise<Anlegeergebnis> {
   const verbindung = await pool.connect();
   try {
     await verbindung.query('BEGIN');
@@ -263,8 +311,12 @@ async function legeAnWennDieBegrenzungEsZulaesst(
     await verbindung.query(`SET LOCAL statement_timeout = '${SPERR_ZEITSCHRANKE}'`);
     await verbindung.query('SELECT pg_advisory_xact_lock(hashtext(lower($1)))', [email]);
 
-    const erlaubt = await darfAnfordern(verbindung, email, jetzt);
-    if (erlaubt) {
+    const adressbegrenzungErlaubt = await darfAnfordern(verbindung, email, jetzt);
+    const budgetErschoepft =
+      adressbegrenzungErlaubt && !(await unterGlobalemBudget(verbindung, jetzt));
+    const angelegt = adressbegrenzungErlaubt && !budgetErschoepft;
+
+    if (angelegt) {
       // angelegt_am explizit statt der SQL-Voreinstellung now(): Sonst würde
       // die Begrenzung (darfAnfordern) an der Systemzeit hängen statt an der
       // eingespeisten Uhr — und wäre in Tests nicht mehr kontrollierbar. Siehe
@@ -277,7 +329,7 @@ async function legeAnWennDieBegrenzungEsZulaesst(
     }
 
     await verbindung.query('COMMIT');
-    return erlaubt;
+    return angelegt ? { angelegt: true } : { angelegt: false, budgetErschoepft };
   } catch (fehler) {
     // Ohne Rücknahme käme die Verbindung mit offener Transaktion in den Pool
     // zurück. Scheitert auch die (etwa weil die Verbindung weg ist), geht
@@ -334,4 +386,40 @@ async function darfAnfordern(
   }
 
   return true;
+}
+
+/**
+ * Ob insgesamt, über alle Adressen hinweg, noch Platz im Zählfenster ist.
+ *
+ * Zählt bewusst **ohne** Adressfilter, sonst dieselbe Abfrage wie in
+ * `darfAnfordern` — auf `magic_link`, über `ZAEHLFENSTER_MINUTEN`, damit das
+ * Budget genau dann sinkt, wenn auch die Begrenzung je Adresse zählt, und
+ * genau dann durchs Aufräumen entlastet wird, wenn auch sie entlastet wird.
+ * Eine zweite Fensterlänge nur fürs Budget würde die beiden wieder
+ * auseinanderlaufen lassen — siehe die Begründung bei `ZAEHLFENSTER_MINUTEN`.
+ *
+ * Läuft wie `darfAnfordern` hinter der Beratungssperre aus
+ * `legeAnWennDieBegrenzungEsZulaesst` — aber diese Sperre ist **je Adresse**,
+ * sie serialisiert den globalen Zählstand also nicht: Zwei gleichzeitige
+ * Anfragen für zwei **verschiedene** Adressen nehmen zwei verschiedene
+ * Sperren, lesen beide denselben Zählstand und können beide einfügen. Das
+ * ist hier bewusst hingenommen, nicht übersehen: Beim Budget geht es um die
+ * Größenordnung — 30 gegen die Tausende einer echten Flut —, nicht um
+ * Exaktheit auf ±1. Eine Sperre, die auch das noch abfängt, müsste global
+ * sein und würde damit **alle** gleichzeitigen Anfragen für **alle**
+ * Adressen hintereinander zwingen, egal wie unterschiedlich sie sind — genau
+ * die Eigenschaft, die die Sperre je Adresse in `legeAnWennDieBegrenzungEsZulaesst`
+ * bewusst vermeidet. Wer das hier „nachbessert", tauscht eine kleine,
+ * hinnehmbare Unschärfe gegen einen Engpass ein, der jede Anmeldung im Verein
+ * hintereinander abarbeitet.
+ */
+async function unterGlobalemBudget(verbindung: pg.PoolClient, jetzt: Date): Promise<boolean> {
+  const fensteranfang = new Date(jetzt.getTime() - ZAEHLFENSTER_MINUTEN * 60 * 1000);
+
+  const { rows } = await verbindung.query<{ anzahl: string }>(
+    'SELECT count(*) AS anzahl FROM magic_link WHERE angelegt_am > $1',
+    [fensteranfang],
+  );
+
+  return Number(rows[0]?.anzahl ?? 0) < GLOBALES_STUNDENBUDGET;
 }

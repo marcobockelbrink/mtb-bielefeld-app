@@ -300,3 +300,87 @@ describe('Begrenzung und Aufräumen zusammen', () => {
     expect(await fordere(mailer, spaeter)).toBe(2);
   });
 });
+
+/**
+ * Das globale Budget (`GLOBALES_STUNDENBUDGET` in `anmeldung.ts`) schützt die
+ * Zustellbarkeit der Vereinsdomain, nicht eine einzelne Adresse: Tausend
+ * verschiedene, für sich regelkonforme Adressen sollen nicht tausend Mails
+ * auslösen dürfen. Die Zahl 30 wird hier nicht importiert, sondern wie bei
+ * `HOECHSTENS_JE_FENSTER` als Literal mitgeführt — ändert sich die Konstante,
+ * soll genau das hier auffallen.
+ */
+describe('Globales Stundenbudget', () => {
+  /**
+   * Füllt das globale Budget mit `anzahl` Zeilen verschiedener, frei
+   * erfundener Adressen — direkt über SQL, nicht über `fordereMagicLinkAn`:
+   * Die Begrenzung je Adresse (höchstens drei) würde sonst schon bei der
+   * vierten Anforderung greifen, lange bevor 30 Zeilen zusammenkommen.
+   */
+  async function fuelleGlobalesBudget(anzahl: number, jetzt: Date): Promise<void> {
+    for (let i = 0; i < anzahl; i++) {
+      await pool.query(
+        `INSERT INTO magic_link (token_hash, email, angelegt_am, gueltig_bis)
+         VALUES ($1, $2, $3, $4)`,
+        [`budget-hash-${i}`, `budget-${i}@example.org`, jetzt, new Date(jetzt.getTime() + 15 * 60 * 1000)],
+      );
+    }
+  }
+
+  it('lehnt eine frische Adresse ab, wenn das globale Stundenbudget erschöpft ist', async () => {
+    await pool.query("INSERT INTO mitglied (email) VALUES ('frisch@example.org')");
+    // 30 Zeilen verschiedener Adressen — jede für sich unter der Begrenzung
+    // je Adresse völlig regelkonform, in Summe das Budget der Stunde.
+    await fuelleGlobalesBudget(30, start);
+    const mailer = new GemerkterMailer();
+
+    // Wirft nicht: Ein erschöpftes Budget wird wie eine greifende Begrenzung
+    // behandelt, nach außen bleibt es bei 202.
+    await expect(
+      fordereMagicLinkAn(pool, mailer, stillesProtokoll, 'frisch@example.org', undefined, start),
+    ).resolves.toBeUndefined();
+
+    expect(mailer.versendet).toHaveLength(0);
+    const { rows } = await pool.query("SELECT id FROM magic_link WHERE email = 'frisch@example.org'");
+    expect(rows).toHaveLength(0);
+  });
+
+  it('protokolliert den Budgetfall laut, anders als die stumme Begrenzung je Adresse', async () => {
+    await pool.query("INSERT INTO mitglied (email) VALUES ('frisch@example.org')");
+    await fuelleGlobalesBudget(30, start);
+    const mailer = new GemerkterMailer();
+    const protokoll = new GemerktesProtokoll();
+
+    await fordereMagicLinkAn(pool, mailer, protokoll, 'frisch@example.org', undefined, start);
+
+    expect(protokoll.fehler).toHaveLength(1);
+    expect(protokoll.fehler[0]?.nachricht).toMatch(/budget/i);
+    expect(protokoll.fehler[0]?.daten).toMatchObject({ an: 'frisch@example.org' });
+  });
+
+  it('lässt unter dem Budget alles wie bisher durch', async () => {
+    await pool.query("INSERT INTO mitglied (email) VALUES ('frisch@example.org')");
+    // Eine Zeile unter dem Budget: Platz für genau noch eine.
+    await fuelleGlobalesBudget(29, start);
+    const mailer = new GemerkterMailer();
+
+    await fordereMagicLinkAn(pool, mailer, stillesProtokoll, 'frisch@example.org', undefined, start);
+
+    expect(mailer.versendet).toHaveLength(1);
+  });
+
+  it('belastet das Budget nicht mit Zeilen, die aus dem Zählfenster gefallen und weggeräumt sind', async () => {
+    await pool.query("INSERT INTO mitglied (email) VALUES ('frisch@example.org')");
+    // 30 Zeilen, mehr als zwei Stunden alt: außerhalb des Zählfensters und
+    // (nach `gueltig_bis`) längst abgelaufen — das Aufräumen darf sie fassen.
+    const laengstVorbei = new Date(start.getTime() - 2 * 60 * 60 * 1000);
+    await fuelleGlobalesBudget(30, laengstVorbei);
+
+    const bilanz = await raeumeAuf(pool, start);
+    expect(bilanz.magicLinks).toBe(30);
+
+    const mailer = new GemerkterMailer();
+    await fordereMagicLinkAn(pool, mailer, stillesProtokoll, 'frisch@example.org', undefined, start);
+
+    expect(mailer.versendet).toHaveLength(1);
+  });
+});
