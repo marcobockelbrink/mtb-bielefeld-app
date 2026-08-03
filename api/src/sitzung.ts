@@ -9,7 +9,6 @@
 import type pg from 'pg';
 
 import { verbraucheEinladung } from './einladung.ts';
-import type { Protokoll } from './protokoll.ts';
 import { erzeugeToken, hashe } from './token.ts';
 
 const ZUGANG_MINUTEN = 15;
@@ -228,7 +227,6 @@ export async function erneuereSitzung(
   pool: pg.Pool,
   erneuerung: string,
   jetzt: Date,
-  protokoll: Protokoll,
 ): Promise<{ ok: true; zugang: string; erneuerung: string } | { ok: false }> {
   return tauscheErneuerungstoken(pool, erneuerung, jetzt);
 }

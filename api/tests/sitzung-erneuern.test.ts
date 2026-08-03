@@ -1,7 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { pool } from '../src/datenbank.ts';
-import { GemerktesProtokoll } from '../src/protokoll.ts';
 import { erneuereSitzung, legeSitzungAn, pruefeZugang } from '../src/sitzung.ts';
 import { frischeDatenbank } from './hilfen/datenbank.ts';
 
@@ -27,7 +26,7 @@ describe('erneuereSitzung', () => {
     const id = await neuesMitglied();
     const erste = await legeSitzungAn(pool, id, jetzt);
 
-    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt, new GemerktesProtokoll());
+    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt);
     expect(zweite.ok).toBe(true);
     if (!zweite.ok) return;
 
@@ -43,7 +42,7 @@ describe('erneuereSitzung', () => {
     const erste = await legeSitzungAn(pool, id, jetzt);
     expect(await pruefeZugang(pool, erste.zugang, jetzt)).not.toBeNull();
 
-    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt, new GemerktesProtokoll());
+    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt);
     if (!zweite.ok) throw new Error('Vorbedingung nicht erfüllt');
 
     expect(await pruefeZugang(pool, erste.zugang, jetzt)).toBeNull();
@@ -53,11 +52,11 @@ describe('erneuereSitzung', () => {
   it('erkennt ein wiederverwendetes Token und wirft alle Sitzungen raus', async () => {
     const id = await neuesMitglied();
     const erste = await legeSitzungAn(pool, id, jetzt);
-    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt, new GemerktesProtokoll());
+    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt);
     if (!zweite.ok) throw new Error('Vorbedingung nicht erfüllt');
 
     // Das alte Token taucht wieder auf: Es wurde kopiert.
-    const dritte = await erneuereSitzung(pool, erste.erneuerung, jetzt, new GemerktesProtokoll());
+    const dritte = await erneuereSitzung(pool, erste.erneuerung, jetzt);
     expect(dritte.ok).toBe(false);
 
     // Auch die zwischenzeitlich gültige Sitzung ist damit erledigt.
@@ -65,7 +64,7 @@ describe('erneuereSitzung', () => {
   });
 
   it('lehnt ein unbekanntes Token ab', async () => {
-    expect(await erneuereSitzung(pool, 'ausgedacht', jetzt, new GemerktesProtokoll())).toEqual({ ok: false });
+    expect(await erneuereSitzung(pool, 'ausgedacht', jetzt)).toEqual({ ok: false });
   });
 
   it('lehnt ein abgelaufenes Token ab', async () => {
@@ -73,7 +72,7 @@ describe('erneuereSitzung', () => {
     const erste = await legeSitzungAn(pool, id, jetzt);
     const inZweiMonaten = new Date(jetzt.getTime() + 61 * 24 * 60 * 60 * 1000);
 
-    expect(await erneuereSitzung(pool, erste.erneuerung, inZweiMonaten, new GemerktesProtokoll())).toEqual({
+    expect(await erneuereSitzung(pool, erste.erneuerung, inZweiMonaten)).toEqual({
       ok: false,
     });
   });
