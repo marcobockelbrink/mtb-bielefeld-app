@@ -4,7 +4,7 @@ import { fordereMagicLinkAn } from '../src/anmeldung.ts';
 import { raeumeAuf } from '../src/aufraeumen.ts';
 import { pool } from '../src/datenbank.ts';
 import { GemerkterMailer } from '../src/mailer.ts';
-import type { Protokoll } from '../src/protokoll.ts';
+import { GemerktesProtokoll, type Protokoll } from '../src/protokoll.ts';
 import { frischeDatenbank } from './hilfen/datenbank.ts';
 
 /**
@@ -203,6 +203,58 @@ describe('Begrenzung je Adresse', () => {
 
     expect(mailer.versendet).toHaveLength(1);
   });
+});
+
+/**
+ * A aus der Nachprüfung: Ohne Zeitschranke wartet `pg_advisory_xact_lock`
+ * unbegrenzt, falls die Sperre schon gehalten wird — und blockiert dabei
+ * eine Poolverbindung auf unbestimmte Zeit. Bei zehn Verbindungen im Pool
+ * reicht das, um jede weitere Anfrage lahmzulegen, auch solche, die mit der
+ * hängenden Adresse gar nichts zu tun haben.
+ */
+describe('Zeitschranke der Sperre', () => {
+  it('gibt bei einer hängenden Sperre auf, statt endlos zu warten, und meldet es laut', async () => {
+    await mitgliedAnlegen();
+    const mailer = new GemerkterMailer();
+    const protokoll = new GemerktesProtokoll();
+
+    // Eine zweite, echte Verbindung hält die Sperre für dieselbe Adresse
+    // offen, bevor die Anforderung überhaupt beginnt. Damit ist das Warten
+    // in `legeAnWennDieBegrenzungEsZulaesst` kein Wettlauf, sondern
+    // garantiert — `lock_timeout` muss die Anforderung von selbst beenden.
+    const haeltDieSperre = await pool.connect();
+    await haeltDieSperre.query('BEGIN');
+    await haeltDieSperre.query('SELECT pg_advisory_xact_lock(hashtext(lower($1)))', [
+      'malte@example.org',
+    ]);
+
+    try {
+      // Wirft nach außen nicht: Ein Zeitüberlauf beim Sperren wird wie eine
+      // greifende Begrenzung behandelt, siehe `fordereMagicLinkAn`.
+      await expect(
+        fordereMagicLinkAn(pool, mailer, protokoll, 'malte@example.org', undefined, start),
+      ).resolves.toBeUndefined();
+
+      // Kein Link, keine Mail — wie bei einer greifenden Begrenzung.
+      expect(mailer.versendet).toHaveLength(0);
+      const { rows } = await pool.query('SELECT id FROM magic_link');
+      expect(rows).toHaveLength(0);
+
+      // Anders als bei einer normal greifenden Begrenzung (die bleibt
+      // stumm) ist ein Zeitüberlauf ein echter Fehler und geht laut ins
+      // Protokoll, damit der Betreiber ihn sieht.
+      expect(protokoll.fehler).toHaveLength(1);
+      expect(protokoll.fehler[0]?.daten).toMatchObject({ an: 'malte@example.org' });
+      expect(protokoll.fehler[0]?.nachricht).toMatch(/nicht angelegt/);
+      // lock_timeout und statement_timeout stehen auf denselben Wert und
+      // starten praktisch gleichzeitig — welcher der beiden zuerst abbricht,
+      // ist offen, entscheidend ist nur, dass einer von beiden es tut.
+      expect(String(protokoll.fehler[0]?.daten.fehler)).toMatch(/timeout/i);
+    } finally {
+      await haeltDieSperre.query('ROLLBACK');
+      haeltDieSperre.release();
+    }
+  }, 10_000);
 });
 
 /**

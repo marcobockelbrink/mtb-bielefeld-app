@@ -40,6 +40,21 @@ const HOECHSTENS_JE_FENSTER = 3;
 const MINDESTABSTAND_SEKUNDEN = 60;
 
 /**
+ * Wie lange die Transaktion in `legeAnWennDieBegrenzungEsZulaesst` höchstens
+ * auf die Sperre und danach auf jede einzelne Anweisung wartet.
+ *
+ * `pg_advisory_xact_lock` wartet ohne Zeitschranke, falls die Sperre schon
+ * gehalten wird — und hält dabei die ganze Zeit eine Poolverbindung. Hängt
+ * ein Vorgang, der die Sperre hält (oder ein Backend, das sie durch einen
+ * eigenen Absturz verwaist zurücklässt), reihen sich alle weiteren Anfragen
+ * für dieselbe Adresse dahinter auf, bis sämtliche Verbindungen des Pools
+ * belegt sind — danach kommt **keine** Anfrage mehr durch, auch nicht
+ * `/konto` oder `/sitzung/erneuern`. Die Transaktion macht nur ein `COUNT`
+ * und ein `INSERT`, ein paar Sekunden genügen reichlich.
+ */
+const SPERR_ZEITSCHRANKE = '3s';
+
+/**
  * Über welchen Zeitraum gezählt wird — **die** eine Stelle für diese Zahl.
  *
  * Exportiert, weil das Aufräumen (`aufraeumen.ts`) sie genauso braucht: Die
@@ -222,6 +237,14 @@ async function pruefeZutritt(
  * Verschickt wird erst **nach** dem COMMIT, nicht in der Transaktion: Ein
  * Mailanbieter, der zwei Sekunden braucht, hielte sonst die Sperre und eine
  * Poolverbindung genauso lange.
+ *
+ * Bleibt die Sperre trotzdem hängen (siehe `SPERR_ZEITSCHRANKE`), bricht
+ * `lock_timeout` das Warten mit einem Fehler ab. Der wird hier **nicht**
+ * gesondert behandelt: Er läuft in den bestehenden Rollback-Zweig und von da
+ * unverändert zum Aufrufer (`fuehreBerechtigtenZutrittLeiseAus`) hinaus, der
+ * ihn ohnehin schon abfängt, protokolliert und nach außen wie eine
+ * greifende Begrenzung behandelt — kein Link, aber 202. Ein eigener Zweig
+ * dafür würde nur verdoppeln, was es schon gibt.
  */
 async function legeAnWennDieBegrenzungEsZulaesst(
   pool: pg.Pool,
@@ -234,6 +257,10 @@ async function legeAnWennDieBegrenzungEsZulaesst(
   const verbindung = await pool.connect();
   try {
     await verbindung.query('BEGIN');
+    // Vor der Sperre gesetzt, damit die Zeitschranke auch für das Warten
+    // auf sie selbst gilt, nicht erst für die Anweisungen danach.
+    await verbindung.query(`SET LOCAL lock_timeout = '${SPERR_ZEITSCHRANKE}'`);
+    await verbindung.query(`SET LOCAL statement_timeout = '${SPERR_ZEITSCHRANKE}'`);
     await verbindung.query('SELECT pg_advisory_xact_lock(hashtext(lower($1)))', [email]);
 
     const erlaubt = await darfAnfordern(verbindung, email, jetzt);
