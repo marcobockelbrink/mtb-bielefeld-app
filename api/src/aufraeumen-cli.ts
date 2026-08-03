@@ -11,6 +11,7 @@ import { pool } from './datenbank.ts';
 
 const bilanz = await raeumeAuf(pool, new Date());
 console.log(
-  `Weggeräumt: ${bilanz.sitzungen} Sitzung(en), ${bilanz.magicLinks} Magic Link(s).`,
+  `Weggeräumt: ${bilanz.sitzungen} Sitzung(en), ${bilanz.magicLinks} Magic Link(s), ` +
+    `${bilanz.tourenanmeldungen} Tourenanmeldung(en).`,
 );
 await pool.end();

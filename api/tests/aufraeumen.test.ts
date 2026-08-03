@@ -61,6 +61,24 @@ async function gastanmeldung(schluessel: string, terminStart: Date): Promise<voi
   );
 }
 
+/**
+ * Eine Mitgliedsanmeldung mit frei wählbarem Terminbeginn — belegt, dass
+ * die Frist wie im Kommentar versprochen für alle Anmeldungen gilt, nicht
+ * nur für Gäste.
+ */
+async function mitgliedanmeldung(
+  schluessel: string,
+  terminStart: Date,
+  mitgliedId: string,
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO tourenanmeldung
+       (terminschluessel, termin_start, mitglied_id, angelegt_am)
+     VALUES ($1, $2, $3, $4)`,
+    [schluessel, terminStart, mitgliedId, terminStart],
+  );
+}
+
 beforeEach(async () => {
   await frischeDatenbank();
 });
@@ -163,5 +181,34 @@ describe('raeumeAuf — Tourenanmeldungen', () => {
     expect(bilanz.tourenanmeldungen).toBe(0);
     const { rows } = await pool.query('SELECT id FROM tourenanmeldung');
     expect(rows).toHaveLength(1);
+  });
+
+  it('löscht auch die Anmeldung eines Mitglieds 30 Tage nach dem Termin', async () => {
+    // Die Frist gilt laut Kommentar bewusst für alle Anmeldungen, nicht nur
+    // für Gäste — bisher war das nur behauptet, nicht geprüft.
+    const id = await neuesMitglied();
+    const vor31Tagen = new Date(jetzt.getTime() - 31 * 24 * 60 * 60 * 1000);
+    await mitgliedanmeldung('alt~mitglied', vor31Tagen, id);
+
+    const bilanz = await raeumeAuf(pool, jetzt);
+
+    expect(bilanz.tourenanmeldungen).toBe(1);
+    const { rows } = await pool.query('SELECT id FROM tourenanmeldung');
+    expect(rows).toHaveLength(0);
+  });
+
+  it('löscht auch eine stornierte Anmeldung 30 Tage nach dem Termin', async () => {
+    const vor31Tagen = new Date(jetzt.getTime() - 31 * 24 * 60 * 60 * 1000);
+    await gastanmeldung('alt~storniert', vor31Tagen);
+    await pool.query(
+      `UPDATE tourenanmeldung SET storniert_am = $1 WHERE terminschluessel = 'alt~storniert'`,
+      [vor31Tagen],
+    );
+
+    const bilanz = await raeumeAuf(pool, jetzt);
+
+    expect(bilanz.tourenanmeldungen).toBe(1);
+    const { rows } = await pool.query('SELECT id FROM tourenanmeldung');
+    expect(rows).toHaveLength(0);
   });
 });
