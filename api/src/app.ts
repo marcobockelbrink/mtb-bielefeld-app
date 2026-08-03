@@ -157,7 +157,7 @@ export function baueApp({
   const log = protokoll ?? app.log;
 
   /**
-   * Notbremse je IP für `/anmeldung/*`, `/sitzung/*` und `/konto` — siehe
+   * Notbremse je IP für `/anmeldung/*`, `/sitzung*` und `/konto*` — siehe
    * `ipbegrenzung.ts` für das Warum, `caddy/anmeldung.Caddyfile` für die
    * Schicht, die das eigentlich übernehmen soll, sobald Plan 4 sie
    * anwendet.

@@ -8,10 +8,17 @@
 #
 # Die Pfadliste ist nicht "alles unter /anmeldung", sondern jeder Pfad, der
 # ein Token gegen die Datenbank prüft: /anmeldung/* (Magic Link anfordern
-# und einlösen), /sitzung/* (erneuern, beenden) und /konto* (löschen). Bei
-# einem 256-Bit-Token ist Erraten aussichtslos — das macht die Begrenzung
-# hier nicht sinnlos, denn jeder Versuch kostet trotzdem eine
+# und einlösen), /sitzung* (erneuern, abmelden) und /konto* (Auskunft,
+# löschen). Bei einem 256-Bit-Token ist Erraten aussichtslos — das macht die
+# Begrenzung hier nicht sinnlos, denn jeder Versuch kostet trotzdem eine
 # Datenbankabfrage, und es gibt keinen Grund, das ungebremst zuzulassen.
+#
+# /sitzung* und nicht /sitzung/*: Caddys `path`-Matcher verlangt bei einem
+# Stern nach dem Schrägstrich ein weiteres Segment. Das hätte das exakte
+# `DELETE /sitzung` (Abmelden, prüft ebenfalls ein Token) durchgelassen —
+# genau die Lücke, die `app.ts` mit `startsWith('/sitzung')` bewusst
+# schließt. `/sitzung*` fasst ohne Schrägstrich davor beides: das exakte
+# `/sitzung` und jedes `/sitzung/…`.
 #
 # Angewandt wird das in Plan 4 (Inbetriebnahme). Bis dahin ist es eine
 # Vorlage, kein laufender Schutz.
@@ -23,7 +30,7 @@ api.mtb-bielefeld.de {
 	rate_limit {
 		zone anmeldung {
 			match {
-				path /anmeldung/* /sitzung/* /konto*
+				path /anmeldung/* /sitzung* /konto*
 			}
 			key {remote_host}
 			events 10
