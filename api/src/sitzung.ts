@@ -9,6 +9,7 @@
 import type pg from 'pg';
 
 import { verbraucheEinladung } from './einladung.ts';
+import type { Protokoll } from './protokoll.ts';
 import { erzeugeToken, hashe } from './token.ts';
 
 const ZUGANG_MINUTEN = 15;
@@ -218,12 +219,44 @@ async function findeOderLegeMitgliedAn(
  * Alle Sitzungen dieses Mitglieds fliegen raus. Wer wirklich der Eigentümer
  * ist, meldet sich neu an; wer es nicht ist, hält nichts mehr in der Hand.
  *
- * Hier hängt auch das Aufräumen: Die Erneuerung ist die Stelle, an der die
- * Tabelle wächst, also ist sie die Stelle, an der sie auch schrumpfen soll.
- * Ein eigener Zeitplan wäre ein zweites bewegliches Teil für eine Aufgabe,
- * die genau dann anfällt.
+ * Hier hängt auch das Aufräumen — aber bewusst **nach** der Transaktion,
+ * nicht mehr darin: Dieser Pfad geht jedes Gerät alle 15 Minuten, und ein
+ * gültiges Erneuerungs-Token darf nie an einem Aufräumen scheitern, das mit
+ * ihm selbst nichts zu tun hat. Läge das Aufräumen davor und innerhalb der
+ * Transaktion (wie zuvor), würde außerdem jede Erneuerung das `SELECT …
+ * FOR UPDATE` hinter einem `DELETE` ohne passenden Index warten lassen, das
+ * dabei alle abgelaufenen Zeilen sperrt und gleichzeitige Erneuerungen
+ * aneinanderreiht. Ein eigener Zeitplan für das Aufräumen wäre trotzdem ein
+ * zweites bewegliches Teil für eine Aufgabe, die genau hier anfällt — die
+ * Erneuerung ist die Stelle, an der die Tabelle wächst, also bleibt sie die
+ * Stelle, an der sie auch schrumpfen soll. Nur eben lose angehängt: Ihr
+ * Scheitern wird protokolliert, nicht durchgereicht.
  */
 export async function erneuereSitzung(
+  pool: pg.Pool,
+  erneuerung: string,
+  jetzt: Date,
+  protokoll: Protokoll,
+): Promise<{ ok: true; zugang: string; erneuerung: string } | { ok: false }> {
+  const ergebnis = await tauscheErneuerungstoken(pool, erneuerung, jetzt);
+
+  if (ergebnis.ok) {
+    try {
+      await raeumeAbgelaufeneSitzungenAuf(pool, jetzt);
+    } catch (fehler) {
+      protokoll.error(
+        { fehler },
+        'Aufräumen abgelaufener Sitzungen ist fehlgeschlagen. Die Erneuerung ' +
+          'selbst ist trotzdem geglückt und bleibt davon unberührt.',
+      );
+    }
+  }
+
+  return ergebnis;
+}
+
+/** Die eigentliche Token-Rotation, in einer eigenen Transaktion. */
+async function tauscheErneuerungstoken(
   pool: pg.Pool,
   erneuerung: string,
   jetzt: Date,
@@ -231,8 +264,6 @@ export async function erneuereSitzung(
   const verbindung = await pool.connect();
   try {
     await verbindung.query('BEGIN');
-
-    await raeumeAbgelaufeneSitzungenAuf(verbindung, jetzt);
 
     const { rows } = await verbindung.query<{
       id: string;

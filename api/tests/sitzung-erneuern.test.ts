@@ -1,6 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import type pg from 'pg';
 
 import { pool } from '../src/datenbank.ts';
+import { GemerktesProtokoll } from '../src/protokoll.ts';
 import {
   erneuereSitzung,
   legeSitzungAn,
@@ -18,6 +20,25 @@ async function neuesMitglied(): Promise<string> {
   return rows[0]!.id;
 }
 
+/**
+ * Reicht `connect` unverändert durch, lässt aber das Aufräumen abgelaufener
+ * Sitzungen scheitern — wie ein Full-Table-Scan es bei einer gestörten
+ * Datenbank auch täte. Steht für N4: Die Erneuerung selbst darf davon
+ * unberührt bleiben.
+ */
+function poolMitScheiterndemAufraeumen(echterPool: pg.Pool): pg.Pool {
+  return {
+    connect: (...args: unknown[]) =>
+      (echterPool.connect as (...args: unknown[]) => unknown)(...args),
+    query: (text: unknown, werte?: unknown) => {
+      if (typeof text === 'string' && text.startsWith('DELETE FROM sitzung WHERE erneuerung_bis')) {
+        return Promise.reject(new Error('Das Aufräumen ist gestört.'));
+      }
+      return (echterPool.query as (text: unknown, werte?: unknown) => unknown)(text, werte);
+    },
+  } as unknown as pg.Pool;
+}
+
 beforeEach(async () => {
   await frischeDatenbank();
 });
@@ -31,7 +52,7 @@ describe('erneuereSitzung', () => {
     const id = await neuesMitglied();
     const erste = await legeSitzungAn(pool, id, jetzt);
 
-    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt);
+    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt, new GemerktesProtokoll());
     expect(zweite.ok).toBe(true);
     if (!zweite.ok) return;
 
@@ -47,7 +68,7 @@ describe('erneuereSitzung', () => {
     const erste = await legeSitzungAn(pool, id, jetzt);
     expect(await pruefeZugang(pool, erste.zugang, jetzt)).not.toBeNull();
 
-    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt);
+    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt, new GemerktesProtokoll());
     if (!zweite.ok) throw new Error('Vorbedingung nicht erfüllt');
 
     expect(await pruefeZugang(pool, erste.zugang, jetzt)).toBeNull();
@@ -57,11 +78,11 @@ describe('erneuereSitzung', () => {
   it('erkennt ein wiederverwendetes Token und wirft alle Sitzungen raus', async () => {
     const id = await neuesMitglied();
     const erste = await legeSitzungAn(pool, id, jetzt);
-    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt);
+    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt, new GemerktesProtokoll());
     if (!zweite.ok) throw new Error('Vorbedingung nicht erfüllt');
 
     // Das alte Token taucht wieder auf: Es wurde kopiert.
-    const dritte = await erneuereSitzung(pool, erste.erneuerung, jetzt);
+    const dritte = await erneuereSitzung(pool, erste.erneuerung, jetzt, new GemerktesProtokoll());
     expect(dritte.ok).toBe(false);
 
     // Auch die zwischenzeitlich gültige Sitzung ist damit erledigt.
@@ -69,7 +90,7 @@ describe('erneuereSitzung', () => {
   });
 
   it('lehnt ein unbekanntes Token ab', async () => {
-    expect(await erneuereSitzung(pool, 'ausgedacht', jetzt)).toEqual({ ok: false });
+    expect(await erneuereSitzung(pool, 'ausgedacht', jetzt, new GemerktesProtokoll())).toEqual({ ok: false });
   });
 
   it('lehnt ein abgelaufenes Token ab', async () => {
@@ -77,9 +98,33 @@ describe('erneuereSitzung', () => {
     const erste = await legeSitzungAn(pool, id, jetzt);
     const inZweiMonaten = new Date(jetzt.getTime() + 61 * 24 * 60 * 60 * 1000);
 
-    expect(await erneuereSitzung(pool, erste.erneuerung, inZweiMonaten)).toEqual({
+    expect(await erneuereSitzung(pool, erste.erneuerung, inZweiMonaten, new GemerktesProtokoll())).toEqual({
       ok: false,
     });
+  });
+
+  // N4: Das Aufräumen läuft nach der Erneuerung und außerhalb ihrer
+  // Transaktion — sein Scheitern darf ein gültiges Token nicht mit in ein
+  // 401 reißen.
+  it('gelingt auch, wenn das Aufräumen abgelaufener Sitzungen scheitert', async () => {
+    const id = await neuesMitglied();
+    const erste = await legeSitzungAn(pool, id, jetzt);
+    const protokoll = new GemerktesProtokoll();
+
+    const zweite = await erneuereSitzung(
+      poolMitScheiterndemAufraeumen(pool),
+      erste.erneuerung,
+      jetzt,
+      protokoll,
+    );
+
+    expect(zweite.ok).toBe(true);
+    if (!zweite.ok) return;
+    expect(await pruefeZugang(pool, zweite.zugang, jetzt)).not.toBeNull();
+
+    // Das Scheitern verschwindet nicht, es wechselt nur den Empfänger.
+    expect(protokoll.fehler).toHaveLength(1);
+    expect(String(protokoll.fehler[0]?.daten.fehler)).toMatch(/gestört/);
   });
 });
 
@@ -104,7 +149,7 @@ describe('raeumeAbgelaufeneSitzungenAuf', () => {
   it('lässt eine ersetzte, aber noch nicht abgelaufene Sitzung stehen', async () => {
     const id = await neuesMitglied();
     const erste = await legeSitzungAn(pool, id, jetzt);
-    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt);
+    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt, new GemerktesProtokoll());
     if (!zweite.ok) throw new Error('Vorbedingung nicht erfüllt');
 
     const anzahl = await raeumeAbgelaufeneSitzungenAuf(pool, jetzt);
@@ -119,7 +164,7 @@ describe('raeumeAbgelaufeneSitzungenAuf', () => {
 
     // Die Wiederverwendungserkennung sieht das kopierte Token noch als
     // solches — und schlägt Alarm.
-    const dritte = await erneuereSitzung(pool, erste.erneuerung, jetzt);
+    const dritte = await erneuereSitzung(pool, erste.erneuerung, jetzt, new GemerktesProtokoll());
     expect(dritte.ok).toBe(false);
     const { rows: nachAlarm } = await pool.query('SELECT id FROM sitzung');
     expect(nachAlarm).toHaveLength(0);

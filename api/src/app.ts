@@ -112,7 +112,7 @@ export function baueApp({
       return antwort.code(400).send({ fehler: 'Token fehlt.' });
     }
 
-    const ergebnis = await erneuereSitzung(pool, erneuerung, jetzt());
+    const ergebnis = await erneuereSitzung(pool, erneuerung, jetzt(), log);
     if (!ergebnis.ok) {
       return antwort.code(401).send({ fehler: 'Bitte melde dich neu an.' });
     }
