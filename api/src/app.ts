@@ -14,6 +14,15 @@ import { holeKontoAuskunft, loescheKonto } from './konto.ts';
 import type { Mailer } from './mailer.ts';
 import { serialisiereFehler, type Protokoll } from './protokoll.ts';
 import { beendeSitzung, erneuereSitzung, loeseMagicLinkEin, pruefeZugang, type Ausweis } from './sitzung.ts';
+import { erzeugeStandardTerminDienst, type TerminDienst } from './termine.ts';
+import {
+  holeBelegung,
+  holeTeilnehmer,
+  meldeAb,
+  meldeAn,
+  storniereGast,
+  type Teilnahmewunsch,
+} from './tourenanmeldung.ts';
 
 export interface Abhaengigkeiten {
   pool: pg.Pool;
@@ -41,6 +50,8 @@ export interface Abhaengigkeiten {
    * scheitern.
    */
   ipBegrenzung?: IpBegrenzung;
+  /** Standard: `erzeugeStandardTerminDienst` — Tests reichen einen mit eingebettetem Kalender. */
+  terminDienst?: TerminDienst;
 }
 
 /**
@@ -106,9 +117,11 @@ const HOECHSTENS_ANFRAGEN_JE_MINUTE = 20;
  * jeder Pfad, der ein Token gegen die Datenbank prüft. Mit `startsWith`
  * geprüft, nicht mit exaktem Vergleich — `/sitzung` erfasst so sowohl
  * `/sitzung/erneuern` als auch das exakte `DELETE /sitzung` (Abmelden), und
- * `/konto` sowohl `GET /konto` als auch `DELETE /konto`.
+ * `/konto` sowohl `GET /konto` als auch `DELETE /konto`. `/termine/` deckt
+ * das Bearer-Token beim Anmelden und Abmelden ab, `/gast/` den Storno-Token
+ * aus der Gäste-Mail.
  */
-const IP_GESCHUETZTE_PFAD_PRAEFIXE = ['/anmeldung/', '/sitzung', '/konto'];
+const IP_GESCHUETZTE_PFAD_PRAEFIXE = ['/anmeldung/', '/sitzung', '/konto', '/termine/', '/gast/'];
 
 function istIpGeschuetzterPfad(pfad: string): boolean {
   return IP_GESCHUETZTE_PFAD_PRAEFIXE.some((praefix) => pfad.startsWith(praefix));
@@ -152,9 +165,11 @@ export function baueApp({
   hoechstensGleichzeitig = HOECHSTENS_GLEICHZEITIG,
   hintergrundZeitschrankeMs = HINTERGRUND_ZEITSCHRANKE_MS,
   ipBegrenzung = new IpBegrenzung(HOECHSTENS_ANFRAGEN_JE_MINUTE, EINE_MINUTE_MS),
+  terminDienst,
 }: Abhaengigkeiten): FastifyInstance {
   const app = Fastify({ logger: protokollEinstellung });
   const log = protokoll ?? app.log;
+  const termine = terminDienst ?? erzeugeStandardTerminDienst(log);
 
   /**
    * Notbremse je IP für `/anmeldung/*`, `/sitzung*` und `/konto*` — siehe
@@ -372,6 +387,155 @@ export function baueApp({
 
     await loescheKonto(pool, ausweis.mitgliedId);
     return antwort.code(204).send();
+  });
+
+  app.get('/termine/:schluessel', async (anfrage, antwort) => {
+    const { schluessel } = anfrage.params as { schluessel: string };
+
+    let termin;
+    try {
+      termin = await termine.findeTermin(schluessel);
+    } catch (fehler) {
+      log.error({ fehler: serialisiereFehler(fehler) }, 'Kalender nicht lesbar');
+      return antwort.code(503).send({
+        fehler: 'Der Vereinskalender ist gerade nicht erreichbar. Versuch es gleich noch einmal.',
+      });
+    }
+    if (!termin) return antwort.code(404).send({ fehler: 'Diesen Termin gibt es nicht.' });
+
+    const belegt = await holeBelegung(pool, schluessel);
+    const plaetze = termin.details.maxParticipants ?? null;
+    const grunddaten = {
+      belegt,
+      plaetze,
+      frei: plaetze === null ? null : Math.max(0, plaetze - belegt),
+      gaesteErlaubt: termin.details.gaesteErlaubt === true,
+      abgesagt: termin.cancelled,
+    };
+
+    const ausweis = await holeAusweis(anfrage);
+    if (ausweis?.rolle === 'guide') {
+      return antwort.send({ ...grunddaten, teilnehmer: await holeTeilnehmer(pool, schluessel) });
+    }
+    return antwort.send(grunddaten);
+  });
+
+  app.post('/termine/:schluessel', async (anfrage, antwort) => {
+    const { schluessel } = anfrage.params as { schluessel: string };
+
+    let termin;
+    try {
+      termin = await termine.findeTermin(schluessel);
+    } catch (fehler) {
+      log.error({ fehler: serialisiereFehler(fehler) }, 'Kalender nicht lesbar');
+      return antwort.code(503).send({
+        fehler: 'Der Vereinskalender ist gerade nicht erreichbar. Versuch es gleich noch einmal.',
+      });
+    }
+    if (!termin) return antwort.code(404).send({ fehler: 'Diesen Termin gibt es nicht.' });
+
+    const ausweis = await holeAusweis(anfrage);
+    let wunsch: Teilnahmewunsch;
+
+    if (ausweis) {
+      wunsch = { mitgliedId: ausweis.mitgliedId };
+    } else {
+      const koerper = (anfrage.body ?? {}) as {
+        gastName?: unknown;
+        gastEmail?: unknown;
+        einwilligung?: unknown;
+      };
+      if (typeof koerper.gastName !== 'string' || koerper.gastName.trim().length === 0) {
+        return antwort.code(400).send({ fehler: 'Name fehlt.' });
+      }
+      if (typeof koerper.gastEmail !== 'string' || !koerper.gastEmail.includes('@')) {
+        return antwort.code(400).send({ fehler: 'E-Mail-Adresse fehlt oder ist ungültig.' });
+      }
+      // Kein vorangekreuztes Kästchen: Die Einwilligung muss ausdrücklich
+      // mitgeschickt werden, sonst wird nichts gespeichert.
+      if (koerper.einwilligung !== true) {
+        return antwort.code(400).send({
+          fehler:
+            'Ohne Einwilligung geht es nicht: Name und E-Mail-Adresse werden bis 30 Tage nach dem Termin gespeichert und sind nur für den Guide sichtbar.',
+        });
+      }
+      wunsch = { gastName: koerper.gastName.trim(), gastEmail: koerper.gastEmail.trim() };
+    }
+
+    const ergebnis = await meldeAn(pool, termin, wunsch, jetzt());
+
+    if (!ergebnis.ok) {
+      const texte: Record<typeof ergebnis.grund, string> = {
+        abgesagt: 'Dieser Termin wurde abgesagt.',
+        voll: 'Die Tour ist voll.',
+        'gaeste-nicht-erlaubt': 'Bei diesem Termin können sich nur Mitglieder anmelden.',
+        'schon-angemeldet': 'Du bist schon angemeldet.',
+      };
+      return antwort.code(409).send({
+        fehler: texte[ergebnis.grund],
+        belegt: ergebnis.belegt,
+        plaetze: ergebnis.plaetze,
+      });
+    }
+
+    // Die Storno-Mail nach dem Speichern: Scheitert sie, bleibt die
+    // Anmeldung bestehen — der Gast ist angemeldet, die Mail ist Komfort.
+    // Der Fehler geht laut ins Protokoll, nicht an den Anfragenden.
+    if (ergebnis.stornoToken && !('mitgliedId' in wunsch)) {
+      const basis = process.env.API_BASIS_URL ?? 'https://api.mtb-bielefeld.de';
+      try {
+        await mailer.sende(
+          wunsch.gastEmail,
+          `Deine Anmeldung: ${termin.title}`,
+          [
+            `Hallo ${wunsch.gastName},`,
+            '',
+            `du bist angemeldet: ${termin.title}.`,
+            '',
+            'Wenn du doch nicht mitfahren kannst, sag mit einem Klick ab:',
+            `${basis}/gast/storno/${ergebnis.stornoToken}`,
+            '',
+            'Deine Angaben werden 30 Tage nach dem Termin gelöscht und sind nur für den Guide sichtbar.',
+            '',
+            'Viele Grüße',
+            'MTB Bielefeld e.V.',
+          ].join('\r\n'),
+        );
+      } catch (fehler) {
+        log.error(
+          { fehler: serialisiereFehler(fehler) },
+          'Storno-Mail an Gast nicht verschickt — Anmeldung bleibt bestehen',
+        );
+      }
+    }
+
+    return antwort.code(201).send({ belegt: ergebnis.belegt });
+  });
+
+  app.delete('/termine/:schluessel/ich', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { schluessel } = anfrage.params as { schluessel: string };
+    await meldeAb(pool, schluessel, ausweis.mitgliedId, jetzt());
+    return antwort.code(204).send();
+  });
+
+  app.get('/gast/storno/:token', async (anfrage, antwort) => {
+    const { token } = anfrage.params as { token: string };
+    const storniert = await storniereGast(pool, token, jetzt());
+
+    // Der Link wird aus einer Mail heraus im Browser geöffnet — die Antwort
+    // ist deshalb eine kleine Seite, kein JSON.
+    if (!storniert) {
+      return antwort
+        .code(404)
+        .type('text/html; charset=utf-8')
+        .send('<p>Dieser Link ist nicht mehr gültig.</p>');
+    }
+    return antwort
+      .type('text/html; charset=utf-8')
+      .send('<p>Deine Anmeldung ist storniert. Danke fürs Bescheidsagen!</p>');
   });
 
   return app;
