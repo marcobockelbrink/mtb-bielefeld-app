@@ -2,9 +2,10 @@
 -- hier steht nur, wer sich wozu eingetragen hat.
 CREATE TABLE tourenanmeldung (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  -- Der stabile Schlüssel aus uid und ursprünglichem Zeitpunkt. Bewusst
-  -- Text ohne Fremdschlüssel: Es gibt keine Termintabelle, auf die er
-  -- zeigen könnte.
+  -- Der stabile Schlüssel aus termine.ts: bei einem Einzeltermin die uid
+  -- allein, bei einem Termin aus einer Serie uid plus ursprünglicher
+  -- Zeitpunkt. Bewusst Text ohne Fremdschlüssel: Es gibt keine
+  -- Termintabelle, auf die er zeigen könnte.
   terminschluessel text NOT NULL,
   -- Der Startzeitpunkt, festgehalten beim Anmelden. Nur fürs Aufräumen:
   -- 30 Tage danach wird die Zeile gelöscht, ohne den Kalender zu fragen.

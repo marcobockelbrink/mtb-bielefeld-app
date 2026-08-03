@@ -69,9 +69,15 @@ export interface ClubEvent {
    *
    * Bei einem verschobenen Einzeltermin einer Serie ist das der Zeitpunkt,
    * an dem er ursprünglich gelegen hätte (`RECURRENCE-ID`) — nicht der neue.
-   * Bei allen anderen Terminen gleich `start`. Die Tourenanmeldung der API
-   * schlüsselt daran: Eine Verschiebung ändert `id`, aber nicht diesen Wert,
-   * und die Anmeldungen bleiben am Termin hängen.
+   * Bei allen anderen Terminen gleich `start`.
+   *
+   * Die Tourenanmeldung der API schlüsselt daran, aber **nur bei Serien**
+   * (`recurring`): Dort tragen alle Einzeltermine dieselbe `uid`, erst
+   * dieser Wert trennt sie — und er ist verschiebungsfest, weil er den Platz
+   * in der Serie nennt und nicht die neue Uhrzeit. Bei einem gewöhnlichen
+   * Einzeltermin leistet das die `uid` allein; dort ist dieser Wert gleich
+   * `start` und würde bei einer Verschiebung mitwandern (siehe
+   * `terminSchluessel` in `api/src/termine.ts`).
    */
   originalStartInstant: number;
   /** UID aus dem Kalender. Bei Serien für alle Einzeltermine gleich. */
