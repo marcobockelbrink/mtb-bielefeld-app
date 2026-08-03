@@ -142,6 +142,13 @@ describe('POST /anmeldung/einloesen', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'malte@example.org', einladungscode: code },
     });
+    // Auf diese Instanz warten, nicht auf `spaeter`: `laufendeArbeit` gehört
+    // je App-Instanz zu sich selbst. Ohne dieses Warten wäre offen, ob dieser
+    // Vorgang vor oder nach dem von `spaeter` fertig wird — und `letzterToken`
+    // nimmt schlicht den letzten Eintrag im gemeinsamen Mailer-Array. Würde
+    // dieser Vorgang später fertig, stünde der abgelaufene Token zuletzt im
+    // Array statt des neuen.
+    await app.warteAufHintergrundarbeit();
 
     // Eine Stunde später: Der erste Link ist tot, der Code nicht.
     const spaeter = baueApp({
