@@ -219,18 +219,10 @@ async function findeOderLegeMitgliedAn(
  * Alle Sitzungen dieses Mitglieds fliegen raus. Wer wirklich der Eigentümer
  * ist, meldet sich neu an; wer es nicht ist, hält nichts mehr in der Hand.
  *
- * Hier hängt auch das Aufräumen — aber bewusst **nach** der Transaktion,
- * nicht mehr darin: Dieser Pfad geht jedes Gerät alle 15 Minuten, und ein
- * gültiges Erneuerungs-Token darf nie an einem Aufräumen scheitern, das mit
- * ihm selbst nichts zu tun hat. Läge das Aufräumen davor und innerhalb der
- * Transaktion (wie zuvor), würde außerdem jede Erneuerung das `SELECT …
- * FOR UPDATE` hinter einem `DELETE` ohne passenden Index warten lassen, das
- * dabei alle abgelaufenen Zeilen sperrt und gleichzeitige Erneuerungen
- * aneinanderreiht. Ein eigener Zeitplan für das Aufräumen wäre trotzdem ein
- * zweites bewegliches Teil für eine Aufgabe, die genau hier anfällt — die
- * Erneuerung ist die Stelle, an der die Tabelle wächst, also bleibt sie die
- * Stelle, an der sie auch schrumpfen soll. Nur eben lose angehängt: Ihr
- * Scheitern wird protokolliert, nicht durchgereicht.
+ * Das Aufräumen abgelaufener Sitzungen stand einmal hier. Es steht jetzt in
+ * `aufraeumen.ts`: Die Erneuerung ist der Pfad, den jedes Gerät alle
+ * fünfzehn Minuten geht, und sie darf weder auf ein Aufräumen warten noch
+ * mit ihm scheitern.
  */
 export async function erneuereSitzung(
   pool: pg.Pool,
@@ -238,21 +230,7 @@ export async function erneuereSitzung(
   jetzt: Date,
   protokoll: Protokoll,
 ): Promise<{ ok: true; zugang: string; erneuerung: string } | { ok: false }> {
-  const ergebnis = await tauscheErneuerungstoken(pool, erneuerung, jetzt);
-
-  if (ergebnis.ok) {
-    try {
-      await raeumeAbgelaufeneSitzungenAuf(pool, jetzt);
-    } catch (fehler) {
-      protokoll.error(
-        { fehler },
-        'Aufräumen abgelaufener Sitzungen ist fehlgeschlagen. Die Erneuerung ' +
-          'selbst ist trotzdem geglückt und bleibt davon unberührt.',
-      );
-    }
-  }
-
-  return ergebnis;
+  return tauscheErneuerungstoken(pool, erneuerung, jetzt);
 }
 
 /** Die eigentliche Token-Rotation, in einer eigenen Transaktion. */
@@ -310,36 +288,6 @@ async function tauscheErneuerungstoken(
   } finally {
     verbindung.release();
   }
-}
-
-/**
- * Wirft Sitzungen weg, deren Erneuerungsfrist vorbei ist.
- *
- * Ohne das wächst `sitzung` unbegrenzt: Jede Erneuerung legt eine Zeile an,
- * und die alte bleibt absichtlich stehen, damit die
- * Wiederverwendungserkennung sie noch findet. Was nie abgeräumt wird,
- * wächst — und zwar mit jedem Gerät alle 15 Minuten.
- *
- * Die Grenze ist bewusst `erneuerung_bis` und **nicht** `ersetzt_am`: Eine
- * ersetzte, aber noch nicht abgelaufene Zeile ist genau das, woran die
- * Kopiererkennung ein wiederaufgetauchtes Token erkennt. Wer sie wegräumt,
- * macht aus einem gestohlenen Token wieder ein unbekanntes — und aus
- * „Alarm“ ein stilles „gilt nicht“. Ist die Frist dagegen abgelaufen, ist
- * die Zeile auch für die Erkennung wertlos: Das Token würde ohnehin
- * abgelehnt.
- *
- * Gibt die Zahl der weggeräumten Zeilen zurück, damit ein Aufrufer sie
- * protokollieren kann.
- */
-export async function raeumeAbgelaufeneSitzungenAuf(
-  ausfuehrer: pg.Pool | pg.PoolClient,
-  jetzt: Date,
-): Promise<number> {
-  const { rowCount } = await ausfuehrer.query(
-    'DELETE FROM sitzung WHERE erneuerung_bis < $1',
-    [jetzt],
-  );
-  return rowCount ?? 0;
 }
 
 /** Abmelden: die Sitzung zu diesem Erneuerungs-Token verschwindet. */

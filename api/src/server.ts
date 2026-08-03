@@ -3,6 +3,7 @@
  */
 
 import { baueApp } from './app.ts';
+import { raeumeAuf } from './aufraeumen.ts';
 import { pool } from './datenbank.ts';
 // Der echte Mailversand ist noch offen (siehe `mailer.ts`, Plan 4). Bis
 // dahin scheitert ein Anmeldeversuch laut statt eine Mail vorzutäuschen,
@@ -19,3 +20,27 @@ try {
   console.error('API konnte nicht starten:', fehler);
   process.exit(1);
 }
+
+/**
+ * Wie oft aufgeräumt wird.
+ *
+ * Fünfzehn Minuten sind die Lebensdauer eines Magic Links: Häufiger wäre
+ * Arbeit ohne Ertrag, seltener ließe die Tabelle unnötig anwachsen.
+ */
+const AUFRAEUM_ABSTAND_MS = 15 * 60 * 1000;
+
+const zeitgeber = setInterval(() => {
+  void raeumeAuf(pool, new Date())
+    .then((bilanz) => {
+      if (bilanz.sitzungen > 0 || bilanz.magicLinks > 0) {
+        app.log.info(bilanz, 'aufgeräumt');
+      }
+    })
+    // Aufräumen ist Hausarbeit: Sie darf scheitern, ohne den Betrieb zu
+    // stören — aber nicht unbemerkt.
+    .catch((fehler) => app.log.error({ fehler }, 'Aufräumen fehlgeschlagen'));
+}, AUFRAEUM_ABSTAND_MS);
+
+// Ohne das hält der Zeitgeber den Prozess am Leben und ein `docker stop`
+// wartet, bis das Betriebssystem nachhilft.
+zeitgeber.unref();
