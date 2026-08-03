@@ -59,6 +59,14 @@ import { extractComponents, parseProperties, unescapeText, type IcalProperty } f
 
 Geh **alle acht Dateien** durch (`grep -n "from '\./\|from '\.\./" src/data/ical/*.ts src/data/parse/*.ts src/domain/types.ts src/config.ts`) und ergänze jede relative Endung. App-Dateien, die diese Module importieren (`src/features/…`, `app/…`), bleiben **unverändert** — sie laufen unter der Bundler-Auflösung und brauchen keine Endungen.
 
+- [ ] **Schritt 1b: Drei Hürden, die der erste Anlauf freigelegt hat** *(nachträgliche Festlegung vom 03.08.2026 — der ursprüngliche Plan kannte sie nicht)*
+
+Die Endungen allein genügen nicht; die Typprüfung der API scheiterte mit 80 Fehlern in drei Kategorien. Entschieden ist:
+
+1. **Wurzel-`package.json` bekommt `"type": "module"`.** Ohne das liest NodeNext die geteilten Module als CommonJS, was mit `verbatimModuleSyntax` der API kollidiert (66 Fehler). Die Wurzel hat keine einzige `.js`-CJS-Datei, alle Werkzeuge sind `.mjs` — das Feld beschreibt nur, was ohnehin stimmt. Abgesichert wird es durch Wurzel-Tests, -Typprüfung und den Metro-Beweis.
+2. **Die 9 Nullability-Funde im Parser werden behoben, nicht weggeschaltet.** `noUncheckedIndexedAccess` der API hat echte unbehandelte Stellen in `tokenizer.ts`, `description.ts`, `html.ts`, `rrule.ts` aufgedeckt. Sie werden sauber abgefangen (Verhalten unverändert, Wurzel-Tests bleiben grün) — die schärfere Prüfung ist ein Geschenk, keine Belästigung.
+3. **`src/config.ts` greift auf `document` und `__DEV__` über `globalThis` zu** statt über nackte Bezeichner: `(globalThis as { document?: unknown }).document !== undefined` bzw. `(globalThis as { __DEV__?: boolean }).__DEV__ === true`. Laufzeitgleich, aber in beiden Welten typisierbar — **keine** Ambient-Deklarationen, die würden mit der `dom`-Lib der App kollidieren.
+
 - [ ] **Schritt 2: Wurzel-`tsconfig.json` ergänzen**
 
 `allowImportingTsExtensions` ist nur mit `noEmit` erlaubt. Die App wird von Metro gebündelt, `tsc` prüft nur — `noEmit` ist also ohnehin die Wahrheit:
@@ -297,7 +305,11 @@ In `LABEL_ALIASES`:
   gäste: 'gaeste',
   gaeste: 'gaeste',
   gast: 'gaeste',
+  plätze: 'maxParticipants',
+  plaetze: 'maxParticipants',
 ```
+
+*(Nachtrag vom 03.08.2026: „Plätze" fehlte in den Aliassen, obwohl die Spec-Beispiele es benutzen — aufgefallen, weil der Rauchtest aus Aufgabe 1 daran scheiterte. Ein Test in `tests/description.test.ts` gehört dazu: `parseRideDetails('Plätze: 12').maxParticipants` ist `12`.)*
 
 In `LabelValues`:
 
