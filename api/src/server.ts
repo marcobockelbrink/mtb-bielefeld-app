@@ -5,7 +5,6 @@
 import { baueApp } from './app.ts';
 import { raeumeAuf } from './aufraeumen.ts';
 import { pool } from './datenbank.ts';
-import { serialisiereFehler } from './protokoll.ts';
 // Der echte Mailversand ist noch offen (siehe `mailer.ts`, Plan 4). Bis
 // dahin scheitert ein Anmeldeversuch laut statt eine Mail vorzutäuschen,
 // die nie ankommt.
@@ -39,17 +38,13 @@ const zeitgeber = setInterval(() => {
     })
     // Aufräumen ist Hausarbeit: Sie darf scheitern, ohne den Betrieb zu
     // stören — aber nicht unbemerkt. Ein Error in einem anderen Feld als
-    // `err` wird von pino als `{}` geschrieben, sofern kein Serialisierer
-    // dafür eingetragen ist (siehe `protokoll.ts`): Meldung, Stapel und
-    // Ursache weg, der laute Fehler wieder still. `baueApp` trägt den
-    // Serialisierer für `fehler` zwar ein, sodass dieser Logger ihn schon
-    // anwendet — hier steht er trotzdem, wie an jeder anderen Aufrufstelle
-    // auch: Ob ein Fehler lesbar ankommt, soll nicht daran hängen, dass
-    // eine Logger-Einstellung eine Datei weiter unverändert bleibt.
-    // Doppelt angewandt ändert er nichts, er greift nur auf Errors.
-    .catch((fehler) =>
-      app.log.error({ fehler: serialisiereFehler(fehler) }, 'Aufräumen fehlgeschlagen'),
-    );
+    // `err` würde pino ohne eingetragenen Serialisierer als `{}` schreiben:
+    // Meldung, Stapel und Ursache weg, der laute Fehler wieder still.
+    // `baueApp` trägt den Serialisierer für `fehler` aber schon in diesen
+    // Logger ein (siehe `protokoll.ts`), genau wie an jeder anderen
+    // Aufrufstelle auch (etwa `anmeldung.ts`) — ein zusätzlicher Aufruf von
+    // Hand wäre hier nur doppelt gemacht.
+    .catch((fehler) => app.log.error({ fehler }, 'Aufräumen fehlgeschlagen'));
 }, AUFRAEUM_ABSTAND_MS);
 
 // Ohne das hält der Zeitgeber den Prozess am Leben und ein `docker stop`
