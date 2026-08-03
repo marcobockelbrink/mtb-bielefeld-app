@@ -163,13 +163,17 @@ describe('POST /anmeldung/einloesen', () => {
 
   it('lässt ein zweites Gerät zu, ohne dass der Code noch gebraucht wird', async () => {
     const mailer = new GemerkterMailer();
-    const app = baueApp({ pool, mailer, jetzt: () => jetzt });
+    // Eine Minute Abstand vor der zweiten Anforderung: Sonst griffe die
+    // Begrenzung aus Aufgabe 2 — hier geht es aber um das zweite Gerät.
+    let momentan = jetzt;
+    const app = baueApp({ pool, mailer, jetzt: () => momentan });
 
     const erstes = await app.inject({
       method: 'POST',
       url: '/anmeldung/einloesen',
       payload: { token: await holeToken(mailer, app) },
     });
+    momentan = new Date(jetzt.getTime() + 60 * 1000);
     const zweites = await app.inject({
       method: 'POST',
       url: '/anmeldung/einloesen',
@@ -187,7 +191,10 @@ describe('POST /anmeldung/einloesen', () => {
 
   it('lässt nach dem Abmelden ein Wiederanmelden zu', async () => {
     const mailer = new GemerkterMailer();
-    const app = baueApp({ pool, mailer, jetzt: () => jetzt });
+    // Eine Minute Abstand vor der zweiten Anforderung: Sonst griffe die
+    // Begrenzung aus Aufgabe 2 — hier geht es aber ums Wiederanmelden.
+    let momentan = jetzt;
+    const app = baueApp({ pool, mailer, jetzt: () => momentan });
     const erste = await app.inject({
       method: 'POST',
       url: '/anmeldung/einloesen',
@@ -200,6 +207,7 @@ describe('POST /anmeldung/einloesen', () => {
       payload: { erneuerung: erste.json().erneuerung },
     });
 
+    momentan = new Date(jetzt.getTime() + 60 * 1000);
     const zweite = await app.inject({
       method: 'POST',
       url: '/anmeldung/einloesen',

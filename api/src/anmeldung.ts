@@ -24,6 +24,21 @@ const GUELTIG_MINUTEN = 15;
 
 const BASIS_URL = process.env.APP_BASIS_URL ?? 'https://app.mtb-bielefeld.de';
 
+/**
+ * Wie oft eine Adresse einen Link anfordern darf.
+ *
+ * Bis der Einladungscode erst beim Einlösen verbraucht wurde, war sein
+ * Verbrauch eine zufällige Bremse. Seit sie weg ist, könnte jeder das
+ * Postfach eines Mitglieds fluten — die Adresse allein genügt, ein Konto
+ * braucht es dafür nicht.
+ *
+ * Die Zahlen sind Erfahrungswerte, keine Glaubenssätze: Drei Versuche pro
+ * Stunde reichen für „Mail nicht angekommen, nochmal", und eine Minute
+ * Abstand fängt den doppelt getippten Knopf ab.
+ */
+const HOECHSTENS_JE_STUNDE = 3;
+const MINDESTABSTAND_SEKUNDEN = 60;
+
 /** `einladungId: null` heißt: bestehendes Mitglied, keine Karte nötig. */
 type Zutritt = { ok: true; einladungId: string | null } | { ok: false };
 
@@ -40,6 +55,10 @@ type Zutritt = { ok: true; einladungId: string | null } | { ok: false };
  *
  * Wirft auch **nicht**, wenn das Schreiben des Magic Links oder der
  * Mailversand scheitert — siehe `fuehreBerechtigtenZutrittLeiseAus`.
+ *
+ * Wirft auch **nicht**, wenn die Begrenzung greift. Nach außen bleibt es
+ * bei 202 — eine eigene Antwort dafür wäre ein neues Orakel: Sie verriete,
+ * dass für diese Adresse gerade etwas läuft.
  */
 export async function fordereMagicLinkAn(
   pool: pg.Pool,
@@ -52,6 +71,11 @@ export async function fordereMagicLinkAn(
   const zutritt = await pruefeZutritt(pool, email, einladungscode, jetzt);
   if (!zutritt.ok) return;
 
+  // Nach der Zutrittsprüfung, nicht davor: Wer gar nicht hereindarf, soll
+  // auch keine Spur in der Begrenzung hinterlassen — sonst könnte jemand
+  // durch Anfragen für eine fremde Adresse deren Kontingent aufbrauchen.
+  if (!(await darfAnfordern(pool, email, jetzt))) return;
+
   const token = erzeugeToken();
   const gueltigBis = new Date(jetzt.getTime() + GUELTIG_MINUTEN * 60 * 1000);
 
@@ -61,6 +85,7 @@ export async function fordereMagicLinkAn(
     protokoll,
     email,
     token,
+    jetzt,
     gueltigBis,
     zutritt.einladungId,
   );
@@ -91,14 +116,19 @@ async function fuehreBerechtigtenZutrittLeiseAus(
   protokoll: Protokoll,
   email: string,
   token: string,
+  jetzt: Date,
   gueltigBis: Date,
   einladungId: string | null,
 ): Promise<void> {
   try {
+    // angelegt_am explizit statt der SQL-Voreinstellung now(): Sonst würde
+    // die Begrenzung (darfAnfordern) an der Systemzeit hängen statt an der
+    // eingespeisten Uhr — und wäre in Tests nicht mehr kontrollierbar. Siehe
+    // dieselbe Begründung bei `ausgestellt_am` in einladung.ts.
     await pool.query(
-      `INSERT INTO magic_link (token_hash, email, gueltig_bis, einladung_id)
-       VALUES ($1, $2, $3, $4)`,
-      [hashe(token), email, gueltigBis, einladungId],
+      `INSERT INTO magic_link (token_hash, email, angelegt_am, gueltig_bis, einladung_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [hashe(token), email, jetzt, gueltigBis, einladungId],
     );
 
     await mailer.sende(
@@ -144,4 +174,37 @@ async function pruefeZutritt(
 
   const pruefung = await pruefeEinladung(pool, einladungscode, email, jetzt);
   return pruefung.ok ? { ok: true, einladungId: pruefung.einladungId } : { ok: false };
+}
+
+/**
+ * Ob für diese Adresse gerade ein weiterer Link entstehen darf.
+ *
+ * Gezählt wird auf `magic_link` — die Daten liegen schon da, eine eigene
+ * Tabelle wäre ein zweites bewegliches Teil für dieselbe Auskunft.
+ *
+ * Das Fenster ist **gleitend**: Wer um 12:59 seine dritte Anforderung
+ * verbraucht, ist nicht um 13:00 wieder frei, sondern eine Stunde nach der
+ * ersten. Sonst könnte man an jeder vollen Stunde das Doppelte anfordern.
+ */
+async function darfAnfordern(pool: pg.Pool, email: string, jetzt: Date): Promise<boolean> {
+  const stundeVorher = new Date(jetzt.getTime() - 60 * 60 * 1000);
+
+  const { rows } = await pool.query<{ anzahl: string; letzte: Date | null }>(
+    `SELECT count(*) AS anzahl, max(angelegt_am) AS letzte
+       FROM magic_link
+      WHERE lower(email) = lower($1) AND angelegt_am > $2`,
+    [email, stundeVorher],
+  );
+
+  const zeile = rows[0];
+  if (!zeile) return true;
+
+  if (Number(zeile.anzahl) >= HOECHSTENS_JE_STUNDE) return false;
+
+  if (zeile.letzte) {
+    const abstandSekunden = (jetzt.getTime() - zeile.letzte.getTime()) / 1000;
+    if (abstandSekunden < MINDESTABSTAND_SEKUNDEN) return false;
+  }
+
+  return true;
 }

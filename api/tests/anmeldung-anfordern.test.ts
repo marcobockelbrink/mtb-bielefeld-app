@@ -62,10 +62,15 @@ describe('POST /anmeldung/anfordern', () => {
 
   it('verbraucht den Code beim Anfordern nicht', async () => {
     const mailer = new GemerkterMailer();
-    const app = baueApp({ pool, mailer, jetzt: () => jetzt });
+    // Die Uhr rückt je Versuch um fünf Minuten vor: Drei Anforderungen zur
+    // exakt gleichen Sekunde würde die Begrenzung aus Aufgabe 2 zu Recht
+    // abweisen — hier geht es aber um den Einladungscode, nicht um sie.
+    let momentan = jetzt;
+    const app = baueApp({ pool, mailer, jetzt: () => momentan });
     const code = await erzeugeEinladung(pool, 'malte@example.org', jetzt);
 
     for (let i = 0; i < 3; i++) {
+      momentan = new Date(jetzt.getTime() + i * 5 * 60 * 1000);
       await app.inject({
         method: 'POST',
         url: '/anmeldung/anfordern',
@@ -331,6 +336,29 @@ describe('POST /anmeldung/anfordern', () => {
 
     expect(antwort.statusCode).toBe(202);
     expect(protokoll.fehler).toHaveLength(1);
+    await app.close();
+  });
+
+  it('antwortet auch bei greifender Begrenzung mit 202', async () => {
+    const mailer = new GemerkterMailer();
+    const app = baueApp({ pool, mailer });
+    await pool.query("INSERT INTO mitglied (email) VALUES ('malte@example.org')");
+
+    const anfordern = () =>
+      app.inject({
+        method: 'POST',
+        url: '/anmeldung/anfordern',
+        payload: { email: 'malte@example.org' },
+      });
+
+    const erste = await anfordern();
+    const zweite = await anfordern();
+
+    // Gleicher Code, gleicher Text — der Unterschied steckt nur darin, ob
+    // eine Mail entstand.
+    expect(zweite.statusCode).toBe(erste.statusCode);
+    expect(zweite.json()).toEqual(erste.json());
+    expect(mailer.versendet).toHaveLength(1);
     await app.close();
   });
 
