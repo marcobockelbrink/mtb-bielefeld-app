@@ -135,6 +135,66 @@ declare module 'fastify' {
 }
 
 /**
+ * Der eine Pfad, dessen Token im Weg selbst steht.
+ *
+ * Bei jedem anderen tokenprüfenden Endpunkt reist das Token im Körper
+ * (`/anmeldung/einloesen`, `/sitzung/erneuern`, `DELETE /sitzung`) oder in
+ * der Kopfzeile `Authorization` (`/konto`, `/termine/…`) — beides schreibt
+ * der Anfrage-Logger nicht mit. Der Storno-Link für Gäste kann das nicht:
+ * Er wird in einer Mail angetippt, und ein anklickbarer Link trägt alles,
+ * was er braucht, im `GET`-Pfad. Ohne diese Maskierung stünde der Klartext
+ * des Storno-Tokens in jeder Protokollzeile zu dieser Anfrage — dieselbe
+ * Regel, nach der die Datenbank nur den SHA-256-Hash speichert, gälte dann
+ * überall außer im Protokoll.
+ */
+const TOKEN_IM_PFAD_PRAEFIX = '/gast/storno/';
+
+/** Was statt des Tokens im Protokoll steht. */
+const MASKIERUNG = `${TOKEN_IM_PFAD_PRAEFIX}[maskiert]`;
+
+/**
+ * Maskiert die URL einer Anfrage, wenn ein Token darin steht.
+ *
+ * Nur dieser eine Präfix, nicht vorsorglich alles: Eine URL, die nichts
+ * Geheimes trägt, gehört unverfälscht ins Protokoll — sonst wäre der
+ * Betreiber bei jeder Fehlersuche blind. Ein etwaiger Abfrageteil (`?…`)
+ * fällt mit weg; an dieser Route gibt es keinen, und was hinter dem Token
+ * stünde, wäre ohnehin nichts, was ohne ihn Sinn ergäbe.
+ */
+export function maskiereAnfrageUrl(url: string): string {
+  return url.startsWith(TOKEN_IM_PFAD_PRAEFIX) ? MASKIERUNG : url;
+}
+
+/** Nur die Felder, die der Serialisierer unten anfasst. */
+interface ProtokollierbareAnfrage {
+  method?: string;
+  url?: string;
+  headers?: Record<string, unknown>;
+  host?: string;
+  ip?: string;
+  socket?: { remotePort?: number };
+}
+
+/**
+ * Der `req`-Serialisierer des Anfrage-Loggers.
+ *
+ * Wortgleich der von Fastify voreingestellte (`lib/logger-pino.js`), nur
+ * mit `maskiereAnfrageUrl` um die URL herum. Selbst geschrieben und nicht
+ * um den eingebauten herumgelegt, weil der nicht exportiert ist; dafür ist
+ * er hier vollständig sichtbar und einzeln prüfbar.
+ */
+export function serialisiereAnfrage(anfrage: ProtokollierbareAnfrage): Record<string, unknown> {
+  return {
+    method: anfrage.method,
+    url: anfrage.url === undefined ? undefined : maskiereAnfrageUrl(anfrage.url),
+    version: anfrage.headers?.['accept-version'],
+    host: anfrage.host,
+    remoteAddress: anfrage.ip,
+    remotePort: anfrage.socket?.remotePort,
+  };
+}
+
+/**
  * Laut im Betrieb, stumm im Test.
  *
  * Ohne Protokoll wäre der bewusst abgefangene Mailer-Fehler (siehe
@@ -146,11 +206,16 @@ declare module 'fastify' {
  * Nur in Tests bleibt es aus, damit deren Ausgabe lesbar bleibt: Jede
  * Anfrage schriebe sonst zwei JSON-Zeilen dazwischen. Vitest setzt
  * `NODE_ENV=test` von sich aus.
+ *
+ * Zwei eigene Serialisierer: `fehler`, damit ein Fehler nicht als `{}`
+ * ankommt (siehe `protokoll.ts`), und `req`, damit der Storno-Token nicht
+ * im Klartext in der protokollierten URL steht (siehe
+ * `serialisiereAnfrage`).
  */
 const protokollEinstellung =
   process.env.NODE_ENV === 'test'
     ? false
-    : { serializers: { fehler: serialisiereFehler } };
+    : { serializers: { fehler: serialisiereFehler, req: serialisiereAnfrage } };
 
 interface AnfordernKoerper {
   email?: unknown;
