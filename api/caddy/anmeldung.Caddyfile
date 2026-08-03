@@ -1,10 +1,17 @@
-# Ratenbegrenzung je IP für die Anmeldeendpunkte.
+# Ratenbegrenzung je IP für die authentifizierungsnahen Endpunkte.
 #
 # Diese Schicht und die Begrenzung in der API tun Verschiedenes:
 # Caddy sieht den Anfragekörper nicht und kann deshalb nicht je Adresse
 # begrenzen — er schützt den Server vor einer Flut. Die Begrenzung in der
 # API schützt einzelne Mitglieder davor, dass ihr Postfach geflutet wird.
 # Keine der beiden ersetzt die andere.
+#
+# Die Pfadliste ist nicht "alles unter /anmeldung", sondern jeder Pfad, der
+# ein Token gegen die Datenbank prüft: /anmeldung/* (Magic Link anfordern
+# und einlösen), /sitzung/* (erneuern, beenden) und /konto* (löschen). Bei
+# einem 256-Bit-Token ist Erraten aussichtslos — das macht die Begrenzung
+# hier nicht sinnlos, denn jeder Versuch kostet trotzdem eine
+# Datenbankabfrage, und es gibt keinen Grund, das ungebremst zuzulassen.
 #
 # Angewandt wird das in Plan 4 (Inbetriebnahme). Bis dahin ist es eine
 # Vorlage, kein laufender Schutz.
@@ -16,7 +23,7 @@ api.mtb-bielefeld.de {
 	rate_limit {
 		zone anmeldung {
 			match {
-				path /anmeldung/*
+				path /anmeldung/* /sitzung/* /konto*
 			}
 			key {remote_host}
 			events 10
