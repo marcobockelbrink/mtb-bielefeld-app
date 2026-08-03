@@ -41,3 +41,62 @@ jobs:
       - name: Bündeln prüfen
         run: npx expo export --platform android --output-dir /tmp/export-check
 
+  api-pruefen:
+    name: API — Tests und Typprüfung
+    runs-on: ubuntu-latest
+
+    # Eigener Auftrag statt Teil von „pruefen": Die API hat ein eigenes
+    # package.json, eigene Abhängigkeiten und braucht eine Datenbank — beides
+    # hat mit der App nichts zu tun. Die Wurzel-tsconfig.json schließt api/
+    # bewusst aus (siehe dort) und die Wurzel-vitest.config.mts sammelt nur
+    # tests/ — ohne diesen eigenen Auftrag liefen die API-Tests nirgends
+    # automatisch.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mtbie
+          POSTGRES_PASSWORD: entwicklung
+          POSTGRES_DB: mtbie
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://mtbie:entwicklung@localhost:5432/mtbie
+
+    defaults:
+      run:
+        working-directory: api
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      # Ein Dienst-Container startet Postgres, führt aber
+      # docker-entrypoint-initdb.d nicht aus wie docker-compose es lokal tut
+      # — das Kennzeichen aus db-init/001-wegwerf-markierung.sql fehlt also.
+      # Ohne es bricht jeder Test in hilfen/datenbank.ts mit
+      # Sicherheitsabbruch ab. Es hier von Hand anzulegen ist genau das, was
+      # das erste Docker-Volume lokal automatisch tut.
+      - name: Wegwerf-Kennzeichen anlegen
+        run: psql "$DATABASE_URL" -f db-init/001-wegwerf-markierung.sql
+
+      - name: Typprüfung
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
