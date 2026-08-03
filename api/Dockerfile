@@ -22,9 +22,13 @@ COPY api/src ./api/src
 
 WORKDIR /app/api
 
-# Ohne diese Angabe startet Node als PID 1 und bekommt kein SIGTERM sauber
-# weitergereicht — ein `docker stop` würde dann zehn Sekunden warten und
-# hart abschießen.
+# Legt nur fest, welches Signal `docker stop` schickt (SIGTERM ist ohnehin
+# die Vorgabe) — das allein reicht nicht. Node läuft hier als PID 1, und für
+# PID 1 überspringt der Kernel ohne registrierten Handler die
+# Standardaktion eines Signals; SIGTERM würde sonst verworfen und
+# `docker stop` liefe in die volle Kulanzfrist und schösse mit SIGKILL hart
+# ab. Den Handler, der den Prozess tatsächlich geordnet beendet, registriert
+# `server.ts` (dort auch begründet).
 STOPSIGNAL SIGTERM
 
 EXPOSE 3000

@@ -1,0 +1,11 @@
+# Heißt bewusst `Dockerfile.dockerignore`, nicht `.dockerignore`: Der Build
+# läuft mit der Projektwurzel als Kontext (`docker build -f api/Dockerfile
+# -t mtbie-api .`), und Docker sucht die Ignore-Datei entweder an der
+# Kontextwurzel oder unter `<Dockerfile>.dockerignore`. Ein `api/.dockerignore`
+# läge im Kontext, würde aber nie gelesen — stille Wirkungslosigkeit, die erst
+# auffiele, wenn ein künftiges `COPY . .` sich darauf verließe.
+node_modules
+tests
+.superpowers
+docker-compose.yml
+caddy

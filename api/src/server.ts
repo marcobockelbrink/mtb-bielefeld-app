@@ -56,3 +56,50 @@ const zeitgeber = setInterval(() => {
 // Ohne das hält der Zeitgeber den Prozess am Leben und ein `docker stop`
 // wartet, bis das Betriebssystem nachhilft.
 zeitgeber.unref();
+
+/**
+ * Sauberes Herunterfahren bei SIGTERM und SIGINT.
+ *
+ * Node läuft im Container als PID 1. Für PID 1 überspringt der Kernel die
+ * Standardaktion eines Signals, wenn kein Handler registriert ist — ohne
+ * diesen Handler würde SIGTERM (das Signal, das `docker stop` schickt)
+ * stillschweigend verworfen. `docker stop` wartet dann die vollen zehn
+ * Sekunden Kulanzfrist ab und schießt danach mit SIGKILL hart ab, ohne dass
+ * Server oder Verbindungspool je Gelegenheit bekommen, sich zu melden.
+ * SIGINT kommt zusätzlich dazu, weil es in der Entwicklung per Ctrl-C
+ * ausgelöst wird und dasselbe geordnete Herunterfahren verdient.
+ */
+const HERUNTERFAHR_ZEITSCHRANKE_MS = 5_000;
+
+let faehrtHerunter = false;
+
+async function fahreHerunter(signal: NodeJS.Signals): Promise<void> {
+  // Ein zweites Signal während des Herunterfahrens (etwa ein ungeduldiges
+  // zweites Ctrl-C) soll nicht zwei parallele Abläufe anstoßen.
+  if (faehrtHerunter) return;
+  faehrtHerunter = true;
+  console.log(`${signal} empfangen, fahre herunter…`);
+
+  // Notbremse: Hängt `app.close()` oder `pool.end()` (etwa weil eine
+  // Verbindung nicht sauber freigegeben wird), soll der Prozess trotzdem
+  // enden, statt unbegrenzt zu warten und `docker stop` doch wieder auf
+  // SIGKILL zurückfallen zu lassen.
+  const notbremse = setTimeout(() => {
+    console.error('Herunterfahren hängt, breche nach Zeitschranke hart ab.');
+    process.exit(1);
+  }, HERUNTERFAHR_ZEITSCHRANKE_MS);
+
+  try {
+    clearInterval(zeitgeber);
+    await app.close();
+    await pool.end();
+    clearTimeout(notbremse);
+    process.exit(0);
+  } catch (fehler) {
+    console.error('Fehler beim Herunterfahren:', fehler);
+    process.exit(1);
+  }
+}
+
+process.on('SIGTERM', fahreHerunter);
+process.on('SIGINT', fahreHerunter);
