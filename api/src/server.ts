@@ -11,11 +11,17 @@ import { pool } from './datenbank.ts';
 import { NichtEingerichteterMailer } from './mailer.ts';
 
 const port = Number(process.env.PORT ?? 3000);
-const app = baueApp({ pool, mailer: new NichtEingerichteterMailer() });
+const mailer = new NichtEingerichteterMailer();
+const app = baueApp({ pool, mailer });
 
 try {
   await app.listen({ port, host: '0.0.0.0' });
   console.log(`API hört auf Port ${port}`);
+  console.log(
+    mailer instanceof NichtEingerichteterMailer
+      ? 'Mailversand: NICHT eingerichtet — Anmeldungen scheitern sichtbar.'
+      : 'Mailversand: eingerichtet.',
+  );
 } catch (fehler) {
   console.error('API konnte nicht starten:', fehler);
   process.exit(1);
