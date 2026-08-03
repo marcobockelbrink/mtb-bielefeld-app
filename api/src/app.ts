@@ -142,13 +142,19 @@ export function baueApp({
     const ausweis = await holeAusweis(anfrage);
     if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
 
-    // `pruefeZugang` verknüpft schon mit `mitglied` — ein gültiger Ausweis
-    // gibt es also nur zu einem bestehenden Mitglied. sitzung.mitglied_id
-    // hängt per ON DELETE CASCADE an mitglied; wäre es gelöscht, gäbe es
-    // auch keine Sitzung mehr, mit der der Ausweis hätte gültig sein
-    // können. `holeKontoAuskunft` liefert hier also nie `null`.
+    // `pruefeZugang` verknüpft schon mit `mitglied` — zum Zeitpunkt dieser
+    // Abfrage gab es also ein bestehendes Mitglied. Zwischen ihr und der
+    // folgenden Auskunft liegt aber kein Schloss: Löscht sich das Konto in
+    // genau diesem Moment (eine parallele Anfrage, dasselbe noch gültige
+    // Zugangs-Token), liefert `holeKontoAuskunft` `null` — sitzung.mitglied_id
+    // hängt per ON DELETE CASCADE an mitglied, die Sitzung wäre mit
+    // verschwunden, dieser Ausweis wurde aber schon davor aufgelöst. Ohne
+    // diese Prüfung ginge das als 200 mit leerem Körper heraus statt als
+    // 401. Ein Test dafür bräuchte ein echtes Wettrennen zwischen zwei
+    // Anfragen und wäre nur erratbar zuverlässig — deshalb keiner.
     const auskunft = await holeKontoAuskunft(pool, ausweis.mitgliedId, jetzt());
-    return antwort.send(auskunft!);
+    if (!auskunft) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+    return antwort.send(auskunft);
   });
 
   app.delete('/konto', async (anfrage, antwort) => {
