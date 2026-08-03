@@ -40,6 +40,16 @@ const SPERR_ZEITSCHRANKE = '3s';
  */
 const PG_UNIQUE_VIOLATION = '23505';
 
+/**
+ * Name des Teilindex, der die Doppelanmeldung eines Mitglieds verhindert
+ * (Migration `010-tourenanmeldung.sql`). Der Code allein (`23505`) würde
+ * **jede** Unique-Verletzung auf `tourenanmeldung` als „schon-angemeldet"
+ * durchgehen lassen — auch eine, die künftig ein ganz anderer Index wirft
+ * (etwa einer auf `gast_email`). Der Name bindet die Übersetzung an genau
+ * den Index, der sie meint.
+ */
+const EINDEUTIGKEITSINDEX_MITGLIED = 'tourenanmeldung_einmal_je_mitglied';
+
 export async function meldeAn(
   pool: pg.Pool,
   termin: ClubEvent,
@@ -90,9 +100,13 @@ export async function meldeAn(
       // CONFLICT specification"). Statt diese Kopie des Indexprädikats an
       // zwei Stellen zu pflegen (Migration und Abfrage, garantiert
       // irgendwann auseinanderlaufend), fängt dieser Code den Konflikt als
-      // Fehler `23505` ab — robust gegenüber jeder künftigen Änderung am
-      // Index, ohne dass die Abfrage seine Definition kennen muss. Innerhalb
-      // der Beratungssperre ist das kein Wettlauf: Nur diese eine Anfrage
+      // Fehler `23505` ab — die Abfrage kennt das **Prädikat** des Index
+      // dadurch nicht, wohl aber seinen **Namen** (siehe
+      // `EINDEUTIGKEITSINDEX_MITGLIED`): Nur eine Verletzung von genau
+      // diesem Index wird als „schon-angemeldet" übersetzt, jede andere
+      // Unique-Verletzung auf der Tabelle (etwa ein künftiger Index auf
+      // `gast_email`) läuft unverändert als Fehler durch. Innerhalb der
+      // Beratungssperre ist das kein Wettlauf: Nur diese eine Anfrage
       // schreibt gerade für diesen Termin, der Konflikt kann nur aus einer
       // bestehenden Zeile stammen, nicht aus einer gleichzeitigen.
       try {
@@ -103,8 +117,17 @@ export async function meldeAn(
           [schluessel, termin.start, wunsch.mitgliedId, jetzt],
         );
       } catch (fehler) {
-        if (istEindeutigkeitsverletzung(fehler)) {
-          await verbindung.query('ROLLBACK');
+        if (istDoppelteMitgliedsanmeldung(fehler)) {
+          // Wie im äußeren Fehlerzweig unten: Eine scheiternde Rücknahme
+          // darf den eigentlichen Befund — die erkannte Doppelanmeldung —
+          // nicht verschlucken.
+          try {
+            await verbindung.query('ROLLBACK');
+          } catch (rollbackFehler) {
+            throw new Error(`Rücknahme misslungen: ${String(rollbackFehler)}`, {
+              cause: fehler,
+            });
+          }
           return { ok: false, grund: 'schon-angemeldet', belegt, plaetze };
         }
         throw fehler;
@@ -123,20 +146,38 @@ export async function meldeAn(
     await verbindung.query('COMMIT');
     return { ok: true, belegt: belegt + 1, stornoToken };
   } catch (fehler) {
-    await verbindung.query('ROLLBACK');
+    // Ohne Rücknahme käme die Verbindung mit offener Transaktion in den Pool
+    // zurück. Scheitert auch die (etwa weil die Verbindung weg ist), geht
+    // keiner der beiden Fehler verloren: der ursprüngliche als Ursache, der
+    // zweite als Meldung. Dasselbe Muster wie in `legeAnWennDieBegrenzungEsZulaesst`
+    // (`anmeldung.ts`).
+    try {
+      await verbindung.query('ROLLBACK');
+    } catch (rollbackFehler) {
+      throw new Error(`Rücknahme misslungen: ${String(rollbackFehler)}`, { cause: fehler });
+    }
     throw fehler;
   } finally {
     verbindung.release();
   }
 }
 
-/** Ob `fehler` die Postgres-Meldung zu einer verletzten Unique-Bedingung ist. */
-function istEindeutigkeitsverletzung(fehler: unknown): boolean {
+/**
+ * Ob `fehler` die Postgres-Meldung zu einer verletzten Unique-Bedingung auf
+ * genau `tourenanmeldung_einmal_je_mitglied` ist — nicht auf irgendeinem
+ * Unique-Index der Tabelle. Ohne den Namensvergleich würde `23505` allein
+ * jede künftige Unique-Verletzung auf `tourenanmeldung` stillschweigend als
+ * „schon-angemeldet" übersetzen, auch eine, die gar nichts mit der
+ * Mitgliedsanmeldung zu tun hat.
+ */
+function istDoppelteMitgliedsanmeldung(fehler: unknown): boolean {
   return (
     typeof fehler === 'object' &&
     fehler !== null &&
     'code' in fehler &&
-    (fehler as { code: unknown }).code === PG_UNIQUE_VIOLATION
+    (fehler as { code: unknown }).code === PG_UNIQUE_VIOLATION &&
+    'constraint' in fehler &&
+    (fehler as { constraint: unknown }).constraint === EINDEUTIGKEITSINDEX_MITGLIED
   );
 }
 
