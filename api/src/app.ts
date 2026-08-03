@@ -9,6 +9,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type pg from 'pg';
 
 import { fordereMagicLinkAn } from './anmeldung.ts';
+import { IpBegrenzung } from './ipbegrenzung.ts';
 import { holeKontoAuskunft, loescheKonto } from './konto.ts';
 import type { Mailer } from './mailer.ts';
 import { serialisiereFehler, type Protokoll } from './protokoll.ts';
@@ -31,6 +32,15 @@ export interface Abhaengigkeiten {
    * dieser Größenordnung herstellen ließe.
    */
   hintergrundZeitschrankeMs?: number;
+  /**
+   * Standard: eine frische `IpBegrenzung` mit `HOECHSTENS_ANFRAGEN_JE_MINUTE`
+   * je `EINE_MINUTE_MS`. Bestehende Tests feuern viele Anfragen von
+   * derselben Test-IP (127.0.0.1 bei `app.inject`) — wo das innerhalb eines
+   * einzelnen Tests über die Voreinstellung hinausginge, reicht der Test ein
+   * eigenes, großzügigeres Exemplar herein, statt an der Begrenzung zu
+   * scheitern.
+   */
+  ipBegrenzung?: IpBegrenzung;
 }
 
 /**
@@ -77,6 +87,33 @@ const HOECHSTENS_GLEICHZEITIG = 50;
  */
 const HINTERGRUND_ZEITSCHRANKE_MS = 30_000;
 
+const EINE_MINUTE_MS = 60_000;
+
+/**
+ * Wie viele Anfragen eine einzelne IP je Minute an die authentifizierungsnahen
+ * Pfade stellen darf, bevor diese Notbremse greift (siehe `ipbegrenzung.ts`
+ * für das Warum dieser Schicht überhaupt).
+ *
+ * Zwanzig ist großzügig bemessen, nicht scharf: Ein einzelnes Mitglied, das
+ * mehrere Geräte startet oder eine Anmeldung mehrfach antippt, bleibt weit
+ * darunter. Wer sie reißt, prüft nicht mehr „habe ich mich vertippt", sondern
+ * probiert etwas — genau dann soll ohne Caddy trotzdem etwas bremsen.
+ */
+const HOECHSTENS_ANFRAGEN_JE_MINUTE = 20;
+
+/**
+ * Dieselbe Pfadliste wie in der Caddy-Vorlage (`caddy/anmeldung.Caddyfile`):
+ * jeder Pfad, der ein Token gegen die Datenbank prüft. Mit `startsWith`
+ * geprüft, nicht mit exaktem Vergleich — `/sitzung` erfasst so sowohl
+ * `/sitzung/erneuern` als auch das exakte `DELETE /sitzung` (Abmelden), und
+ * `/konto` sowohl `GET /konto` als auch `DELETE /konto`.
+ */
+const IP_GESCHUETZTE_PFAD_PRAEFIXE = ['/anmeldung/', '/sitzung', '/konto'];
+
+function istIpGeschuetzterPfad(pfad: string): boolean {
+  return IP_GESCHUETZTE_PFAD_PRAEFIXE.some((praefix) => pfad.startsWith(praefix));
+}
+
 declare module 'fastify' {
   interface FastifyInstance {
     /** Wartet, bis alle nach der Antwort gestarteten Vorgänge fertig sind. Für Tests. */
@@ -114,9 +151,37 @@ export function baueApp({
   protokoll,
   hoechstensGleichzeitig = HOECHSTENS_GLEICHZEITIG,
   hintergrundZeitschrankeMs = HINTERGRUND_ZEITSCHRANKE_MS,
+  ipBegrenzung = new IpBegrenzung(HOECHSTENS_ANFRAGEN_JE_MINUTE, EINE_MINUTE_MS),
 }: Abhaengigkeiten): FastifyInstance {
   const app = Fastify({ logger: protokollEinstellung });
   const log = protokoll ?? app.log;
+
+  /**
+   * Notbremse je IP für `/anmeldung/*`, `/sitzung/*` und `/konto` — siehe
+   * `ipbegrenzung.ts` für das Warum, `caddy/anmeldung.Caddyfile` für die
+   * Schicht, die das eigentlich übernehmen soll, sobald Plan 4 sie
+   * anwendet.
+   *
+   * Ein 429 hier ist **kein** Orakel wie ein abweichender Statuscode bei
+   * `/anmeldung/anfordern` es wäre: Er hängt ausschließlich daran, wie oft
+   * der Anfragende selbst in der letzten Minute anklopfte — nicht an der
+   * E-Mail-Adresse im Anfragekörper, die diese Prüfung gar nicht ansieht
+   * (`onRequest` läuft vor dem Parsen des Körpers). Zwei verschiedene IPs,
+   * die für dieselbe Adresse anfragen, sehen unterschiedliche Antworten je
+   * nachdem, wie oft *sie* schon anklopften — nie danach, ob die Adresse
+   * zum Verein gehört. Das ist die Abgrenzung zur 202-Regel der Begrenzung
+   * je Adresse in `anmeldung.ts`: Die darf niemals verraten, ob eine
+   * Adresse bekannt ist; die IP-Begrenzung hier verrät dazu gar nichts,
+   * weil sie die Adresse nie zu Gesicht bekommt.
+   */
+  app.addHook('onRequest', async (anfrage, antwort) => {
+    const pfad = anfrage.url.split('?', 1)[0] ?? anfrage.url;
+    if (!istIpGeschuetzterPfad(pfad)) return;
+
+    if (!ipBegrenzung.erlaubt(anfrage.ip, jetzt().getTime())) {
+      return antwort.code(429).send({ fehler: 'Zu viele Anfragen. Versuch es gleich noch einmal.' });
+    }
+  });
 
   /**
    * Arbeit, die nach der Antwort weiterläuft.
