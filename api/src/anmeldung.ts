@@ -71,14 +71,14 @@ export async function fordereMagicLinkAn(
   const zutritt = await pruefeZutritt(pool, email, einladungscode, jetzt);
   if (!zutritt.ok) return;
 
-  // Nach der Zutrittsprüfung, nicht davor: Wer gar nicht hereindarf, soll
-  // auch keine Spur in der Begrenzung hinterlassen — sonst könnte jemand
-  // durch Anfragen für eine fremde Adresse deren Kontingent aufbrauchen.
-  if (!(await darfAnfordern(pool, email, jetzt))) return;
-
   const token = erzeugeToken();
   const gueltigBis = new Date(jetzt.getTime() + GUELTIG_MINUTEN * 60 * 1000);
 
+  // Erst ab hier kommt die Begrenzung ins Spiel — sie steckt in
+  // `legeAnWennDieBegrenzungEsZulaesst`, hinter der Zutrittsprüfung: Wer gar
+  // nicht hereindarf, soll auch keine Spur in ihr hinterlassen, sonst könnte
+  // jemand durch Anfragen für eine fremde Adresse deren Kontingent
+  // aufbrauchen.
   await fuehreBerechtigtenZutrittLeiseAus(
     pool,
     mailer,
@@ -101,7 +101,7 @@ export async function fordereMagicLinkAn(
  * gab. Wer einen falschen Code schickt, bekommt 202; wer einen richtigen
  * schickt und auf eine gestörte Datenbank oder Mailstrecke trifft, bekäme
  * 500 — und wüsste damit, dass die Adresse zum Verein gehört. Läge die
- * Grenze erst nach dem INSERT, wäre genau dieser Unterschied bei jeder
+ * Grenze erst nach dem Anlegen, wäre genau dieser Unterschied bei jeder
  * Datenbankstörung wieder da: bekannte Adresse 500, unbekannte 202. Der
  * Unterschied bliebe auch mit echtem Versand offen, bei jeder
  * vorübergehenden Störung.
@@ -121,15 +121,18 @@ async function fuehreBerechtigtenZutrittLeiseAus(
   einladungId: string | null,
 ): Promise<void> {
   try {
-    // angelegt_am explizit statt der SQL-Voreinstellung now(): Sonst würde
-    // die Begrenzung (darfAnfordern) an der Systemzeit hängen statt an der
-    // eingespeisten Uhr — und wäre in Tests nicht mehr kontrollierbar. Siehe
-    // dieselbe Begründung bei `ausgestellt_am` in einladung.ts.
-    await pool.query(
-      `INSERT INTO magic_link (token_hash, email, angelegt_am, gueltig_bis, einladung_id)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [hashe(token), email, jetzt, gueltigBis, einladungId],
+    const angelegt = await legeAnWennDieBegrenzungEsZulaesst(
+      pool,
+      email,
+      hashe(token),
+      jetzt,
+      gueltigBis,
+      einladungId,
     );
+    // Nur verschicken, wenn auch wirklich eine Zeile entstanden ist. Sonst
+    // wäre die Begrenzung nur eine Buchhaltung über Zeilen und keine über
+    // Mails — und genau die Mails sind es, die das Postfach fluten.
+    if (!angelegt) return;
 
     await mailer.sende(
       email,
@@ -177,6 +180,81 @@ async function pruefeZutritt(
 }
 
 /**
+ * Prüft die Begrenzung und legt den Magic Link an — als **eine**
+ * untrennbare Einheit. Gibt zurück, ob eine Zeile entstanden ist.
+ *
+ * Getrennt war beides ein Wettlauf: Zwei gleichzeitige Anfragen für
+ * dieselbe Adresse lesen denselben Zählstand, finden beide Platz und
+ * schreiben beide. Seit die Antwort vor der Arbeit hinausgeht, braucht es
+ * dafür nicht einmal Absicht — selbst ein Aufrufer, der brav auf jede 202
+ * wartet, überholt die Datenbankumläufe des Hintergrundvorgangs regelmäßig.
+ * Damit hätte die Begrenzung genau das nicht verhindert, wofür es sie gibt.
+ *
+ * Eine einzelne `INSERT … SELECT … WHERE (Zählung) < …`-Anweisung genügt
+ * dagegen **nicht**: Unter READ COMMITTED — der Voreinstellung — sehen zwei
+ * gleichzeitige Anweisungen denselben Stand, jede vor dem Einfügen der
+ * anderen. Es braucht also eine Sperre, die beide nacheinander zwingt.
+ *
+ * `pg_advisory_xact_lock` sperrt auf einen selbst gewählten Schlüssel, hier
+ * der Hash der kleingeschriebenen Adresse: Anfragen für dieselbe Adresse
+ * reihen sich auf, Anfragen für verschiedene stören einander nicht. Zwei
+ * Adressen mit gleichem Hash warten unnötig aufeinander — ein falsches
+ * Ergebnis entsteht daraus nicht, nur eine Wartezeit im Hintergrund.
+ *
+ * Die `xact`-Variante und nicht `pg_advisory_lock`: Sie endet mit der
+ * Transaktion, auch mit einer abgebrochenen. Es gibt damit kein `finally`,
+ * das ein Freigeben vergessen könnte, und keine Sperre, die einen Pool nach
+ * einem Fehler dauerhaft blockiert.
+ *
+ * Verschickt wird erst **nach** dem COMMIT, nicht in der Transaktion: Ein
+ * Mailanbieter, der zwei Sekunden braucht, hielte sonst die Sperre und eine
+ * Poolverbindung genauso lange.
+ */
+async function legeAnWennDieBegrenzungEsZulaesst(
+  pool: pg.Pool,
+  email: string,
+  tokenHash: string,
+  jetzt: Date,
+  gueltigBis: Date,
+  einladungId: string | null,
+): Promise<boolean> {
+  const verbindung = await pool.connect();
+  try {
+    await verbindung.query('BEGIN');
+    await verbindung.query('SELECT pg_advisory_xact_lock(hashtext(lower($1)))', [email]);
+
+    const erlaubt = await darfAnfordern(verbindung, email, jetzt);
+    if (erlaubt) {
+      // angelegt_am explizit statt der SQL-Voreinstellung now(): Sonst würde
+      // die Begrenzung (darfAnfordern) an der Systemzeit hängen statt an der
+      // eingespeisten Uhr — und wäre in Tests nicht mehr kontrollierbar. Siehe
+      // dieselbe Begründung bei `ausgestellt_am` in einladung.ts.
+      await verbindung.query(
+        `INSERT INTO magic_link (token_hash, email, angelegt_am, gueltig_bis, einladung_id)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [tokenHash, email, jetzt, gueltigBis, einladungId],
+      );
+    }
+
+    await verbindung.query('COMMIT');
+    return erlaubt;
+  } catch (fehler) {
+    // Ohne Rücknahme käme die Verbindung mit offener Transaktion in den Pool
+    // zurück. Scheitert auch die (etwa weil die Verbindung weg ist), geht
+    // keiner der beiden Fehler verloren: der ursprüngliche als Ursache, der
+    // zweite als Meldung.
+    try {
+      await verbindung.query('ROLLBACK');
+    } catch (rollbackFehler) {
+      throw new Error(`Rücknahme misslungen: ${String(rollbackFehler)}`, { cause: fehler });
+    }
+    throw fehler;
+  } finally {
+    verbindung.release();
+  }
+}
+
+/**
  * Ob für diese Adresse gerade ein weiterer Link entstehen darf.
  *
  * Gezählt wird auf `magic_link` — die Daten liegen schon da, eine eigene
@@ -185,11 +263,20 @@ async function pruefeZutritt(
  * Das Fenster ist **gleitend**: Wer um 12:59 seine dritte Anforderung
  * verbraucht, ist nicht um 13:00 wieder frei, sondern eine Stunde nach der
  * ersten. Sonst könnte man an jeder vollen Stunde das Doppelte anfordern.
+ *
+ * Nimmt bewusst eine `PoolClient` und keinen Pool: Diese Auskunft ist nur
+ * innerhalb der Transaktion aus `legeAnWennDieBegrenzungEsZulaesst`
+ * belastbar, die sie mit dem Einfügen zusammenhält. Auf einer beliebigen
+ * Poolverbindung gefragt, wäre sie sofort wieder veraltet.
  */
-async function darfAnfordern(pool: pg.Pool, email: string, jetzt: Date): Promise<boolean> {
+async function darfAnfordern(
+  verbindung: pg.PoolClient,
+  email: string,
+  jetzt: Date,
+): Promise<boolean> {
   const stundeVorher = new Date(jetzt.getTime() - 60 * 60 * 1000);
 
-  const { rows } = await pool.query<{ anzahl: string; letzte: Date | null }>(
+  const { rows } = await verbindung.query<{ anzahl: string; letzte: Date | null }>(
     `SELECT count(*) AS anzahl, max(angelegt_am) AS letzte
        FROM magic_link
       WHERE lower(email) = lower($1) AND angelegt_am > $2`,

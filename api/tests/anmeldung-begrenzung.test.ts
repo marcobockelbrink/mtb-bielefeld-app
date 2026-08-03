@@ -20,6 +20,19 @@ async function mitgliedAnlegen(): Promise<void> {
   await pool.query("INSERT INTO mitglied (email) VALUES ('malte@example.org')");
 }
 
+/**
+ * Legt Verbindungen im Pool an, bevor es losgeht.
+ *
+ * Ohne das sind gleichzeitige Anforderungen gar nicht wirklich gleichzeitig:
+ * Die erste greift sich die einzige bereitliegende Verbindung und ist mit
+ * allen drei Datenbankumläufen durch, während die übrigen noch TCP und
+ * Anmeldung hinter sich bringen. Ein Test für einen Wettlauf, der von selbst
+ * keiner ist, belegt nichts.
+ */
+async function waermePoolAuf(anzahl: number): Promise<void> {
+  await Promise.all(Array.from({ length: anzahl }, () => pool.query('SELECT 1')));
+}
+
 /** Fordert an und gibt zurück, wie viele Mails insgesamt verschickt wurden. */
 async function fordere(mailer: GemerkterMailer, jetzt: Date): Promise<number> {
   await fordereMagicLinkAn(pool, mailer, stillesProtokoll, 'malte@example.org', undefined, jetzt);
@@ -106,6 +119,69 @@ describe('Begrenzung je Adresse', () => {
       undefined,
       new Date(start.getTime() + 1000),
     );
+
+    expect(mailer.versendet).toHaveLength(2);
+  });
+
+  it('lässt von gleichzeitigen Anforderungen nur eine durch', async () => {
+    // Der entscheidende Test für K1, hier ohne Endpunkt und ohne Uhr
+    // dazwischen: fünf Anforderungen zur selben Sekunde, alle gleichzeitig
+    // unterwegs. Waren Prüfung und Einfügen getrennt, las jede den Zählstand,
+    // bevor eine andere geschrieben hatte — und alle fünf kamen durch.
+    await mitgliedAnlegen();
+    await waermePoolAuf(8);
+    const mailer = new GemerkterMailer();
+
+    await Promise.all(
+      Array.from({ length: 5 }, () =>
+        fordereMagicLinkAn(pool, mailer, stillesProtokoll, 'malte@example.org', undefined, start),
+      ),
+    );
+
+    expect(mailer.versendet).toHaveLength(1);
+    const { rows } = await pool.query('SELECT id FROM magic_link');
+    expect(rows).toHaveLength(1);
+  });
+
+  it('lässt auch bei gleichzeitigen Anforderungen höchstens drei je Stunde durch', async () => {
+    // Wie oben, nur mit fünf Minuten Abstand je Anforderung: Damit ist nicht
+    // der Mindestabstand die Bremse, sondern die Höchstzahl.
+    await mitgliedAnlegen();
+    await waermePoolAuf(8);
+    const mailer = new GemerkterMailer();
+
+    await Promise.all(
+      Array.from({ length: 6 }, (_, i) =>
+        fordereMagicLinkAn(
+          pool,
+          mailer,
+          stillesProtokoll,
+          'malte@example.org',
+          undefined,
+          new Date(start.getTime() + i * 5 * 60 * 1000),
+        ),
+      ),
+    );
+
+    // Höchstens drei — die Grenze. Nicht genau drei: In welcher Reihenfolge
+    // die Sperre die sechs durchlässt, ist offen, und wer mit einem früheren
+    // Zeitpunkt als die schon geschriebene Zeile ankommt, fällt zusätzlich
+    // über den Mindestabstand. Weniger ist erlaubt, mehr nie.
+    expect(mailer.versendet.length).toBeLessThanOrEqual(3);
+    expect(mailer.versendet.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('sperrt nur je Adresse, nicht über alle hinweg', async () => {
+    // Die Sperre soll Anfragen für dieselbe Adresse aufreihen — und
+    // verschiedene Adressen ungebremst nebeneinander durchlassen.
+    await mitgliedAnlegen();
+    await pool.query("INSERT INTO mitglied (email) VALUES ('anna@example.org')");
+    const mailer = new GemerkterMailer();
+
+    await Promise.all([
+      fordereMagicLinkAn(pool, mailer, stillesProtokoll, 'malte@example.org', undefined, start),
+      fordereMagicLinkAn(pool, mailer, stillesProtokoll, 'anna@example.org', undefined, start),
+    ]);
 
     expect(mailer.versendet).toHaveLength(2);
   });

@@ -22,16 +22,53 @@ class ScheiterderMailer implements Mailer {
  * Links — das scheitert, wie es eine gestörte Datenbank auch täte. Steht
  * für N2: Die Absicherung gegen das Mitgliedschafts-Orakel muss auch diesen
  * Schreibzugriff abdecken, nicht nur den Mailversand danach.
+ *
+ * Auch `connect` wird durchgereicht: Das Anlegen läuft seit K1 in einer
+ * Transaktion auf einer eigenen Verbindung, und BEGIN, Sperre, Zählung und
+ * ROLLBACK sollen dabei echt sein — nur das INSERT scheitert.
  */
 function poolMitScheiterndemMagicLinkSchreiben(echterPool: pg.Pool): pg.Pool {
+  const gestoert = (text: unknown): boolean =>
+    typeof text === 'string' && text.includes('INSERT INTO magic_link');
+
+  const frage = (
+    ziel: { query: (text: unknown, werte?: unknown) => unknown },
+    text: unknown,
+    werte?: unknown,
+  ): unknown =>
+    gestoert(text)
+      ? Promise.reject(new Error('Die Datenbank antwortet gerade nicht.'))
+      : ziel.query(text, werte);
+
   return {
-    query: (text: unknown, werte?: unknown) => {
-      if (typeof text === 'string' && text.includes('INSERT INTO magic_link')) {
-        return Promise.reject(new Error('Die Datenbank antwortet gerade nicht.'));
-      }
-      return (echterPool.query as (text: unknown, werte?: unknown) => unknown)(text, werte);
+    query: (text: unknown, werte?: unknown) =>
+      frage(echterPool as unknown as { query: (t: unknown, w?: unknown) => unknown }, text, werte),
+    connect: async () => {
+      const verbindung = await echterPool.connect();
+      return {
+        query: (text: unknown, werte?: unknown) =>
+          frage(
+            verbindung as unknown as { query: (t: unknown, w?: unknown) => unknown },
+            text,
+            werte,
+          ),
+        release: () => verbindung.release(),
+      };
     },
   } as unknown as pg.Pool;
+}
+
+/**
+ * Legt Verbindungen im Pool an, bevor es losgeht.
+ *
+ * Ohne das sind gleichzeitige Anfragen gar nicht wirklich gleichzeitig: Die
+ * erste greift sich die einzige bereitliegende Verbindung und ist mit allen
+ * Datenbankumläufen durch, während die übrigen noch TCP und Anmeldung hinter
+ * sich bringen. Ein Test für einen Wettlauf, der von selbst keiner ist,
+ * belegt nichts.
+ */
+async function waermePoolAuf(anzahl: number): Promise<void> {
+  await Promise.all(Array.from({ length: anzahl }, () => pool.query('SELECT 1')));
 }
 
 beforeEach(async () => {
@@ -77,8 +114,14 @@ describe('POST /anmeldung/anfordern', () => {
         url: '/anmeldung/anfordern',
         payload: { email: 'malte@example.org', einladungscode: code },
       });
+      // Hier ist das Warten richtig: Gemeint sind drei **nacheinander**
+      // abgeschickte Anforderungen mit fünf Minuten Abstand. Ohne das Warten
+      // liefen sie gleichzeitig, und die Begrenzung würde sie zu Recht in
+      // beliebiger Reihenfolge durch die Sperre lassen — eine davon mit einem
+      // früheren Zeitpunkt als die schon geschriebene, also am Mindestabstand
+      // gescheitert. Der Test geht aber um den Einladungscode, nicht um sie.
+      await app.warteAufHintergrundarbeit();
     }
-    await app.warteAufHintergrundarbeit();
 
     // Wer den ersten Link liegen lässt, darf einen neuen anfordern können.
     // Würde der Code hier verbraucht, wäre er nach dem ersten Versuch
@@ -357,6 +400,7 @@ describe('POST /anmeldung/anfordern', () => {
     const mailer = new GemerkterMailer();
     const app = baueApp({ pool, mailer });
     await pool.query("INSERT INTO mitglied (email) VALUES ('malte@example.org')");
+    await waermePoolAuf(8);
 
     const anfordern = () =>
       app.inject({
@@ -365,12 +409,11 @@ describe('POST /anmeldung/anfordern', () => {
         payload: { email: 'malte@example.org' },
       });
 
+    // Bewusst **ohne** Warten zwischen den beiden Anfragen: Ein Test, der
+    // hier erst die Hintergrundarbeit abwartet, prüft eine Bedingung, die im
+    // Betrieb nie gilt. Seit Prüfung und Einfügen eine Transaktion sind,
+    // braucht es das Warten auch nicht mehr.
     const erste = await anfordern();
-    // Ohne dieses Warten liefe die zweite Anfrage der Begrenzung davon: Sie
-    // schaut in `magic_link` nach, und ohne Garantie, dass die erste Anfrage
-    // dort schon geschrieben hat, wäre offen, ob die Begrenzung überhaupt
-    // greift — ein Wettrennen, kein verlässlicher Test.
-    await app.warteAufHintergrundarbeit();
     const zweite = await anfordern();
     await app.warteAufHintergrundarbeit();
 
@@ -379,6 +422,76 @@ describe('POST /anmeldung/anfordern', () => {
     expect(zweite.statusCode).toBe(erste.statusCode);
     expect(zweite.json()).toEqual(erste.json());
     expect(mailer.versendet).toHaveLength(1);
+    await app.close();
+  });
+
+  it('lässt bei gleichzeitigen Anfragen für dieselbe Adresse nur eine Mail entstehen', async () => {
+    // Der entscheidende Test für K1: fünf Anfragen ohne jedes Warten
+    // dazwischen — so, wie jemand sie abfeuern würde, der ein Postfach
+    // fluten will. Waren Prüfung und Einfügen getrennt, kamen alle fünf
+    // durch: Jede las den Zählstand, bevor eine andere geschrieben hatte.
+    const mailer = new GemerkterMailer();
+    // Echte Uhr, weil es hier gerade um die Gleichzeitigkeit geht.
+    const app = baueApp({ pool, mailer });
+    await pool.query("INSERT INTO mitglied (email) VALUES ('malte@example.org')");
+    await waermePoolAuf(8);
+
+    const antworten = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        app.inject({
+          method: 'POST',
+          url: '/anmeldung/anfordern',
+          payload: { email: 'malte@example.org' },
+        }),
+      ),
+    );
+    await app.warteAufHintergrundarbeit();
+
+    // Alle fünf treffen praktisch zur selben Sekunde ein, also greift der
+    // Mindestabstand von einer Minute: genau eine Mail, genau eine Zeile.
+    expect(antworten.map((antwort) => antwort.statusCode)).toEqual([202, 202, 202, 202, 202]);
+    expect(mailer.versendet).toHaveLength(1);
+    const { rows } = await pool.query('SELECT id FROM magic_link');
+    expect(rows).toHaveLength(1);
+    await app.close();
+  });
+
+  it('hält die Höchstzahl auch bei gleichzeitigen Anfragen ein', async () => {
+    const mailer = new GemerkterMailer();
+    // Jede Anfrage bekommt einen eigenen Zeitpunkt im Abstand von fünf
+    // Minuten. Damit ist nicht der Mindestabstand die Bremse, sondern die
+    // Höchstzahl je Stunde — und die muss auch dann halten, wenn alle sechs
+    // Anfragen gleichzeitig unterwegs sind.
+    const start = new Date('2026-08-02T12:00:00Z');
+    let wievielte = 0;
+    const app = baueApp({
+      pool,
+      mailer,
+      jetzt: () => new Date(start.getTime() + wievielte++ * 5 * 60 * 1000),
+    });
+    await pool.query("INSERT INTO mitglied (email) VALUES ('malte@example.org')");
+    await waermePoolAuf(8);
+
+    const antworten = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        app.inject({
+          method: 'POST',
+          url: '/anmeldung/anfordern',
+          payload: { email: 'malte@example.org' },
+        }),
+      ),
+    );
+    await app.warteAufHintergrundarbeit();
+
+    expect(antworten.map((antwort) => antwort.statusCode)).toEqual([202, 202, 202, 202, 202, 202]);
+    // Höchstens drei — die Grenze. Nicht genau drei: In welcher Reihenfolge
+    // die Sperre die sechs durchlässt, ist offen, und eine Anfrage mit einem
+    // früheren Zeitpunkt als die schon geschriebene fällt zusätzlich über den
+    // Mindestabstand. Weniger als drei ist erlaubt, mehr nie.
+    expect(mailer.versendet.length).toBeLessThanOrEqual(3);
+    expect(mailer.versendet.length).toBeGreaterThanOrEqual(1);
+    const { rows } = await pool.query('SELECT id FROM magic_link');
+    expect(rows.length).toBe(mailer.versendet.length);
     await app.close();
   });
 
