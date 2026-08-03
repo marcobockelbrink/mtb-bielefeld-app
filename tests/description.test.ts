@@ -107,3 +107,22 @@ describe('Tourdaten aus der Beschreibung', () => {
     });
   });
 });
+
+describe('Gäste-Zeile', () => {
+  it('liest "Gäste: ja" als erlaubt', () => {
+    expect(parseRideDetails('Gäste: ja').gaesteErlaubt).toBe(true);
+  });
+
+  it('liest "Gäste: nein" als nicht erlaubt', () => {
+    expect(parseRideDetails('Gäste: nein').gaesteErlaubt).toBe(false);
+  });
+
+  it('lässt das Feld ohne die Zeile offen', () => {
+    expect(parseRideDetails('Euer Guide: Malte').gaesteErlaubt).toBeUndefined();
+  });
+
+  it('versteht Schreibvarianten', () => {
+    expect(parseRideDetails('Gäste : Ja, gerne!').gaesteErlaubt).toBe(true);
+    expect(parseRideDetails('gäste: NEIN').gaesteErlaubt).toBe(false);
+  });
+});

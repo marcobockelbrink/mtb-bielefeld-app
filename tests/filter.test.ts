@@ -19,6 +19,7 @@ function termin(overrides: Partial<ClubEvent> = {}): ClubEvent {
   const start = overrides.start ?? new Date('2026-05-06T16:00:00Z');
   return {
     id: 'x#1',
+    originalStartInstant: start.getTime(),
     uid: 'x',
     title: 'Tour',
     start,

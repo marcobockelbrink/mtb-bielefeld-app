@@ -52,12 +52,28 @@ export interface RideDetails {
   maxParticipants?: number;
   /** Link aus "Anmeldung unter:". */
   signupUrl?: string;
+  /**
+   * "Gäste:" — ob Nicht-Mitglieder mitfahren dürfen. Der Guide legt das je
+   * Termin in der Beschreibung fest; fehlt die Zeile, bleibt das Feld offen
+   * und die Anmeldung der API lehnt Gäste ab.
+   */
+  gaesteErlaubt?: boolean;
 }
 
 /** Ein einzelner Termin — bei Serien ein konkreter Einzeltermin, nicht die Serie. */
 export interface ClubEvent {
   /** Eindeutig je Einzeltermin: UID der Serie plus Startzeitpunkt. */
   id: string;
+  /**
+   * Der **ursprüngliche** Zeitpunkt dieses Termins, als Millisekunden.
+   *
+   * Bei einem verschobenen Einzeltermin einer Serie ist das der Zeitpunkt,
+   * an dem er ursprünglich gelegen hätte (`RECURRENCE-ID`) — nicht der neue.
+   * Bei allen anderen Terminen gleich `start`. Die Tourenanmeldung der API
+   * schlüsselt daran: Eine Verschiebung ändert `id`, aber nicht diesen Wert,
+   * und die Anmeldungen bleiben am Termin hängen.
+   */
+  originalStartInstant: number;
   /** UID aus dem Kalender. Bei Serien für alle Einzeltermine gleich. */
   uid: string;
   title: string;

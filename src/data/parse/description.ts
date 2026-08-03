@@ -44,9 +44,13 @@ const LABEL_ALIASES: Record<string, keyof LabelValues> = {
   maxteilnehmerzahl: 'maxParticipants',
   maxteilnehmer: 'maxParticipants',
   teilnehmerzahl: 'maxParticipants',
+  plätze: 'maxParticipants',
   anmeldungunter: 'signup',
   anmeldung: 'signup',
   charakter: 'character',
+  gäste: 'gaeste',
+  gaeste: 'gaeste',
+  gast: 'gaeste',
 };
 
 interface LabelValues {
@@ -60,6 +64,7 @@ interface LabelValues {
   maxParticipants?: string;
   signup?: string;
   character?: string;
+  gaeste?: string;
 }
 
 /**
@@ -170,6 +175,21 @@ function parseUrl(value: string | undefined): string | undefined {
 }
 
 /**
+ * "ja" heißt ja, "nein" heißt nein — alles andere bleibt offen.
+ *
+ * Bewusst eng: "Gäste: nach Absprache" soll nicht als Erlaubnis gelten.
+ * Offen bedeutet für die Anmeldung dasselbe wie nein, aber die App kann
+ * den Unterschied anzeigen, wenn sie will.
+ */
+function parseJaNein(value: string | undefined): boolean | undefined {
+  if (!value) return undefined;
+  const wort = value.trim().toLowerCase();
+  if (wort.startsWith('ja')) return true;
+  if (wort.startsWith('nein')) return false;
+  return undefined;
+}
+
+/**
  * Zieht alle bekannten Tourdaten aus dem Beschreibungstext.
  *
  * Erwartet reinen Text — HTML vorher durch `htmlToText` schicken.
@@ -198,5 +218,6 @@ export function parseRideDetails(text: string): RideDetails {
     elevationM,
     maxParticipants: parseNumber(labels.maxParticipants, /(\d+)/),
     signupUrl: parseUrl(labels.signup),
+    gaesteErlaubt: parseJaNein(labels.gaeste),
   };
 }

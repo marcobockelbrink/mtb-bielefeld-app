@@ -166,6 +166,57 @@ describe('Auswertung der Termininhalte', () => {
   });
 });
 
+describe('originalStartInstant', () => {
+  it('ist bei einem gewöhnlichen Termin der Startzeitpunkt', () => {
+    const raw = [
+      'BEGIN:VCALENDAR',
+      'BEGIN:VEVENT',
+      'UID:einzel@test',
+      'DTSTART;TZID=Europe/Berlin:20260812T180000',
+      'DTEND;TZID=Europe/Berlin:20260812T200000',
+      'SUMMARY:Feierabendrunde',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const [termin] = parseCalendar(raw, { now: new Date('2026-08-03T12:00:00Z') });
+    expect(termin?.originalStartInstant).toBe(termin?.start.getTime());
+  });
+
+  it('überlebt die Verschiebung eines Einzeltermins einer Serie', () => {
+    // Das MittwochsRudel wird am 12.08. von 18:00 auf 19:00 verschoben. Die
+    // Kennung `id` ändert sich dadurch — `originalStartInstant` nicht: Er
+    // zeigt weiter auf den ursprünglichen Zeitpunkt. Genau daran hängen
+    // die Anmeldungen der API.
+    const raw = [
+      'BEGIN:VCALENDAR',
+      'BEGIN:VEVENT',
+      'UID:rudel@test',
+      'DTSTART;TZID=Europe/Berlin:20260805T180000',
+      'DTEND;TZID=Europe/Berlin:20260805T200000',
+      'RRULE:FREQ=WEEKLY;COUNT=3',
+      'SUMMARY:MittwochsRudel',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:rudel@test',
+      'RECURRENCE-ID;TZID=Europe/Berlin:20260812T180000',
+      'DTSTART;TZID=Europe/Berlin:20260812T190000',
+      'DTEND;TZID=Europe/Berlin:20260812T210000',
+      'SUMMARY:MittwochsRudel',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const termine = parseCalendar(raw, { now: new Date('2026-08-03T12:00:00Z') });
+    const verschoben = termine.find((t) => t.start.getHours() === 19);
+    const urspruenglich = new Date('2026-08-12T18:00:00+02:00').getTime();
+
+    expect(verschoben).toBeDefined();
+    expect(verschoben?.originalStartInstant).toBe(urspruenglich);
+    expect(verschoben?.originalStartInstant).not.toBe(verschoben?.start.getTime());
+  });
+});
+
 describe('localDayKey', () => {
   it('rechnet in Vereinszeit, nicht in UTC', () => {
     // 31.12. um 23:00 Ortszeit ist in UTC bereits der 31.12. um 22:00 —

@@ -15,7 +15,7 @@ const KALENDER = [
   'DTSTART;TZID=Europe/Berlin:20260810T180000',
   'DTEND;TZID=Europe/Berlin:20260810T200000',
   'SUMMARY:Proberunde',
-  'DESCRIPTION:Teilnehmerzahl: 12\\nGäste: ja',
+  'DESCRIPTION:Plätze: 12\\nGäste: ja',
   'END:VEVENT',
   'END:VCALENDAR',
 ].join('\r\n');

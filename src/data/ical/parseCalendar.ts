@@ -202,6 +202,7 @@ function buildEvent(raw: RawEvent, startInstant: number, recurring: boolean): Cl
 
   return {
     id: `${raw.uid}#${startInstant}`,
+    originalStartInstant: raw.recurrenceInstant ?? startInstant,
     uid: raw.uid,
     title: title || 'Termin',
     start: new Date(startInstant),
