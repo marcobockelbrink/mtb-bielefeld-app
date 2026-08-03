@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node --experimental-strip-types src/server.ts",
     "migrieren": "node --experimental-strip-types src/migrationen/anwenden.ts",
+    "aufraeumen": "node --experimental-strip-types src/aufraeumen-cli.ts",
     "einladung:erzeugen": "node --experimental-strip-types src/einladung-cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",

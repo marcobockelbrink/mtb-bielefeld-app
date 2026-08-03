@@ -8,7 +8,6 @@ import {
   verbraucheEinladung,
 } from '../src/einladung.ts';
 import { GemerkterMailer } from '../src/mailer.ts';
-import { GemerktesProtokoll } from '../src/protokoll.ts';
 import { erneuereSitzung, legeSitzungAn } from '../src/sitzung.ts';
 import { hashe } from '../src/token.ts';
 import { frischeDatenbank } from './hilfen/datenbank.ts';
@@ -66,7 +65,7 @@ describe('GET /konto', () => {
     // Ein drittes Gerät, dessen Sitzung erneuert (also ersetzt) wurde. Nur
     // die Nachfolgerin zählt, nicht die ersetzte Ursprungszeile.
     const dritte = await legeSitzungAn(pool, id, jetzt);
-    await erneuereSitzung(pool, dritte.erneuerung, jetzt, new GemerktesProtokoll());
+    await erneuereSitzung(pool, dritte.erneuerung, jetzt);
 
     // Ein viertes Gerät, dessen Erneuerungsfrist inzwischen abgelaufen ist.
     const vierte = await legeSitzungAn(pool, id, jetzt);
@@ -119,6 +118,10 @@ describe('DELETE /konto', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'malte@example.org', einladungscode: code },
     });
+    // Ohne dieses Warten wäre offen, ob die magic_link-Zeile beim Löschen
+    // überhaupt schon existierte — der Test würde dann grün, weil es nichts
+    // aufzuräumen gab, nicht weil das Aufräumen funktioniert.
+    await app.warteAufHintergrundarbeit();
     const { zugang } = await angemeldetesMitglied();
 
     await app.inject({

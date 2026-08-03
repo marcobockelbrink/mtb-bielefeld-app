@@ -31,6 +31,9 @@ async function holeToken(mailer: GemerkterMailer, app: ReturnType<typeof baueApp
     url: '/anmeldung/anfordern',
     payload: { email: 'malte@example.org', einladungscode: code },
   });
+  // Der Endpunkt antwortet inzwischen, bevor er schreibt und verschickt —
+  // ohne dieses Warten wäre die Mail hier noch gar nicht entstanden.
+  await app.warteAufHintergrundarbeit();
   return letzterToken(mailer);
 }
 
@@ -44,6 +47,7 @@ async function holeTokenOhneCode(
     url: '/anmeldung/anfordern',
     payload: { email: 'malte@example.org' },
   });
+  await app.warteAufHintergrundarbeit();
   return letzterToken(mailer);
 }
 
@@ -138,6 +142,13 @@ describe('POST /anmeldung/einloesen', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'malte@example.org', einladungscode: code },
     });
+    // Auf diese Instanz warten, nicht auf `spaeter`: `laufendeArbeit` gehört
+    // je App-Instanz zu sich selbst. Ohne dieses Warten wäre offen, ob dieser
+    // Vorgang vor oder nach dem von `spaeter` fertig wird — und `letzterToken`
+    // nimmt schlicht den letzten Eintrag im gemeinsamen Mailer-Array. Würde
+    // dieser Vorgang später fertig, stünde der abgelaufene Token zuletzt im
+    // Array statt des neuen.
+    await app.warteAufHintergrundarbeit();
 
     // Eine Stunde später: Der erste Link ist tot, der Code nicht.
     const spaeter = baueApp({
@@ -150,6 +161,7 @@ describe('POST /anmeldung/einloesen', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'malte@example.org', einladungscode: code },
     });
+    await spaeter.warteAufHintergrundarbeit();
     const antwort = await spaeter.inject({
       method: 'POST',
       url: '/anmeldung/einloesen',
@@ -163,13 +175,17 @@ describe('POST /anmeldung/einloesen', () => {
 
   it('lässt ein zweites Gerät zu, ohne dass der Code noch gebraucht wird', async () => {
     const mailer = new GemerkterMailer();
-    const app = baueApp({ pool, mailer, jetzt: () => jetzt });
+    // Eine Minute Abstand vor der zweiten Anforderung: Sonst griffe die
+    // Begrenzung aus Aufgabe 2 — hier geht es aber um das zweite Gerät.
+    let momentan = jetzt;
+    const app = baueApp({ pool, mailer, jetzt: () => momentan });
 
     const erstes = await app.inject({
       method: 'POST',
       url: '/anmeldung/einloesen',
       payload: { token: await holeToken(mailer, app) },
     });
+    momentan = new Date(jetzt.getTime() + 60 * 1000);
     const zweites = await app.inject({
       method: 'POST',
       url: '/anmeldung/einloesen',
@@ -187,7 +203,10 @@ describe('POST /anmeldung/einloesen', () => {
 
   it('lässt nach dem Abmelden ein Wiederanmelden zu', async () => {
     const mailer = new GemerkterMailer();
-    const app = baueApp({ pool, mailer, jetzt: () => jetzt });
+    // Eine Minute Abstand vor der zweiten Anforderung: Sonst griffe die
+    // Begrenzung aus Aufgabe 2 — hier geht es aber ums Wiederanmelden.
+    let momentan = jetzt;
+    const app = baueApp({ pool, mailer, jetzt: () => momentan });
     const erste = await app.inject({
       method: 'POST',
       url: '/anmeldung/einloesen',
@@ -200,6 +219,7 @@ describe('POST /anmeldung/einloesen', () => {
       payload: { erneuerung: erste.json().erneuerung },
     });
 
+    momentan = new Date(jetzt.getTime() + 60 * 1000);
     const zweite = await app.inject({
       method: 'POST',
       url: '/anmeldung/einloesen',
