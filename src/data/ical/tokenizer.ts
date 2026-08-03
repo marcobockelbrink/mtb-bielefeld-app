@@ -76,7 +76,12 @@ export function parseProperty(line: string): IcalProperty | null {
   const head = line.slice(0, colonIndex);
   const value = line.slice(colonIndex + 1);
   const segments = splitOutsideQuotes(head, ';');
-  const name = segments[0].toUpperCase();
+  // `splitOutsideQuotes` hängt das letzte Stück immer an, auch bei leerer
+  // Eingabe — `segments` hat also nie Länge 0. `noUncheckedIndexedAccess`
+  // kennt diese Garantie nicht, deshalb die explizite Prüfung.
+  const firstSegment = segments[0];
+  if (firstSegment === undefined) return null;
+  const name = firstSegment.toUpperCase();
   if (!name) return null;
 
   const params: Record<string, string> = {};

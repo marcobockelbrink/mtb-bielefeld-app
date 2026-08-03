@@ -18,7 +18,7 @@
  * leer — die App zeigt dann eben weniger an, statt zu raten.
  */
 
-import type { RideDetails, StarRange } from '../../domain/types';
+import type { RideDetails, StarRange } from '../../domain/types.ts';
 
 /** Bekannte Beschriftungen, zusammengefasst auf ein einheitliches Kürzel. */
 const LABEL_ALIASES: Record<string, keyof LabelValues> = {
@@ -98,15 +98,22 @@ function collectLabels(text: string): LabelValues {
     const matches = [...line.matchAll(pattern)];
 
     for (let i = 0; i < matches.length; i++) {
+      // `i < matches.length` garantiert ein Element, und die Fanggruppe ist im
+      // Muster nicht optional — `noUncheckedIndexedAccess` kennt beides nicht.
       const match = matches[i];
-      const key = LABEL_ALIASES[normalizeLabel(match[1])];
+      const label = match?.[1];
+      if (match === undefined || label === undefined) continue;
+      const key = LABEL_ALIASES[normalizeLabel(label)];
       if (!key) continue;
       const valueStart = match.index + match[0].length;
       // Der Wert reicht bis zur nächsten erkannten Beschriftung.
       let valueEnd = line.length;
       for (let j = i + 1; j < matches.length; j++) {
-        if (LABEL_ALIASES[normalizeLabel(matches[j][1])]) {
-          valueEnd = matches[j].index;
+        const nextMatch = matches[j];
+        const nextLabel = nextMatch?.[1];
+        if (nextMatch === undefined || nextLabel === undefined) continue;
+        if (LABEL_ALIASES[normalizeLabel(nextLabel)]) {
+          valueEnd = nextMatch.index;
           break;
         }
       }
@@ -139,7 +146,11 @@ function parseNumber(value: string | undefined, pattern: RegExp): number | undef
   if (!value) return undefined;
   const match = pattern.exec(value);
   if (!match) return undefined;
-  const parsed = Number(match[1].replace(',', '.'));
+  // Jeder Aufrufer übergibt ein Muster mit genau einer Fanggruppe — bei einem
+  // Treffer ist sie gesetzt. `noUncheckedIndexedAccess` kennt das nicht.
+  const zahl = match[1];
+  if (zahl === undefined) return undefined;
+  const parsed = Number(zahl.replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 

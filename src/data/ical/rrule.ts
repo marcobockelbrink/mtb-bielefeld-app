@@ -13,7 +13,7 @@
  * 18:00 Uhr und wandert nicht auf 17:00 Uhr.
  */
 
-import { wallTimeToInstant, type WallTime } from './timezone';
+import { wallTimeToInstant, type WallTime } from './timezone.ts';
 
 export type Frequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
 
@@ -78,7 +78,12 @@ export function parseRecurrenceRule(value: string, defaultTimeZone: string): Rec
   for (const token of splitList(parts.BYDAY)) {
     const match = /^([+-]?\d+)?([A-Z]{2})$/.exec(token.toUpperCase());
     if (!match) continue;
-    const weekday = WEEKDAY_CODES[match[2]];
+    // Gruppe 2 ist im Muster nicht optional — bei einem Treffer ist sie immer
+    // gesetzt. `noUncheckedIndexedAccess` kennt das Muster nicht, deshalb die
+    // explizite Prüfung statt eines `!`.
+    const code = match[2];
+    if (code === undefined) continue;
+    const weekday = WEEKDAY_CODES[code];
     if (weekday === undefined) continue;
     byDay.push({ ordinal: match[1] ? Number(match[1]) : undefined, weekday });
   }

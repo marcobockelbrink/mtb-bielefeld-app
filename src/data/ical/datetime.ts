@@ -2,8 +2,8 @@
  * Liest die Datumsangaben aus iCal-Eigenschaften wie `DTSTART` oder `EXDATE`.
  */
 
-import type { IcalProperty } from './tokenizer';
-import { fieldsToWallTime, instantToWallTime, wallTimeToInstant, type WallTime } from './timezone';
+import type { IcalProperty } from './tokenizer.ts';
+import { fieldsToWallTime, instantToWallTime, wallTimeToInstant, type WallTime } from './timezone.ts';
 
 export interface IcalDateTime {
   /** Ortszeit — Grundlage für das Ausrechnen von Serienterminen. */

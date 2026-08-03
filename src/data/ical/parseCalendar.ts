@@ -15,15 +15,15 @@ import {
   CLUB_TIMEZONE,
   EXPANSION_WINDOW_DAYS_FUTURE,
   EXPANSION_WINDOW_DAYS_PAST,
-} from '../../config';
-import type { ClubEvent } from '../../domain/types';
-import { classifyCategory, classifyLevels, cleanTitle, isCancelled, isLadiesOnly } from '../parse/classify';
-import { parseRideDetails } from '../parse/description';
-import { htmlToText } from '../parse/html';
-import { parseDateProperty, parseExceptionDates, type IcalDateTime } from './datetime';
-import { expandRecurrence, parseRecurrenceRule, type RecurrenceRule } from './rrule';
-import { instantToWallTime } from './timezone';
-import { extractComponents, parseProperties, unescapeText, type IcalProperty } from './tokenizer';
+} from '../../config.ts';
+import type { ClubEvent } from '../../domain/types.ts';
+import { classifyCategory, classifyLevels, cleanTitle, isCancelled, isLadiesOnly } from '../parse/classify.ts';
+import { parseRideDetails } from '../parse/description.ts';
+import { htmlToText } from '../parse/html.ts';
+import { parseDateProperty, parseExceptionDates, type IcalDateTime } from './datetime.ts';
+import { expandRecurrence, parseRecurrenceRule, type RecurrenceRule } from './rrule.ts';
+import { instantToWallTime } from './timezone.ts';
+import { extractComponents, parseProperties, unescapeText, type IcalProperty } from './tokenizer.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Fällt `DTEND` aus, nimmt die Norm eine Stunde an — passt zu den Vereinsterminen. */

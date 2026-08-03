@@ -14,9 +14,15 @@ export const WEBSITE_BASE_URL = 'https://mtb-bielefeld.de';
  * Bewusst ohne `Platform` aus react-native ermittelt: Diese Datei wird auch von
  * den Tests geladen, die ohne React Native laufen. `document` gibt es nur im
  * Browser — unter iOS, Android und in Node ist es nicht vorhanden.
+ *
+ * Zugriff über `globalThis` statt nackter Bezeichner: Die Datei wird auch von
+ * der API unter Node typgeprüft, die weder die `dom`-Lib noch eine
+ * `__DEV__`-Deklaration kennt. Über `globalThis` bleibt der Zugriff zur
+ * Laufzeit identisch, ist aber in beiden Welten typisierbar.
  */
 const imBrowserWaehrendEntwicklung =
-  typeof document !== 'undefined' && typeof __DEV__ !== 'undefined' && __DEV__;
+  (globalThis as { document?: unknown }).document !== undefined &&
+  (globalThis as { __DEV__?: boolean }).__DEV__ === true;
 
 /**
  * Umweg für die Entwicklung im Browser.

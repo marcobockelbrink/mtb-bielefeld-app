@@ -7,7 +7,7 @@
  * ("MitwochsRudel" mit einem t).
  */
 
-import type { EventCategory, SkillLevel } from '../../domain/types';
+import type { EventCategory, SkillLevel } from '../../domain/types.ts';
 
 /**
  * Reihenfolge zählt: Der erste Treffer gewinnt.

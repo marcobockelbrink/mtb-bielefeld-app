@@ -81,7 +81,11 @@ export function htmlToText(html: string): string {
 export function firstImageUrl(html: string, baseUrl: string): string | undefined {
   const match = /<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i.exec(html);
   if (!match) return undefined;
-  const source = decodeEntities(match[1]).trim();
+  // Die Fanggruppe ist im Muster nicht optional — bei einem Treffer ist sie
+  // gesetzt. `noUncheckedIndexedAccess` kennt das nicht.
+  const rohwert = match[1];
+  if (rohwert === undefined) return undefined;
+  const source = decodeEntities(rohwert).trim();
   if (!source) return undefined;
   if (/^https?:\/\//i.test(source)) return source;
   if (source.startsWith('//')) return `https:${source}`;
