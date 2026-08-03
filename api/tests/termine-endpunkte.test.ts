@@ -231,6 +231,10 @@ describe('POST /termine/:schluessel — Gäste', () => {
       url: `/termine/${s}`,
       payload: { gastName: 'Traute', gastEmail: 'traute@example.org', einwilligung: true },
     });
+    // Die Mail läuft im Hintergrund (siehe `imHintergrund` in `app.ts`) —
+    // ohne dieses Warten wäre die Prüfung unten ein Wettrennen mit dem noch
+    // laufenden Versand.
+    await app.warteAufHintergrundarbeit();
 
     expect(antwort.statusCode).toBe(201);
     expect(mailer.versendet).toHaveLength(1);
@@ -261,15 +265,22 @@ describe('POST /termine/:schluessel — Gäste', () => {
 
     const erste = await app.inject(anmeldung);
     const zweite = await app.inject(anmeldung);
+    // Die Mail zur ersten (echten) Anmeldung läuft im Hintergrund — ohne
+    // dieses Warten wäre die Prüfung von `mailer.versendet` unten ein
+    // Wettrennen. Der vorgetäuschte Zweig der zweiten Anfrage startet
+    // ohnehin keine Hintergrundarbeit.
+    await app.warteAufHintergrundarbeit();
 
     // Kein unauthentifiziertes Teilnahme-Orakel mehr: Beide Antworten sehen
-    // wie ein Erfolg aus — derselbe Statuscode, dieselbe Körpergestalt. Wer
-    // die eigene Adresse noch einmal probiert, merkt nichts Abweichendes;
-    // wer eine fremde Adresse durchprobiert, erfährt so auch nichts über sie.
+    // wie ein Erfolg aus — derselbe Statuscode, dieselben Feldnamen. Die
+    // vorgetäuschte Antwort zählt dabei bewusst mit hoch, genau wie ein
+    // echter zweiter Erfolg es täte (`belegt` vor dem Versuch war 1, die
+    // Lüge zeigt 2) — eine unveränderte Zahl wäre selbst wieder das Orakel.
     expect(erste.statusCode).toBe(201);
     expect(zweite.statusCode).toBe(201);
     expect(Object.keys(zweite.json()).sort()).toEqual(Object.keys(erste.json()).sort());
-    expect(zweite.json()).toEqual({ belegt: 1 });
+    expect(erste.json()).toEqual({ belegt: 1 });
+    expect(zweite.json()).toEqual({ belegt: 2 });
 
     // Keine zweite Mail und keine zweite Zeile: Der Unique-Index verhindert
     // ohnehin das Einfügen, sonst wäre der Doppelklick — oder das gezielte
@@ -311,12 +322,17 @@ describe('POST /termine/:schluessel — Gäste', () => {
       url: `/termine/${await offenerSchluessel()}`,
       payload: { gastName: 'Traute', gastEmail: 'traute@example.org', einwilligung: true },
     });
+    // Der vorgetäuschte Zweig startet keine Hintergrundarbeit — das Warten
+    // steht trotzdem hier, damit dieser Test robust bleibt, falls sich das
+    // je ändert, und weil er dieselbe Form hat wie die übrigen Gast-Tests.
+    await app.warteAufHintergrundarbeit();
 
     // Dasselbe Bild wie bei der Doppelanmeldung: 201 statt 429, sonst ließe
     // sich über eine fremde Adresse ausspähen, dass ihr Stundenfenster gerade
-    // erschöpft ist.
+    // erschöpft ist. Der Termin selbst hat noch niemanden (`belegt` war 0),
+    // die vorgetäuschte Antwort zählt trotzdem hoch — wie ein echter Erfolg.
     expect(antwort.statusCode).toBe(201);
-    expect(antwort.json()).toEqual({ belegt: 0 });
+    expect(antwort.json()).toEqual({ belegt: 1 });
     expect(mailer.versendet).toHaveLength(0);
 
     const { rows } = await pool.query('SELECT id FROM tourenanmeldung');
@@ -369,7 +385,8 @@ describe('POST /termine/:schluessel — Gäste', () => {
         throw new Error('SMTP weg');
       },
     };
-    const app = bauen(kaputterMailer);
+    const protokoll = new GemerktesProtokoll();
+    const app = bauen(kaputterMailer, protokoll);
     const s = await offenerSchluessel();
 
     const antwort = await app.inject({
@@ -377,10 +394,20 @@ describe('POST /termine/:schluessel — Gäste', () => {
       url: `/termine/${s}`,
       payload: { gastName: 'Traute', gastEmail: 'traute@example.org', einwilligung: true },
     });
+    // Die Anmeldung selbst steht schon in der Antwort — sie entsteht
+    // synchron im Handler, bevor die (jetzt im Hintergrund laufende) Mail
+    // überhaupt angefasst wird. Gewartet wird trotzdem, damit der
+    // Fehlerpfad unten (Protokolleintrag) sicher gelaufen ist, bevor der
+    // Test ihn prüft.
+    await app.warteAufHintergrundarbeit();
 
     expect(antwort.statusCode).toBe(201);
     const { rows } = await pool.query('SELECT id FROM tourenanmeldung WHERE storniert_am IS NULL');
     expect(rows).toHaveLength(1);
+    // Der Fehlschlag ist nicht still: Er ist mit in die Hintergrundarbeit
+    // gewandert, nicht verschwunden.
+    expect(protokoll.fehler).toHaveLength(1);
+    expect(protokoll.fehler[0]?.nachricht).toMatch(/Storno-Mail/);
     await app.close();
   });
 });

@@ -559,6 +559,22 @@ export function baueApp({
 
     const ergebnis = await meldeAn(pool, termin, wunsch, jetzt());
 
+    // Restkanal, bewusst offen und nicht behoben: Wer eine fremde, noch
+    // **nicht** angemeldete Adresse probiert, meldet sie damit wirklich an —
+    // das ist ein echter Erfolg unten, keine Täuschung. Die öffentliche
+    // Belegung (`GET /termine/:schluessel`) steigt dabei sichtbar um eins,
+    // und wer vorher und nachher zählt, liest daraus, dass die Probe „ins
+    // Leere" ging (die Adresse war noch frei). Das lässt sich ohne eine
+    // Bestätigungsschleife vor dem Speichern nicht schließen — die würde den
+    // ganzen Gast-Pfad genau um das Konto-Login komplizieren, den dieser
+    // Endpunkt bewusst nicht verlangt. Der Preis für den Angreifer bleibt
+    // trotzdem hoch: Die betroffene Adresse bekommt eine echte
+    // Bestätigungsmail mit Storno-Link (sie merkt die fremde Anmeldung sofort
+    // und macht sie mit einem Klick rückgängig) und der Vorgang steht mit
+    // ihrer Adresse im Protokoll — anders als bei `schon-angemeldet` und
+    // `zu-viele` unten, wo nichts entsteht, das der Angreifer beobachten oder
+    // die betroffene Person bemerken könnte.
+
     if (!ergebnis.ok) {
       // `schon-angemeldet` und `zu-viele` hängen an der **Adresse**, nicht am
       // Termin — ein unauthentifizierter Anfragender, der eine fremde
@@ -595,7 +611,14 @@ export function baueApp({
           'Vorgetäuschte Gastanmeldung — die Antwort verrät den Zustand der ' +
             'Adresse nicht.',
         );
-        return antwort.code(201).send({ belegt: ergebnis.belegt });
+        // Bewusst `belegt + 1`, nicht die unveränderte Zahl: Ein Angreifer,
+        // der den Stand vorher per GET abliest, sähe an einer ehrlichen
+        // Antwort genau dasselbe Orakel wie am Text zuvor — nur als Zahl
+        // statt als Statuscode. `belegt` ist hier der Stand **vor** dem
+        // (unterbliebenen) Einfügen, also derselbe Wert, den ein echter
+        // Erfolg an dieser Stelle um eins erhöht ausgibt. Die Lüge muss
+        // vollständig sein, sonst ist sie keine.
+        return antwort.code(201).send({ belegt: ergebnis.belegt + 1 });
       }
 
       const texte: Record<typeof ergebnis.grund, string> = {
@@ -617,35 +640,48 @@ export function baueApp({
       });
     }
 
-    // Die Storno-Mail nach dem Speichern: Scheitert sie, bleibt die
-    // Anmeldung bestehen — der Gast ist angemeldet, die Mail ist Komfort.
-    // Der Fehler geht laut ins Protokoll, nicht an den Anfragenden.
-    if (ergebnis.stornoToken && !('mitgliedId' in wunsch)) {
-      const basis = process.env.API_BASIS_URL ?? 'https://api.mtb-bielefeld.de';
-      try {
-        await mailer.sende(
-          wunsch.gastEmail,
-          `Deine Anmeldung: ${termin.title}`,
-          [
-            `Hallo ${wunsch.gastName},`,
-            '',
-            `du bist angemeldet: ${termin.title}.`,
-            '',
-            'Wenn du doch nicht mitfahren kannst, sag mit einem Klick ab:',
-            `${basis}/gast/storno/${ergebnis.stornoToken}`,
-            '',
-            'Deine Angaben werden 30 Tage nach dem Termin gelöscht und sind nur für den Guide sichtbar.',
-            '',
-            'Viele Grüße',
-            'MTB Bielefeld e.V.',
-          ].join('\r\n'),
-        );
-      } catch (fehler) {
-        log.error(
-          { fehler: serialisiereFehler(fehler) },
-          'Storno-Mail an Gast nicht verschickt — Anmeldung bleibt bestehen',
-        );
-      }
+    // Die Storno-Mail läuft im Hintergrund, nicht vor der Antwort — genau wie
+    // bei den Magic Links (`fordereMagicLinkAn`), und aus demselben Grund:
+    // Der vorgetäuschte Zweig oben antwortet sofort, ohne je einen Mailer
+    // anzufassen. Wartete der echte Erfolg hier auf `mailer.sende(...)`, wäre
+    // mit einem echten Mailanbieter (Plan 4) die Antwortzeit selbst wieder
+    // ein Orakel — ein Angreifer, der eine fremde Adresse probiert, könnte am
+    // Zeitunterschied ablesen, ob sie noch frei war (schnelle Antwort, keine
+    // Mail) oder gerade wirklich angemeldet wurde (langsamere Antwort, echter
+    // Versand). Scheitert der Versand, bleibt die Anmeldung bestehen — der
+    // Gast ist angemeldet, die Mail ist Komfort — und der Fehler geht laut
+    // ins Protokoll, nicht an den längst beantworteten Anfragenden.
+    if (ergebnis.stornoToken && 'gastEmail' in wunsch) {
+      const { gastName, gastEmail } = wunsch;
+      const stornoToken = ergebnis.stornoToken;
+      const terminTitel = termin.title;
+      imHintergrund(async () => {
+        const basis = process.env.API_BASIS_URL ?? 'https://api.mtb-bielefeld.de';
+        try {
+          await mailer.sende(
+            gastEmail,
+            `Deine Anmeldung: ${terminTitel}`,
+            [
+              `Hallo ${gastName},`,
+              '',
+              `du bist angemeldet: ${terminTitel}.`,
+              '',
+              'Wenn du doch nicht mitfahren kannst, sag mit einem Klick ab:',
+              `${basis}/gast/storno/${stornoToken}`,
+              '',
+              'Deine Angaben werden 30 Tage nach dem Termin gelöscht und sind nur für den Guide sichtbar.',
+              '',
+              'Viele Grüße',
+              'MTB Bielefeld e.V.',
+            ].join('\r\n'),
+          );
+        } catch (fehler) {
+          log.error(
+            { fehler: serialisiereFehler(fehler) },
+            'Storno-Mail an Gast nicht verschickt — Anmeldung bleibt bestehen',
+          );
+        }
+      });
     }
 
     return antwort.code(201).send({ belegt: ergebnis.belegt });
