@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { fordereMagicLinkAn } from '../src/anmeldung.ts';
+import { Alarmdrossel, fordereMagicLinkAn, ZAEHLFENSTER_MINUTEN } from '../src/anmeldung.ts';
 import { raeumeAuf } from '../src/aufraeumen.ts';
 import { pool } from '../src/datenbank.ts';
 import { GemerkterMailer } from '../src/mailer.ts';
@@ -336,7 +336,15 @@ describe('Globales Stundenbudget', () => {
     // Wirft nicht: Ein erschöpftes Budget wird wie eine greifende Begrenzung
     // behandelt, nach außen bleibt es bei 202.
     await expect(
-      fordereMagicLinkAn(pool, mailer, stillesProtokoll, 'frisch@example.org', undefined, start),
+      fordereMagicLinkAn(
+        pool,
+        mailer,
+        stillesProtokoll,
+        'frisch@example.org',
+        undefined,
+        start,
+        new Alarmdrossel(),
+      ),
     ).resolves.toBeUndefined();
 
     expect(mailer.versendet).toHaveLength(0);
@@ -350,7 +358,19 @@ describe('Globales Stundenbudget', () => {
     const mailer = new GemerkterMailer();
     const protokoll = new GemerktesProtokoll();
 
-    await fordereMagicLinkAn(pool, mailer, protokoll, 'frisch@example.org', undefined, start);
+    // Eigene, frische Drossel: Dieser Test prüft den Protokolleintrag als
+    // solchen, nicht seine Drosselung — mit der geteilten Standarddrossel
+    // hinge das Ergebnis davon ab, ob ein anderer Test im selben Lauf schon
+    // einen Alarm für dasselbe Zeitfenster ausgelöst hat.
+    await fordereMagicLinkAn(
+      pool,
+      mailer,
+      protokoll,
+      'frisch@example.org',
+      undefined,
+      start,
+      new Alarmdrossel(),
+    );
 
     expect(protokoll.fehler).toHaveLength(1);
     expect(protokoll.fehler[0]?.nachricht).toMatch(/budget/i);
@@ -382,5 +402,109 @@ describe('Globales Stundenbudget', () => {
     await fordereMagicLinkAn(pool, mailer, stillesProtokoll, 'frisch@example.org', undefined, start);
 
     expect(mailer.versendet).toHaveLength(1);
+  });
+});
+
+/**
+ * Die Fundstelle aus der Nachprüfung: Der Angriff, den das Budget erkennen
+ * soll, besteht aus vielen verschiedenen Adressen — jede kommt an der
+ * Begrenzung je Adresse vorbei. Ohne Drosselung würde jede abgelehnte
+ * Anfrage nach der 30. Mail ihre eigene `error`-Zeile erzeugen, unbegrenzt
+ * viele, und der eine Eintrag, den der Betreiber sehen soll, ginge darin
+ * unter (`Alarmdrossel` in `anmeldung.ts`).
+ */
+describe('Drosselung des Budget-Alarms', () => {
+  /**
+   * Wie in „Globales Stundenbudget" oben: `anzahl` Zeilen verschiedener
+   * Adressen. `batch` macht `token_hash` (eindeutig über die ganze Tabelle)
+   * auch dann eindeutig, wenn ein Test das Budget mehrfach neu füllt.
+   */
+  async function fuelleGlobalesBudget(anzahl: number, jetzt: Date, batch: string): Promise<void> {
+    for (let i = 0; i < anzahl; i++) {
+      await pool.query(
+        `INSERT INTO magic_link (token_hash, email, angelegt_am, gueltig_bis)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          `drossel-hash-${batch}-${i}`,
+          `drossel-${batch}-${i}@example.org`,
+          jetzt,
+          new Date(jetzt.getTime() + 15 * 60 * 1000),
+        ],
+      );
+    }
+  }
+
+  it('meldet den ersten Budgetfall, drosselt den zweiten im selben Fenster und meldet nach Fensterablauf wieder', async () => {
+    await pool.query("INSERT INTO mitglied (email) VALUES ('frisch@example.org')");
+    await fuelleGlobalesBudget(30, start, 'a');
+    const mailer = new GemerkterMailer();
+    const protokoll = new GemerktesProtokoll();
+    // Eine einzige Instanz für den ganzen Test: Nur so lässt sich die
+    // Drosselung über mehrere Anforderungen hinweg beobachten — mit einer
+    // frischen Instanz je Aufruf gäbe es nichts, das sich drosseln ließe.
+    const alarmdrossel = new Alarmdrossel();
+
+    // Erster Budgetfall: Der Eintrag entsteht.
+    await fordereMagicLinkAn(
+      pool,
+      mailer,
+      protokoll,
+      'frisch@example.org',
+      undefined,
+      start,
+      alarmdrossel,
+    );
+    expect(protokoll.fehler).toHaveLength(1);
+
+    // Zweiter Budgetfall, eine Minute später, noch im selben Zählfenster:
+    // gedrosselt, kein weiterer Eintrag.
+    const einMinuteSpaeter = new Date(start.getTime() + 60 * 1000);
+    await fordereMagicLinkAn(
+      pool,
+      mailer,
+      protokoll,
+      'frisch@example.org',
+      undefined,
+      einMinuteSpaeter,
+      alarmdrossel,
+    );
+    expect(protokoll.fehler).toHaveLength(1);
+
+    // Nach Ablauf des Zählfensters ist auch das Budget wieder frei — die
+    // gefüllten 30 Zeilen liegen jetzt außerhalb, das Budget greift also gar
+    // nicht mehr. Um die Drosselung selbst zu prüfen, statt nur die
+    // Budgetprüfung erneut zu bestätigen, wird das Budget für den dritten
+    // Aufruf frisch mit 30 neuen Zeilen im dann aktuellen Fenster gefüllt.
+    const nachDemFenster = new Date(start.getTime() + (ZAEHLFENSTER_MINUTEN + 1) * 60 * 1000);
+    await fuelleGlobalesBudget(30, nachDemFenster, 'b');
+    await fordereMagicLinkAn(
+      pool,
+      mailer,
+      protokoll,
+      'frisch@example.org',
+      undefined,
+      nachDemFenster,
+      alarmdrossel,
+    );
+    expect(protokoll.fehler).toHaveLength(2);
+  });
+
+  it('trägt in den einen verbleibenden Eintrag ein, dass weitere Fälle nicht einzeln gemeldet werden', async () => {
+    await pool.query("INSERT INTO mitglied (email) VALUES ('frisch@example.org')");
+    await fuelleGlobalesBudget(30, start, 'a');
+    const mailer = new GemerkterMailer();
+    const protokoll = new GemerktesProtokoll();
+
+    await fordereMagicLinkAn(
+      pool,
+      mailer,
+      protokoll,
+      'frisch@example.org',
+      undefined,
+      start,
+      new Alarmdrossel(),
+    );
+
+    expect(protokoll.fehler[0]?.nachricht).toMatch(/nicht einzeln gemeldet/);
   });
 });

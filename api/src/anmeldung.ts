@@ -87,6 +87,62 @@ export const ZAEHLFENSTER_MINUTEN = 60;
  */
 const GLOBALES_STUNDENBUDGET = 30;
 
+/**
+ * Drosselt den lauten Protokolleintrag zum globalen Budget auf höchstens
+ * einen je Zählfenster.
+ *
+ * Der Angriff, den das Budget erkennen soll, besteht gerade aus vielen
+ * **verschiedenen** Adressen — jede einzelne kommt an der Begrenzung je
+ * Adresse vorbei und würde ohne diese Drossel ihre eigene Alarmzeile
+ * erzeugen. Nach der dreißigsten Mail wäre jede weitere abgelehnte Anfrage
+ * ein eigener `error`-Eintrag, unbegrenzt viele — und genau der eine
+ * Eintrag, den der Betreiber sehen soll, ginge darin unter.
+ *
+ * Im Arbeitsspeicher, nicht in der Datenbank: Diese Klasse trifft keine
+ * Entscheidung, die falsch sein dürfte — sie entscheidet nur, ob **noch
+ * einmal** protokolliert wird, nicht, ob eine Anfrage durchgeht (das bleibt
+ * allein bei `unterGlobalemBudget`, in der Datenbank, exakt). Ein Neustart
+ * verliert den letzten Alarmzeitpunkt, dann wird eben einmal zu oft
+ * gemeldet statt zu selten — dieselbe Abwägung wie bei `IpBegrenzung`
+ * (`ipbegrenzung.ts`).
+ *
+ * Als eigene, injizierbare Klasse statt einer nackten Modulvariable: Genau
+ * wie `IpBegrenzung` in `app.ts` lässt sich so je Aufrufer (oder je Test)
+ * eine frische, von anderen unabhängige Instanz verwenden, statt sich einen
+ * geteilten Zustand über den ganzen Prozess zu teilen.
+ */
+export class Alarmdrossel {
+  private letzterAlarm: number | null = null;
+
+  /**
+   * Ob jetzt noch protokolliert werden darf. Trägt bei Erlaubnis den
+   * Zeitpunkt gleich ein — geprüft und eingetragen als eine Operation, aus
+   * demselben Grund wie bei `IpBegrenzung.erlaubt`: Ein einzelner
+   * Node-Prozess ruft diese Methode nie zweimal gleichzeitig auf, es gibt
+   * kein `await` dazwischen, das etwas anderes hereinließe.
+   */
+  meldenErlaubt(jetzt: Date): boolean {
+    const zeitpunkt = jetzt.getTime();
+    if (
+      this.letzterAlarm !== null &&
+      zeitpunkt - this.letzterAlarm < ZAEHLFENSTER_MINUTEN * 60 * 1000
+    ) {
+      return false;
+    }
+    this.letzterAlarm = zeitpunkt;
+    return true;
+  }
+}
+
+/**
+ * Die Instanz, die `fordereMagicLinkAn` ohne ausdrückliche Angabe verwendet
+ * — eine je Prozess, damit die Drosselung über alle Anfragen hinweg
+ * greift. Tests, die die Drosselung selbst prüfen, reichen stattdessen eine
+ * eigene Instanz herein, damit sie unabhängig von anderen Tests im selben
+ * Lauf bleiben (siehe `anmeldung-begrenzung.test.ts`).
+ */
+const STANDARD_ALARMDROSSEL = new Alarmdrossel();
+
 /** `einladungId: null` heißt: bestehendes Mitglied, keine Karte nötig. */
 type Zutritt = { ok: true; einladungId: string | null } | { ok: false };
 
@@ -107,6 +163,9 @@ type Zutritt = { ok: true; einladungId: string | null } | { ok: false };
  * Wirft auch **nicht**, wenn die Begrenzung greift. Nach außen bleibt es
  * bei 202 — eine eigene Antwort dafür wäre ein neues Orakel: Sie verriete,
  * dass für diese Adresse gerade etwas läuft.
+ *
+ * `alarmdrossel` hat einen Standardwert (`STANDARD_ALARMDROSSEL`) und muss
+ * im Betrieb nicht angegeben werden — siehe dort für das Warum.
  */
 export async function fordereMagicLinkAn(
   pool: pg.Pool,
@@ -115,6 +174,7 @@ export async function fordereMagicLinkAn(
   email: string,
   einladungscode: string | undefined,
   jetzt: Date,
+  alarmdrossel: Alarmdrossel = STANDARD_ALARMDROSSEL,
 ): Promise<void> {
   const zutritt = await pruefeZutritt(pool, email, einladungscode, jetzt);
   if (!zutritt.ok) return;
@@ -136,6 +196,7 @@ export async function fordereMagicLinkAn(
     jetzt,
     gueltigBis,
     zutritt.einladungId,
+    alarmdrossel,
   );
 }
 
@@ -167,6 +228,7 @@ async function fuehreBerechtigtenZutrittLeiseAus(
   jetzt: Date,
   gueltigBis: Date,
   einladungId: string | null,
+  alarmdrossel: Alarmdrossel,
 ): Promise<void> {
   try {
     const ergebnis = await legeAnWennDieBegrenzungEsZulaesst(
@@ -182,13 +244,17 @@ async function fuehreBerechtigtenZutrittLeiseAus(
     // eine greifende Begrenzung je Adresse (die bleibt stumm, siehe oben)
     // ist das hier ein Hinweis, dass gerade etwas mit dem Ruf der
     // Vereinsdomain passiert — das soll der Betreiber sofort sehen, nicht
-    // erst beim nächsten Blick ins Zustellbarkeits-Dashboard.
-    if (!ergebnis.angelegt && ergebnis.budgetErschoepft) {
+    // erst beim nächsten Blick ins Zustellbarkeits-Dashboard. Die Drossel
+    // sorgt dafür, dass er es nur **einmal** je Zählfenster sieht — der
+    // Angriff besteht gerade aus vielen verschiedenen Adressen, ohne sie
+    // würde jede ihre eigene Zeile erzeugen (siehe `Alarmdrossel`).
+    if (!ergebnis.angelegt && ergebnis.budgetErschoepft && alarmdrossel.meldenErlaubt(jetzt)) {
       protokoll.error(
         { an: email, budget: GLOBALES_STUNDENBUDGET, fensterMinuten: ZAEHLFENSTER_MINUTEN },
         'Globales Stundenbudget für Magic Links erschöpft — kein Versand. ' +
           'Das ist kein normaler Ansturm: Bei rund 200 Mitgliedern deutet das ' +
-          'auf einen Angriff auf die Zustellbarkeit der Vereinsdomain hin.',
+          'auf einen Angriff auf die Zustellbarkeit der Vereinsdomain hin. ' +
+          'Weitere Fälle in diesem Fenster werden nicht einzeln gemeldet.',
       );
     }
 
