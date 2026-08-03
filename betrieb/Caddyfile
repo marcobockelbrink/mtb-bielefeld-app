@@ -1,0 +1,36 @@
+# Der Betriebsaufbau, lokal.
+#
+# Unterschiede zum Server, alle absichtlich und hier benannt:
+#   - `:80` statt eines Domainnamens: Lokal gibt es kein DNS und kein
+#     Let's-Encrypt-Zertifikat. Auf dem Server steht hier
+#     `api.mtb-bielefeld.de`, und Caddy holt das Zertifikat von selbst.
+#   - `reverse_proxy api:3000` statt `localhost:3000`: Im Compose-Netz
+#     heißen die Dienste wie ihre Einträge.
+# Alles andere — Zonen, Pfade, Kontingente — ist identisch mit dem, was
+# später auf dem Server läuft. Genau deshalb ist dieser Aufbau mehr als
+# eine Attrappe: Was hier greift, greift dort.
+
+:80 {
+	rate_limit {
+		zone anmeldung {
+			match {
+				path /anmeldung/* /sitzung* /konto* /gast/*
+			}
+			key {remote_host}
+			events 10
+			window 1m
+		}
+
+		zone tourenanmeldung {
+			match {
+				path /termine/*
+				method POST DELETE
+			}
+			key {remote_host}
+			events 10
+			window 1m
+		}
+	}
+
+	reverse_proxy api:3000
+}

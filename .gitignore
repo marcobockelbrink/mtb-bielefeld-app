@@ -52,3 +52,6 @@ yarn-error.*
 # Backend
 api/node_modules/
 api/dist/
+
+# Zugangsdaten des Betriebsaufbaus — das Repository ist öffentlich.
+betrieb/.env

@@ -1,0 +1,74 @@
+# Der vollständige Betriebsaufbau auf dem Entwicklungsrechner.
+#
+# Dieselbe Datei trägt später den Server — dort ändern sich nur die
+# Umgebungswerte (.env) und der Domainname in der Caddyfile. Was hier
+# zusammenspielt, spielt dort zusammen.
+#
+#   docker compose -f betrieb/docker-compose.yml up --build
+#
+# Danach: API über http://localhost, Postfach über http://localhost:8025
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Bewusst **keine** Portfreigabe: Auf die Datenbank kommt nur, wer im
+    # Compose-Netz ist. Der Entwicklungs-Postgres aus api/docker-compose.yml
+    # hört weiterhin auf 127.0.0.1:5432 — die beiden stören sich nicht.
+    volumes:
+      - betrieb-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      # Aus dem Wurzelverzeichnis, weil die geteilten Parser-Module unter
+      # src/ liegen und nicht unter api/.
+      context: ..
+      dockerfile: api/Dockerfile
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SMTP_HOST: mailpit
+      SMTP_PORT: '1025'
+      MAIL_ABSENDER: ${MAIL_ABSENDER}
+      APP_BASIS_URL: ${APP_BASIS_URL}
+      API_BASIS_URL: ${API_BASIS_URL}
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Keine Portfreigabe: Erreichbar ist die API ausschließlich über Caddy.
+    # Genau so steht sie später auch auf dem Server.
+    #
+    # `KALENDER_URL` steht hier bewusst **nicht**: `termine.ts` wählt mit
+    # `process.env.KALENDER_URL ?? CALENDAR_ICS_URL`, und `??` greift nur bei
+    # `undefined` — ein leer durchgereichter Wert wäre eine leere Adresse und
+    # der Kalenderabruf scheiterte. Wer einen anderen Kalender will, trägt
+    # die Zeile hier ein; sonst gilt der echte Vereinskalender.
+
+  caddy:
+    build: ./caddy
+    ports:
+      - '127.0.0.1:80:80'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-daten:/data
+    depends_on:
+      - api
+
+  mailpit:
+    # Fängt alle Mails ab und zeigt sie im Browser. **Nur lokal** — auf dem
+    # Server steht hier nichts, dort verschickt ein echter Anbieter.
+    image: axllent/mailpit
+    ports:
+      - '127.0.0.1:8025:8025'
+
+volumes:
+  betrieb-postgres:
+  caddy-daten:
