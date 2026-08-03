@@ -15,10 +15,14 @@
  * "hinsehen". Verwechseln lassen sie sich nicht — eine Warnung ist immer eine
  * vollbreite Leiste mit Text, die Einstufung immer ein Balken aus drei Feldern.
  *
- * Der Untergrund ist kein neutrales Grau, sondern ein blasses Kalkstein-Grün —
- * der Teuto ist ein Kalkrücken unter Buchenwald. Im dunklen Schema wird daraus
- * Dämmerung: Wer nach der Feierabendrunde im Wald aufs Handy schaut, will nicht
- * geblendet werden.
+ * Der Untergrund ist kein neutrales Grau, sondern **aus dem Vereinsblau
+ * abgeleitet**: Alle Flächen, Rahmen und Schriftfarben liegen im selben
+ * Farbton (201°) wie `BRAND_BLUE`, nur stark entsättigt. Dadurch bezieht sich
+ * jede Fläche der App auf die Vereinsfarbe, statt neben ihr zu stehen — ein
+ * neutrales Grau daneben ließe das Blau wie einen Fremdkörper wirken.
+ *
+ * Im dunklen Schema wird daraus Dämmerung: Wer nach der Feierabendrunde im
+ * Wald aufs Handy schaut, will nicht geblendet werden.
  */
 
 import type { Ionicons } from '@expo/vector-icons';
@@ -39,6 +43,14 @@ export interface Palette {
   onPrimary: string;
   /** Einstufung — Fahrtechnik und Ausdauer. Sonst nirgends. */
   grade: string;
+  /**
+   * Hervorhebung, die weder Bedienung noch Schwierigkeit meint — „Ladies
+   * only" und die Häkchen unter Verein.
+   *
+   * Bewusst ein Beeren-Violett und kein Grün mehr: Es muss sich sowohl vom
+   * Vereinsblau als auch vom Lehm-Ocker der Einstufung deutlich absetzen,
+   * damit keine dritte Bedeutung entsteht, die man erst lesen muss.
+   */
   accent: string;
   danger: string;
   warning: string;
@@ -46,35 +58,35 @@ export interface Palette {
 }
 
 export const lightPalette: Palette = {
-  background: '#dde3de',
-  surface: '#fbfcfa',
-  surfaceMuted: '#cfd9d2',
-  border: '#b9c5be',
-  text: '#131c1a',
-  textMuted: '#4c5c57',
+  background: '#dfe4e7',
+  surface: '#fbfcfd',
+  surfaceMuted: '#d0d8dc',
+  border: '#b7c2c8',
+  text: '#111c22',
+  textMuted: '#495b65',
   primary: BRAND_BLUE,
   onPrimary: '#ffffff',
   grade: '#a9600f',
-  accent: '#2e6b4a',
+  accent: '#863c73',
   danger: '#af3626',
   warning: '#8c5a16',
   success: '#2e6b4a',
 };
 
 export const darkPalette: Palette = {
-  background: '#0b100f',
-  surface: '#171f1d',
-  surfaceMuted: '#222c29',
-  border: '#2f3c38',
-  text: '#e3ebe7',
-  textMuted: '#93a29c',
+  background: '#0e1316',
+  surface: '#192024',
+  surfaceMuted: '#242d32',
+  border: '#354046',
+  text: '#e4e9ec',
+  textMuted: '#92a2aa',
   // Das Vereinsblau aus `brand.ts`, im Farbton unverändert und nur aufgehellt
   // (HSL-Helligkeit 38 % auf 62 %). Der Druckwert selbst trägt auf dunklem
   // Grund zu wenig Kontrast; ein anderer Farbton wäre eine zweite Vereinsfarbe.
   primary: '#62aeda',
   onPrimary: '#04222f',
   grade: '#de9b4e',
-  accent: '#63bc8a',
+  accent: '#ce7eba',
   danger: '#ea7b6d',
   warning: '#d9a64a',
   success: '#63bc8a',

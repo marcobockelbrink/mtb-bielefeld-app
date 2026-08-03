@@ -124,7 +124,22 @@ for (const [reiter, datei] of [
   ['Verein', 'verein.png'],
   ['Einstellungen', 'einstellungen.png'],
 ]) {
-  await page.getByText(reiter, { exact: true }).first().click({ timeout: 10000 });
+  // Gezielt die Reiterleiste, nicht irgendein Text mit demselben Wort.
+  //
+  // Vorher stand hier `getByText(...).first()`. Das ging gut, bis „Aktuelles"
+  // Themenfilter bekam: Einer davon heißt „Verein", steht weiter oben im
+  // Dokument und wurde deshalb zuerst getroffen — die Aufnahme `verein.png`
+  // zeigte danach die gefilterte Beitragsliste statt der Vereinsseite, ohne
+  // dass irgendetwas fehlschlug. Eine falsche Aufnahme ist schlimmer als
+  // eine fehlende: Sie wandert unbemerkt in die README.
+  //
+  // Bewusst ohne `exact`: Die Beschriftungen stehen in Versalien, und
+  // Playwright rechnet CSS-`text-transform` in den zugänglichen Namen ein —
+  // der Reiter heißt dort „VEREIN". Mit `exact` wird der Vergleich zusätzlich
+  // groß-/kleinschreibungsempfindlich und findet nichts. Ohne ist er
+  // unempfindlich; Verwechslungen drohen nicht, weil sich die vier
+  // Reiternamen in keinem Teilstring überschneiden.
+  await page.getByRole('tab', { name: reiter }).click({ timeout: 10000 });
   await page.waitForTimeout(2500);
   await page.screenshot({ path: path.join(ausgabe, datei) });
   console.log('aufgenommen:', datei);
