@@ -76,9 +76,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Die Skripte in api/package.json (start, migrieren, einladung:erzeugen)
+      # laufen mit --experimental-strip-types — das gibt es erst ab Node
+      # 22.6. Mit Node 20 wären sie in diesem Auftrag nicht lauffähig, ohne
+      # dass es auffiele: Hier laufen nur vitest und tsc, keines der drei
+      # Skripte. Entwickelt wird lokal auf Node 26.
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 26
           cache: npm
           cache-dependency-path: api/package-lock.json
 
