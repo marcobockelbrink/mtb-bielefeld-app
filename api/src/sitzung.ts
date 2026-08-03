@@ -14,6 +14,23 @@ import { erzeugeToken, hashe } from './token.ts';
 const ZUGANG_MINUTEN = 15;
 const ERNEUERUNG_TAGE = 60;
 
+/**
+ * Versucht ein ROLLBACK, ohne einen bereits vorliegenden Fehler zu
+ * überschreiben.
+ *
+ * Scheitert das ROLLBACK selbst — etwa weil die Verbindung schon hinüber
+ * ist —, würde der `catch`-Block sonst dessen Fehler werfen statt den
+ * eigentlichen, der zum ROLLBACK geführt hat. Der Aufrufer wirft den echten
+ * Fehler gleich im Anschluss selbst.
+ */
+async function versucheRollback(verbindung: pg.PoolClient): Promise<void> {
+  try {
+    await verbindung.query('ROLLBACK');
+  } catch {
+    // Verworfen — der ursprüngliche Fehler zählt, nicht dieser.
+  }
+}
+
 export interface Sitzungstoken {
   zugang: string;
   erneuerung: string;
@@ -56,10 +73,14 @@ export async function pruefeZugang(
   jetzt: Date,
 ): Promise<Ausweis | null> {
   const { rows } = await pool.query<{ mitglied_id: string; rolle: string }>(
+    // Ohne "ersetzt_am IS NULL" bliebe ein Zugangs-Token nach der Rotation
+    // bis zu ZUGANG_MINUTEN weiter gültig: Nur die Zeile wird ersetzt, das
+    // alte Zugangs-Token und sein zugang_bis stehen unverändert weiter in
+    // der (nun ersetzten) Zeile.
     `SELECT s.mitglied_id, m.rolle
        FROM sitzung s
        JOIN mitglied m ON m.id = s.mitglied_id
-      WHERE s.zugang_hash = $1 AND s.zugang_bis > $2`,
+      WHERE s.zugang_hash = $1 AND s.zugang_bis > $2 AND s.ersetzt_am IS NULL`,
     [hashe(zugang), jetzt],
   );
 
@@ -133,7 +154,7 @@ export async function loeseMagicLinkEin(
     await verbindung.query('COMMIT');
     return { ok: true, ...token_paar };
   } catch (fehler) {
-    await verbindung.query('ROLLBACK');
+    await versucheRollback(verbindung);
     throw fehler;
   } finally {
     verbindung.release();
@@ -172,8 +193,12 @@ async function findeOderLegeMitgliedAn(
   // oben beide „kein Mitglied“ gesehen. Die zweite bekommt hier dieselbe
   // Zeile statt eines Fehlers am eindeutigen Index — und scheitert gleich
   // darauf sauber an der schon entwerteten Einladung.
+  // angelegt_am explizit statt der SQL-Voreinstellung now(): Sonst hinge
+  // ausgerechnet diese Spalte an der Systemzeit statt an der eingespeisten
+  // Uhr — bei ON CONFLICT betrifft das nur den echten Einfüge-Pfad, der
+  // Konfliktfall setzt ohnehin schon gesehen_am über $2.
   const { rows: angelegt } = await verbindung.query<{ id: string }>(
-    `INSERT INTO mitglied (email) VALUES ($1)
+    `INSERT INTO mitglied (email, angelegt_am) VALUES ($1, $2)
      ON CONFLICT (lower(email)) DO UPDATE SET gesehen_am = $2
      RETURNING id`,
     [email, jetzt],
@@ -249,7 +274,7 @@ export async function erneuereSitzung(
     await verbindung.query('COMMIT');
     return { ok: true, ...paar };
   } catch (fehler) {
-    await verbindung.query('ROLLBACK');
+    await versucheRollback(verbindung);
     throw fehler;
   } finally {
     verbindung.release();

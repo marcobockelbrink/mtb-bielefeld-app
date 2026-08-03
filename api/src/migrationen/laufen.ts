@@ -45,7 +45,13 @@ export async function wendeMigrationenAn(pool: pg.Pool): Promise<string[]> {
       await verbindung.query('COMMIT');
       angewandt.push(datei);
     } catch (fehler) {
-      await verbindung.query('ROLLBACK');
+      // Ein fehlschlagendes ROLLBACK soll nicht den eigentlichen Fehler der
+      // Migration überschreiben — der gehört in die Meldung unten.
+      try {
+        await verbindung.query('ROLLBACK');
+      } catch {
+        // Verworfen — der ursprüngliche Fehler zählt, nicht dieser.
+      }
       throw new Error(`Migration ${datei} fehlgeschlagen: ${String(fehler)}`);
     } finally {
       verbindung.release();

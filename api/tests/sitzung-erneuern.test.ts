@@ -39,6 +39,21 @@ describe('erneuereSitzung', () => {
     expect(await pruefeZugang(pool, zweite.zugang, jetzt)).not.toBeNull();
   });
 
+  // Ohne die Prüfung auf ersetzt_am bliebe das alte Zugangs-Token nach der
+  // Rotation bis zu 15 Minuten weiter gültig — nur die Zeile wird ersetzt,
+  // zugang_hash und zugang_bis der alten Zeile ändern sich nicht.
+  it('lässt den alten Zugang nach der Rotation nicht mehr zu', async () => {
+    const id = await neuesMitglied();
+    const erste = await legeSitzungAn(pool, id, jetzt);
+    expect(await pruefeZugang(pool, erste.zugang, jetzt)).not.toBeNull();
+
+    const zweite = await erneuereSitzung(pool, erste.erneuerung, jetzt);
+    if (!zweite.ok) throw new Error('Vorbedingung nicht erfüllt');
+
+    expect(await pruefeZugang(pool, erste.zugang, jetzt)).toBeNull();
+    expect(await pruefeZugang(pool, zweite.zugang, jetzt)).not.toBeNull();
+  });
+
   it('erkennt ein wiederverwendetes Token und wirft alle Sitzungen raus', async () => {
     const id = await neuesMitglied();
     const erste = await legeSitzungAn(pool, id, jetzt);

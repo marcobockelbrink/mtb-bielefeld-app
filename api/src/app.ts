@@ -142,10 +142,13 @@ export function baueApp({
     const ausweis = await holeAusweis(anfrage);
     if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
 
+    // `pruefeZugang` verknüpft schon mit `mitglied` — ein gültiger Ausweis
+    // gibt es also nur zu einem bestehenden Mitglied. sitzung.mitglied_id
+    // hängt per ON DELETE CASCADE an mitglied; wäre es gelöscht, gäbe es
+    // auch keine Sitzung mehr, mit der der Ausweis hätte gültig sein
+    // können. `holeKontoAuskunft` liefert hier also nie `null`.
     const auskunft = await holeKontoAuskunft(pool, ausweis.mitgliedId, jetzt());
-    if (!auskunft) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
-
-    return antwort.send(auskunft);
+    return antwort.send(auskunft!);
   });
 
   app.delete('/konto', async (anfrage, antwort) => {

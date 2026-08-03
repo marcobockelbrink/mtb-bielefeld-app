@@ -42,10 +42,13 @@ export async function erzeugeEinladung(
   const code = erzeugeToken();
   const gueltigBis = new Date(jetzt.getTime() + GUELTIG_TAGE * 24 * 60 * 60 * 1000);
 
+  // ausgestellt_am explizit statt der SQL-Voreinstellung now(): Sonst wäre
+  // es das einzige Feld dieser Funktion, das an der Systemzeit hängt statt
+  // an der eingespeisten Uhr — und in Tests nicht mehr kontrollierbar.
   await pool.query(
-    `INSERT INTO einladung (code_hash, ausgestellt_fuer, gueltig_bis)
-     VALUES ($1, $2, $3)`,
-    [hashe(code), ausgestelltFuer, gueltigBis],
+    `INSERT INTO einladung (code_hash, ausgestellt_fuer, ausgestellt_am, gueltig_bis)
+     VALUES ($1, $2, $3, $4)`,
+    [hashe(code), ausgestelltFuer, jetzt, gueltigBis],
   );
 
   return code;

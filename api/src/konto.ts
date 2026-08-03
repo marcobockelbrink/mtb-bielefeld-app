@@ -97,7 +97,13 @@ export async function loescheKonto(pool: pg.Pool, mitgliedId: string): Promise<v
 
     await verbindung.query('COMMIT');
   } catch (fehler) {
-    await verbindung.query('ROLLBACK');
+    // Ein fehlschlagendes ROLLBACK (z. B. weil die Verbindung schon hinüber
+    // ist) soll nicht den eigentlichen Fehler überschreiben.
+    try {
+      await verbindung.query('ROLLBACK');
+    } catch {
+      // Verworfen — der ursprüngliche Fehler zählt, nicht dieser.
+    }
     throw fehler;
   } finally {
     verbindung.release();
