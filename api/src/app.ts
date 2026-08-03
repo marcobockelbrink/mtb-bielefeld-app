@@ -22,6 +22,13 @@ export interface Abhaengigkeiten {
   protokoll?: Protokoll;
 }
 
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** Wartet, bis alle nach der Antwort gestarteten Vorgänge fertig sind. Für Tests. */
+    warteAufHintergrundarbeit(): Promise<void>;
+  }
+}
+
 /**
  * Laut im Betrieb, stumm im Test.
  *
@@ -54,6 +61,36 @@ export function baueApp({
   const app = Fastify({ logger: protokollEinstellung });
   const log = protokoll ?? app.log;
 
+  /**
+   * Arbeit, die nach der Antwort weiterläuft.
+   *
+   * Der Grund ist keine Geschwindigkeit, sondern Gleichheit: Solange der
+   * berechtigte Pfad schreibt und verschickt, während der unberechtigte
+   * sofort umkehrt, ist die Antwortzeit ein Orakel. Wer eine Liste von
+   * Adressen durchprobiert, sieht am Zeitunterschied, welche zum Verein
+   * gehören — obwohl Statuscode und Text überall gleich sind.
+   *
+   * Also antworten wir zuerst und arbeiten danach. Die laufenden Vorgänge
+   * werden gesammelt, damit Tests darauf warten können; ohne das wären sie
+   * ein Wettrennen.
+   */
+  const laufendeArbeit = new Set<Promise<unknown>>();
+
+  function imHintergrund(arbeit: Promise<unknown>): void {
+    laufendeArbeit.add(arbeit);
+    void arbeit
+      // Nichts darf hier unbemerkt sterben: Ein unbehandelter Fehlschlag
+      // wäre genau der stille Fehlschlag, den dieses Projekt ausschließt.
+      .catch((fehler) => log.error({ fehler: serialisiereFehler(fehler) }, 'Hintergrundarbeit fehlgeschlagen'))
+      .finally(() => laufendeArbeit.delete(arbeit));
+  }
+
+  app.decorate('warteAufHintergrundarbeit', async () => {
+    while (laufendeArbeit.size > 0) {
+      await Promise.allSettled([...laufendeArbeit]);
+    }
+  });
+
   app.get('/gesundheit', async () => ({ zustand: 'bereit' }));
 
   app.post('/anmeldung/anfordern', async (anfrage, antwort) => {
@@ -70,20 +107,23 @@ export function baueApp({
       return antwort.code(400).send({ fehler: 'Einladungscode muss Text sein.' });
     }
 
-    await fordereMagicLinkAn(
-      pool,
-      mailer,
-      log,
-      email,
-      einladungscode === undefined || einladungscode.length === 0
-        ? undefined
-        : einladungscode,
-      jetzt(),
+    imHintergrund(
+      fordereMagicLinkAn(
+        pool,
+        mailer,
+        log,
+        email,
+        einladungscode === undefined || einladungscode.length === 0
+          ? undefined
+          : einladungscode,
+        jetzt(),
+      ),
     );
 
-    // Immer dieselbe Antwort. Ob die Angaben stimmten, erfährt nur, wer die
-    // Mail bekommt — sonst wäre dieser Endpunkt ein Werkzeug, um
-    // Mitgliedschaften zu erraten.
+    // Immer dieselbe Antwort, immer sofort. Ob die Angaben stimmten, erfährt
+    // nur, wer die Mail bekommt — sonst wäre dieser Endpunkt ein Werkzeug, um
+    // Mitgliedschaften zu erraten, sei es über den Text oder über die Zeit
+    // bis zur Antwort.
     return antwort.code(202).send({
       hinweis: 'Wenn die Angaben stimmen, ist eine Mail unterwegs.',
     });

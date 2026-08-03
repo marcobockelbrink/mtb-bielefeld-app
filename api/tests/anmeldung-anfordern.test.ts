@@ -53,6 +53,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'malte@example.org', einladungscode: code },
     });
+    await app.warteAufHintergrundarbeit();
 
     expect(antwort.statusCode).toBe(202);
     expect(mailer.versendet).toHaveLength(1);
@@ -77,6 +78,7 @@ describe('POST /anmeldung/anfordern', () => {
         payload: { email: 'malte@example.org', einladungscode: code },
       });
     }
+    await app.warteAufHintergrundarbeit();
 
     // Wer den ersten Link liegen lässt, darf einen neuen anfordern können.
     // Würde der Code hier verbraucht, wäre er nach dem ersten Versuch
@@ -99,6 +101,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'malte@example.org' },
     });
+    await app.warteAufHintergrundarbeit();
 
     // Die Eintrittskarte ist verbraucht, die Mitgliedschaft besteht — die
     // Adresse genügt. Sonst käme niemand auf ein zweites Gerät.
@@ -116,6 +119,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'fremd@example.org' },
     });
+    await app.warteAufHintergrundarbeit();
 
     expect(antwort.statusCode).toBe(202);
     expect(mailer.versendet).toHaveLength(0);
@@ -132,6 +136,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'fremd@example.org', einladungscode: code },
     });
+    await app.warteAufHintergrundarbeit();
 
     // Der Code ist an malte@example.org gebunden — ein weitergereichter Code
     // darf nicht mit jeder beliebigen Adresse funktionieren.
@@ -149,6 +154,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'fremd@example.org', einladungscode: 'ausgedacht' },
     });
+    await app.warteAufHintergrundarbeit();
 
     // Gleiche Antwort wie im Erfolgsfall — sonst ließe sich damit erraten,
     // wer Mitglied ist.
@@ -166,6 +172,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'fremd@example.org', einladungscode: 'ausgedacht' },
     });
+    await app.warteAufHintergrundarbeit();
 
     const text = JSON.stringify(antwort.json());
     expect(text).not.toMatch(/unbekannt|verbraucht|abgelaufen|falsche-adresse|adresse/i);
@@ -182,6 +189,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'fremd@example.org', einladungscode: code },
     });
+    await app.warteAufHintergrundarbeit();
 
     const text = JSON.stringify(antwort.json());
     expect(text).not.toMatch(/unbekannt|verbraucht|abgelaufen|falsche-adresse|adresse/i);
@@ -203,6 +211,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'fremd@example.org' },
     });
+    await app.warteAufHintergrundarbeit();
 
     expect(mitglied.statusCode).toBe(fremd.statusCode);
     expect(mitglied.body).toBe(fremd.body);
@@ -231,6 +240,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'fremd@example.org', einladungscode: 'ausgedacht' },
     });
+    await app.warteAufHintergrundarbeit();
 
     // Genau dieser Unterschied wäre die Auskunft, wer Mitglied ist.
     expect(echt.statusCode).toBe(202);
@@ -254,6 +264,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'malte@example.org', einladungscode: code },
     });
+    await app.warteAufHintergrundarbeit();
 
     // Der Fehler verschwindet nicht, er wechselt nur den Empfänger.
     expect(protokoll.fehler).toHaveLength(1);
@@ -285,6 +296,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'fremd@example.org', einladungscode: 'ausgedacht' },
     });
+    await app.warteAufHintergrundarbeit();
 
     // Genau dieser Unterschied wäre die Auskunft, wer Mitglied ist — er darf
     // bei einer gestörten Datenbank so wenig entstehen wie bei einer
@@ -311,6 +323,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'malte@example.org', einladungscode: code },
     });
+    await app.warteAufHintergrundarbeit();
 
     expect(protokoll.fehler).toHaveLength(1);
     expect(protokoll.fehler[0]?.daten).toMatchObject({ an: 'malte@example.org' });
@@ -333,6 +346,7 @@ describe('POST /anmeldung/anfordern', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'malte@example.org', einladungscode: code },
     });
+    await app.warteAufHintergrundarbeit();
 
     expect(antwort.statusCode).toBe(202);
     expect(protokoll.fehler).toHaveLength(1);
@@ -352,7 +366,13 @@ describe('POST /anmeldung/anfordern', () => {
       });
 
     const erste = await anfordern();
+    // Ohne dieses Warten liefe die zweite Anfrage der Begrenzung davon: Sie
+    // schaut in `magic_link` nach, und ohne Garantie, dass die erste Anfrage
+    // dort schon geschrieben hat, wäre offen, ob die Begrenzung überhaupt
+    // greift — ein Wettrennen, kein verlässlicher Test.
+    await app.warteAufHintergrundarbeit();
     const zweite = await anfordern();
+    await app.warteAufHintergrundarbeit();
 
     // Gleicher Code, gleicher Text — der Unterschied steckt nur darin, ob
     // eine Mail entstand.

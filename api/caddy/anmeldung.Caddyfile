@@ -1,0 +1,28 @@
+# Ratenbegrenzung je IP für die Anmeldeendpunkte.
+#
+# Diese Schicht und die Begrenzung in der API tun Verschiedenes:
+# Caddy sieht den Anfragekörper nicht und kann deshalb nicht je Adresse
+# begrenzen — er schützt den Server vor einer Flut. Die Begrenzung in der
+# API schützt einzelne Mitglieder davor, dass ihr Postfach geflutet wird.
+# Keine der beiden ersetzt die andere.
+#
+# Angewandt wird das in Plan 4 (Inbetriebnahme). Bis dahin ist es eine
+# Vorlage, kein laufender Schutz.
+#
+# Braucht das Modul caddy-ratelimit:
+#   xcaddy build --with github.com/mholt/caddy-ratelimit
+
+api.mtb-bielefeld.de {
+	rate_limit {
+		zone anmeldung {
+			match {
+				path /anmeldung/*
+			}
+			key {remote_host}
+			events 10
+			window 1m
+		}
+	}
+
+	reverse_proxy localhost:3000
+}

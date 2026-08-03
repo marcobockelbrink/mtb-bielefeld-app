@@ -31,6 +31,9 @@ async function holeToken(mailer: GemerkterMailer, app: ReturnType<typeof baueApp
     url: '/anmeldung/anfordern',
     payload: { email: 'malte@example.org', einladungscode: code },
   });
+  // Der Endpunkt antwortet inzwischen, bevor er schreibt und verschickt —
+  // ohne dieses Warten wäre die Mail hier noch gar nicht entstanden.
+  await app.warteAufHintergrundarbeit();
   return letzterToken(mailer);
 }
 
@@ -44,6 +47,7 @@ async function holeTokenOhneCode(
     url: '/anmeldung/anfordern',
     payload: { email: 'malte@example.org' },
   });
+  await app.warteAufHintergrundarbeit();
   return letzterToken(mailer);
 }
 
@@ -150,6 +154,7 @@ describe('POST /anmeldung/einloesen', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'malte@example.org', einladungscode: code },
     });
+    await spaeter.warteAufHintergrundarbeit();
     const antwort = await spaeter.inject({
       method: 'POST',
       url: '/anmeldung/einloesen',
