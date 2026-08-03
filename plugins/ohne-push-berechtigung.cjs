@@ -40,6 +40,16 @@
  * Nachgemessen, nicht vermutet — steht dieses Plugin am Ende der Liste, sieht
  * es leere Entitlements und hat nichts zu löschen. `expo-notifications` trägt
  * die Berechtigung danach ein, und sie landet in der Datei.
+ *
+ * ## Warum die Endung `.cjs` heißt
+ *
+ * Die Wurzel ist seit dem geteilten Parser (`src/data/ical`, `src/data/parse`)
+ * ein ES-Modul-Paket (`"type": "module"` in `package.json`). Expos Config
+ * Plugins sind aber CommonJS — `require`/`module.exports`. Ohne die Endung
+ * `.cjs` würde Node diese Datei als ES-Modul laden und mit `ReferenceError:
+ * require is not defined in ES module scope` abbrechen, sobald sie direkt
+ * geladen wird. `.cjs` sagt Node unabhängig vom `type`-Feld ausdrücklich, was
+ * die Datei ist — kein Verlass auf internes Fallback-Verhalten von Expo.
  */
 
 const { withEntitlementsPlist } = require('expo/config-plugins');
