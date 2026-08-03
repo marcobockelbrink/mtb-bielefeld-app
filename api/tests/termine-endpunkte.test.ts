@@ -202,6 +202,56 @@ describe('POST /termine/:schluessel — Gäste', () => {
     await app.close();
   });
 
+  it('lehnt dieselbe Adresse am selben Termin ein zweites Mal ab', async () => {
+    const mailer = new GemerkterMailer();
+    const app = bauen(mailer);
+    const s = await offenerSchluessel();
+    const anmeldung = {
+      method: 'POST' as const,
+      url: `/termine/${s}`,
+      payload: { gastName: 'Traute', gastEmail: 'traute@example.org', einwilligung: true },
+    };
+
+    await app.inject(anmeldung);
+    const zweite = await app.inject(anmeldung);
+
+    expect(zweite.statusCode).toBe(409);
+    expect(zweite.json().fehler).toBe('Du bist schon angemeldet.');
+    // Keine zweite Mail: Sonst wäre der Doppelklick ein Werkzeug, um ein
+    // fremdes Postfach zu fluten.
+    expect(mailer.versendet).toHaveLength(1);
+    await app.close();
+  });
+
+  it('lehnt die vierte Anmeldung derselben Adresse in der Stunde mit 429 ab', async () => {
+    const mailer = new GemerkterMailer();
+    const app = bauen(mailer);
+
+    // Drei Gastanmeldungen derselben Adresse zu drei anderen Terminen,
+    // innerhalb der letzten Stunde — das Kontingent ist damit aufgebraucht.
+    await pool.query(
+      `INSERT INTO tourenanmeldung
+         (terminschluessel, termin_start, gast_name, gast_email, storno_hash, angelegt_am)
+       VALUES ('anderer~1', $1, 'Traute', 'traute@example.org', 'hash-1', $2),
+              ('anderer~2', $1, 'Traute', 'traute@example.org', 'hash-2', $2),
+              ('anderer~3', $1, 'Traute', 'traute@example.org', 'hash-3', $2)`,
+      [new Date('2026-08-20T16:00:00Z'), new Date(jetzt.getTime() - 10 * 60 * 1000)],
+    );
+
+    const antwort = await app.inject({
+      method: 'POST',
+      url: `/termine/${await offenerSchluessel()}`,
+      payload: { gastName: 'Traute', gastEmail: 'traute@example.org', einwilligung: true },
+    });
+
+    expect(antwort.statusCode).toBe(429);
+    expect(antwort.json().fehler).toBe(
+      'Zu viele Anmeldungen für diese Adresse. Versuch es später noch einmal.',
+    );
+    expect(mailer.versendet).toHaveLength(0);
+    await app.close();
+  });
+
   it('lehnt ohne Einwilligung ab, ohne etwas zu speichern', async () => {
     const mailer = new GemerkterMailer();
     const app = bauen(mailer);

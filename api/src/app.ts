@@ -535,8 +535,13 @@ export function baueApp({
         voll: 'Die Tour ist voll.',
         'gaeste-nicht-erlaubt': 'Bei diesem Termin können sich nur Mitglieder anmelden.',
         'schon-angemeldet': 'Du bist schon angemeldet.',
+        'zu-viele': 'Zu viele Anmeldungen für diese Adresse. Versuch es später noch einmal.',
       };
-      return antwort.code(409).send({
+      // `zu-viele` ist kein Widerspruch zum Zustand des Termins, sondern
+      // eine Ratenbegrenzung — 429 wie bei der IP-Notbremse, damit ein
+      // Client „später nochmal" von „voll" und „schon angemeldet"
+      // unterscheiden kann, statt beides als endgültig zu behandeln.
+      return antwort.code(ergebnis.grund === 'zu-viele' ? 429 : 409).send({
         fehler: texte[ergebnis.grund],
         belegt: ergebnis.belegt,
         plaetze: ergebnis.plaetze,

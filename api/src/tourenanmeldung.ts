@@ -24,7 +24,7 @@ export type Anmeldeergebnis =
   | { ok: true; belegt: number; stornoToken?: string }
   | {
       ok: false;
-      grund: 'abgesagt' | 'voll' | 'gaeste-nicht-erlaubt' | 'schon-angemeldet';
+      grund: 'abgesagt' | 'voll' | 'gaeste-nicht-erlaubt' | 'schon-angemeldet' | 'zu-viele';
       belegt: number;
       plaetze: number | null;
     };
@@ -41,14 +41,41 @@ const SPERR_ZEITSCHRANKE = '3s';
 const PG_UNIQUE_VIOLATION = '23505';
 
 /**
- * Name des Teilindex, der die Doppelanmeldung eines Mitglieds verhindert
- * (Migration `010-tourenanmeldung.sql`). Der Code allein (`23505`) würde
+ * Namen der beiden Teilindizes, die eine Doppelanmeldung verhindern — für
+ * Mitglieder (Migration `010-tourenanmeldung.sql`) und für Gäste
+ * (`011-gastanmeldung-begrenzen.sql`). Der Code allein (`23505`) würde
  * **jede** Unique-Verletzung auf `tourenanmeldung` als „schon-angemeldet"
- * durchgehen lassen — auch eine, die künftig ein ganz anderer Index wirft
- * (etwa einer auf `gast_email`). Der Name bindet die Übersetzung an genau
- * den Index, der sie meint.
+ * durchgehen lassen — auch die auf `storno_hash`, die etwas ganz anderes
+ * bedeutet (ein doppelt erzeugtes Token) und laut scheitern muss. Der Name
+ * bindet die Übersetzung an genau den Index, der sie meint.
  */
 const EINDEUTIGKEITSINDEX_MITGLIED = 'tourenanmeldung_einmal_je_mitglied';
+const EINDEUTIGKEITSINDEX_GAST = 'tourenanmeldung_gast_einmal_je_termin';
+
+/**
+ * Wie viele Gastanmeldungen eine einzelne Adresse je Zählfenster auslösen
+ * darf — über **alle** Termine hinweg.
+ *
+ * Der Index oben deckelt nur je Termin; ohne dieses Fenster füllte ein
+ * Angreifer mit einer fremden Adresse alle Touren des Sommers und löste
+ * dabei je Anmeldung eine Bestätigungsmail an dieses Postfach aus.
+ *
+ * Das Opfer ist dabei die **Adresse**, nicht der Server: Die Mails gehen
+ * an ein Postfach, das nie etwas angefordert hat, und der Platz wird einer
+ * Person weggenommen, die wirklich mitfahren will. Deshalb reicht die
+ * IP-Grenze in `app.ts` hier nicht — sie zählt, wie oft **eine Verbindung**
+ * anklopft, und wer über wechselnde Anschlüsse, ein Mobilfunknetz oder
+ * schlicht ein paar Rechner verteilt anfragt, kommt an ihr vorbei, ohne
+ * dass sich für das Postfach irgendetwas ändert. Dieselbe Abgrenzung wie
+ * zwischen `IpBegrenzung` und der Begrenzung je Adresse in `anmeldung.ts`:
+ * Die eine schützt den Server, die andere den Menschen.
+ *
+ * Drei je Stunde, wie bei den Magic Links: Wer als Gast zu einer Tour
+ * kommt, meldet sich zu einer an, im Ausnahmefall zu zweien oder dreien —
+ * eine vierte innerhalb einer Stunde ist kein Vereinsleben mehr.
+ */
+const HOECHSTENS_GAST_JE_FENSTER = 3;
+const GAST_ZAEHLFENSTER_MINUTEN = 60;
 
 export async function meldeAn(
   pool: pg.Pool,
@@ -104,8 +131,8 @@ export async function meldeAn(
       // dadurch nicht, wohl aber seinen **Namen** (siehe
       // `EINDEUTIGKEITSINDEX_MITGLIED`): Nur eine Verletzung von genau
       // diesem Index wird als „schon-angemeldet" übersetzt, jede andere
-      // Unique-Verletzung auf der Tabelle (etwa ein künftiger Index auf
-      // `gast_email`) läuft unverändert als Fehler durch. Innerhalb der
+      // Unique-Verletzung auf der Tabelle (der Gästeindex weiter unten,
+      // `storno_hash`) läuft hier unverändert als Fehler durch. Innerhalb der
       // Beratungssperre ist das kein Wettlauf: Nur diese eine Anfrage
       // schreibt gerade für diesen Termin, der Konflikt kann nur aus einer
       // bestehenden Zeile stammen, nicht aus einer gleichzeitigen.
@@ -117,17 +144,8 @@ export async function meldeAn(
           [schluessel, termin.start, wunsch.mitgliedId, jetzt],
         );
       } catch (fehler) {
-        if (istDoppelteMitgliedsanmeldung(fehler)) {
-          // Wie im äußeren Fehlerzweig unten: Eine scheiternde Rücknahme
-          // darf den eigentlichen Befund — die erkannte Doppelanmeldung —
-          // nicht verschlucken.
-          try {
-            await verbindung.query('ROLLBACK');
-          } catch (rollbackFehler) {
-            throw new Error(`Rücknahme misslungen: ${String(rollbackFehler)}`, {
-              cause: fehler,
-            });
-          }
+        if (istVerletzungVon(fehler, EINDEUTIGKEITSINDEX_MITGLIED)) {
+          await nimmZurueck(verbindung, fehler);
           return { ok: false, grund: 'schon-angemeldet', belegt, plaetze };
         }
         throw fehler;
@@ -136,26 +154,39 @@ export async function meldeAn(
       return { ok: true, belegt: belegt + 1 };
     }
 
+    // Die Grenze je Adresse — in derselben Transaktion wie das Einfügen, aus
+    // demselben Grund wie bei den Magic Links: Getrennt gefragt wäre die
+    // Auskunft beim Schreiben schon wieder veraltet.
+    if (await zuVieleGastanmeldungen(verbindung, wunsch.gastEmail, jetzt)) {
+      await verbindung.query('ROLLBACK');
+      return { ok: false, grund: 'zu-viele', belegt, plaetze };
+    }
+
     const stornoToken = erzeugeToken();
-    await verbindung.query(
-      `INSERT INTO tourenanmeldung
-         (terminschluessel, termin_start, gast_name, gast_email, storno_hash, angelegt_am)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [schluessel, termin.start, wunsch.gastName, wunsch.gastEmail, hashe(stornoToken), jetzt],
-    );
+    try {
+      await verbindung.query(
+        `INSERT INTO tourenanmeldung
+           (terminschluessel, termin_start, gast_name, gast_email, storno_hash, angelegt_am)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [schluessel, termin.start, wunsch.gastName, wunsch.gastEmail, hashe(stornoToken), jetzt],
+      );
+    } catch (fehler) {
+      // Genau wie bei der Doppelanmeldung eines Mitglieds: Der eindeutige
+      // Teilindex `tourenanmeldung_gast_einmal_je_termin` fängt den Fall ab,
+      // und nur eine Verletzung von genau diesem Index wird übersetzt.
+      if (istVerletzungVon(fehler, EINDEUTIGKEITSINDEX_GAST)) {
+        await nimmZurueck(verbindung, fehler);
+        return { ok: false, grund: 'schon-angemeldet', belegt, plaetze };
+      }
+      throw fehler;
+    }
     await verbindung.query('COMMIT');
     return { ok: true, belegt: belegt + 1, stornoToken };
   } catch (fehler) {
     // Ohne Rücknahme käme die Verbindung mit offener Transaktion in den Pool
-    // zurück. Scheitert auch die (etwa weil die Verbindung weg ist), geht
-    // keiner der beiden Fehler verloren: der ursprüngliche als Ursache, der
-    // zweite als Meldung. Dasselbe Muster wie in `legeAnWennDieBegrenzungEsZulaesst`
+    // zurück. Dasselbe Muster wie in `legeAnWennDieBegrenzungEsZulaesst`
     // (`anmeldung.ts`).
-    try {
-      await verbindung.query('ROLLBACK');
-    } catch (rollbackFehler) {
-      throw new Error(`Rücknahme misslungen: ${String(rollbackFehler)}`, { cause: fehler });
-    }
+    await nimmZurueck(verbindung, fehler);
     throw fehler;
   } finally {
     verbindung.release();
@@ -163,21 +194,78 @@ export async function meldeAn(
 }
 
 /**
- * Ob `fehler` die Postgres-Meldung zu einer verletzten Unique-Bedingung auf
- * genau `tourenanmeldung_einmal_je_mitglied` ist — nicht auf irgendeinem
- * Unique-Index der Tabelle. Ohne den Namensvergleich würde `23505` allein
- * jede künftige Unique-Verletzung auf `tourenanmeldung` stillschweigend als
- * „schon-angemeldet" übersetzen, auch eine, die gar nichts mit der
- * Mitgliedsanmeldung zu tun hat.
+ * Nimmt die Transaktion zurück, ohne den eigentlichen Befund zu
+ * verschlucken.
+ *
+ * Scheitert die Rücknahme selbst (etwa weil die Verbindung weg ist), geht
+ * keiner der beiden Fehler verloren: der ursprüngliche als Ursache, der
+ * zweite als Meldung. Aufgerufen an drei Stellen — beim erkannten
+ * Doppeleintrag eines Mitglieds, beim erkannten Doppeleintrag eines Gastes
+ * und im äußeren Fehlerzweig; `ursache` ist dabei jeweils der Befund, der
+ * überleben muss.
  */
-function istDoppelteMitgliedsanmeldung(fehler: unknown): boolean {
+async function nimmZurueck(verbindung: pg.PoolClient, ursache: unknown): Promise<void> {
+  try {
+    await verbindung.query('ROLLBACK');
+  } catch (rollbackFehler) {
+    throw new Error(`Rücknahme misslungen: ${String(rollbackFehler)}`, { cause: ursache });
+  }
+}
+
+/**
+ * Ob für diese Gast-Adresse gerade noch eine Anmeldung entstehen darf.
+ *
+ * Gezählt wird über **alle** Termine, auf `angelegt_am`, im gleitenden
+ * Fenster — nicht in festen Stundenblöcken, sonst ließe sich an jeder
+ * vollen Stunde das Doppelte unterbringen (dieselbe Begründung wie bei
+ * `darfAnfordern` in `anmeldung.ts`).
+ *
+ * Stornierte Zeilen zählen ausdrücklich mit: Sie stehen für eine bereits
+ * verschickte Mail und einen bereits belegten Platz. Zählte man sie nicht,
+ * setzte ein Klick auf den eigenen Storno-Link das Kontingent zurück und
+ * die Grenze wäre wirkungslos.
+ *
+ * Nimmt bewusst eine `PoolClient` und keinen Pool: Die Auskunft ist nur
+ * innerhalb der Transaktion belastbar, die sie mit dem Einfügen
+ * zusammenhält. Die Beratungssperre darüber liegt je **Termin**, nicht je
+ * Adresse — zwei gleichzeitige Anmeldungen derselben Adresse zu zwei
+ * verschiedenen Terminen sehen deshalb denselben Zählstand und können
+ * beide durchkommen. Das ist hingenommen wie beim globalen Stundenbudget in
+ * `anmeldung.ts`: Es geht um die Größenordnung, nicht um Exaktheit auf ±1,
+ * und eine zweite Sperre je Adresse würde die Sperre je Termin nur wieder
+ * aufweichen.
+ */
+async function zuVieleGastanmeldungen(
+  verbindung: pg.PoolClient,
+  gastEmail: string,
+  jetzt: Date,
+): Promise<boolean> {
+  const fensteranfang = new Date(jetzt.getTime() - GAST_ZAEHLFENSTER_MINUTEN * 60 * 1000);
+
+  const { rows } = await verbindung.query<{ anzahl: string }>(
+    `SELECT count(*) AS anzahl FROM tourenanmeldung
+      WHERE lower(gast_email) = lower($1) AND angelegt_am > $2`,
+    [gastEmail, fensteranfang],
+  );
+
+  return Number(rows[0]?.anzahl ?? 0) >= HOECHSTENS_GAST_JE_FENSTER;
+}
+
+/**
+ * Ob `fehler` die Postgres-Meldung zu einer verletzten Unique-Bedingung auf
+ * genau `indexname` ist — nicht auf irgendeinem Unique-Index der Tabelle.
+ * Ohne den Namensvergleich würde `23505` allein jede Unique-Verletzung auf
+ * `tourenanmeldung` stillschweigend als „schon-angemeldet" übersetzen, auch
+ * eine, die gar nichts damit zu tun hat.
+ */
+function istVerletzungVon(fehler: unknown, indexname: string): boolean {
   return (
     typeof fehler === 'object' &&
     fehler !== null &&
     'code' in fehler &&
     (fehler as { code: unknown }).code === PG_UNIQUE_VIOLATION &&
     'constraint' in fehler &&
-    (fehler as { constraint: unknown }).constraint === EINDEUTIGKEITSINDEX_MITGLIED
+    (fehler as { constraint: unknown }).constraint === indexname
   );
 }
 

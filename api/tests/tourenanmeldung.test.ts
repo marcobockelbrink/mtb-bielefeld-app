@@ -143,6 +143,127 @@ describe('meldeAn — Gäste', () => {
     expect(rows[0]?.storno_hash).toHaveLength(64);
   });
 
+  it('lehnt dieselbe Adresse am selben Termin ein zweites Mal ab', async () => {
+    const t = termin();
+    await meldeAn(pool, t, { gastName: 'Traute', gastEmail: 'traute@example.org' }, jetzt);
+
+    // Andere Schreibweise, dasselbe Postfach — der Index vergleicht klein.
+    const zweite = await meldeAn(
+      pool,
+      t,
+      { gastName: 'Traute', gastEmail: 'Traute@Example.org' },
+      jetzt,
+    );
+
+    expect(zweite.ok).toBe(false);
+    if (!zweite.ok) expect(zweite.grund).toBe('schon-angemeldet');
+    expect(await holeBelegung(pool, terminSchluessel(t))).toBe(1);
+  });
+
+  it('lässt dieselbe Adresse nach einem Storno wieder an denselben Termin', async () => {
+    const t = termin();
+    const erste = await meldeAn(
+      pool,
+      t,
+      { gastName: 'Traute', gastEmail: 'traute@example.org' },
+      jetzt,
+    );
+    if (!erste.ok || !erste.stornoToken) throw new Error('Vorbedingung');
+    await storniereGast(pool, erste.stornoToken, jetzt);
+
+    const wieder = await meldeAn(
+      pool,
+      t,
+      { gastName: 'Traute', gastEmail: 'traute@example.org' },
+      jetzt,
+    );
+
+    expect(wieder.ok).toBe(true);
+  });
+
+  it('erlaubt dieselbe Adresse auf zwei verschiedenen Terminen', async () => {
+    const eins = termin({ uid: 'tour-eins@test' });
+    const zwei = termin({ uid: 'tour-zwei@test' });
+
+    const a = await meldeAn(pool, eins, { gastName: 'T', gastEmail: 'traute@example.org' }, jetzt);
+    const b = await meldeAn(pool, zwei, { gastName: 'T', gastEmail: 'traute@example.org' }, jetzt);
+
+    expect(a.ok).toBe(true);
+    expect(b.ok).toBe(true);
+  });
+
+  it('lässt je Adresse höchstens drei Anmeldungen in der Stunde zu', async () => {
+    const termine = ['a', 'b', 'c', 'd'].map((n) => termin({ uid: `tour-${n}@test` }));
+
+    for (const t of termine.slice(0, 3)) {
+      const e = await meldeAn(pool, t, { gastName: 'T', gastEmail: 'traute@example.org' }, jetzt);
+      expect(e.ok).toBe(true);
+    }
+
+    const vierte = await meldeAn(
+      pool,
+      termine[3]!,
+      { gastName: 'T', gastEmail: 'traute@example.org' },
+      jetzt,
+    );
+
+    expect(vierte.ok).toBe(false);
+    if (!vierte.ok) expect(vierte.grund).toBe('zu-viele');
+    expect(await holeBelegung(pool, terminSchluessel(termine[3]!))).toBe(0);
+  });
+
+  it('zählt das Fenster gleitend — eine Stunde später ist wieder Platz', async () => {
+    const termine = ['a', 'b', 'c', 'd'].map((n) => termin({ uid: `tour-${n}@test` }));
+    for (const t of termine.slice(0, 3)) {
+      await meldeAn(pool, t, { gastName: 'T', gastEmail: 'traute@example.org' }, jetzt);
+    }
+
+    const spaeter = new Date(jetzt.getTime() + 61 * 60 * 1000);
+    const vierte = await meldeAn(
+      pool,
+      termine[3]!,
+      { gastName: 'T', gastEmail: 'traute@example.org' },
+      spaeter,
+    );
+
+    expect(vierte.ok).toBe(true);
+  });
+
+  it('zählt auch stornierte Anmeldungen mit — ein Storno setzt nichts zurück', async () => {
+    const termine = ['a', 'b', 'c', 'd'].map((n) => termin({ uid: `tour-${n}@test` }));
+    for (const t of termine.slice(0, 3)) {
+      const e = await meldeAn(pool, t, { gastName: 'T', gastEmail: 'traute@example.org' }, jetzt);
+      if (!e.ok || !e.stornoToken) throw new Error('Vorbedingung');
+      await storniereGast(pool, e.stornoToken, jetzt);
+    }
+
+    const vierte = await meldeAn(
+      pool,
+      termine[3]!,
+      { gastName: 'T', gastEmail: 'traute@example.org' },
+      jetzt,
+    );
+
+    expect(vierte.ok).toBe(false);
+    if (!vierte.ok) expect(vierte.grund).toBe('zu-viele');
+  });
+
+  it('zählt je Adresse, nicht über alle Gäste hinweg', async () => {
+    const termine = ['a', 'b', 'c', 'd'].map((n) => termin({ uid: `tour-${n}@test` }));
+    for (const t of termine.slice(0, 3)) {
+      await meldeAn(pool, t, { gastName: 'T', gastEmail: 'traute@example.org' }, jetzt);
+    }
+
+    const andere = await meldeAn(
+      pool,
+      termine[3]!,
+      { gastName: 'Bernd', gastEmail: 'bernd@example.org' },
+      jetzt,
+    );
+
+    expect(andere.ok).toBe(true);
+  });
+
   it('lehnt Gäste ab, wenn der Termin sie nicht erlaubt', async () => {
     const ohne = termin({ details: { guides: [], maxParticipants: 5 } });
     const ergebnis = await meldeAn(
