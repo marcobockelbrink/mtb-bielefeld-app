@@ -9,6 +9,12 @@
 export interface Protokoll {
   /** Etwas ist schiefgegangen. `daten` trägt den Fehler und den Zusammenhang. */
   error(daten: Record<string, unknown>, nachricht: string): void;
+  /**
+   * Alltagsrauschen, kein Alarm: etwas Erwartetes ist eingetreten und soll
+   * für den Betreiber sichtbar bleiben (etwa Missbrauchsmuster), ohne wie
+   * ein `error` zu wirken. `daten` trägt denselben Zusammenhang wie dort.
+   */
+  info(daten: Record<string, unknown>, nachricht: string): void;
 }
 
 /**
@@ -32,8 +38,13 @@ export function serialisiereFehler(fehler: unknown): unknown {
 /** Schreibt nichts, merkt sich alles. Für Tests. */
 export class GemerktesProtokoll implements Protokoll {
   readonly fehler: { daten: Record<string, unknown>; nachricht: string }[] = [];
+  readonly eintraege: { daten: Record<string, unknown>; nachricht: string }[] = [];
 
   error(daten: Record<string, unknown>, nachricht: string): void {
     this.fehler.push({ daten, nachricht });
+  }
+
+  info(daten: Record<string, unknown>, nachricht: string): void {
+    this.eintraege.push({ daten, nachricht });
   }
 }

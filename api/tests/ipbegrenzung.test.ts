@@ -118,7 +118,7 @@ describe('IpBegrenzung', () => {
  */
 describe('IP-Begrenzung im Endpunkt', () => {
   const jetzt = new Date('2026-08-03T12:00:00Z');
-  const stillesProtokoll: Protokoll = { error: () => {} };
+  const stillesProtokoll: Protokoll = { error: () => {}, info: () => {} };
 
   /** Ein einzelner offener Termin — genug für die Belegungsabfrage. */
   const KALENDER = [

@@ -12,6 +12,7 @@ import { frischeDatenbank } from './hilfen/datenbank.ts';
  */
 const stillesProtokoll: Protokoll = {
   error: () => {},
+  info: () => {},
 };
 
 const start = new Date('2026-08-03T12:00:00Z');

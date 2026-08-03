@@ -3,13 +3,13 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { baueApp } from '../src/app.ts';
 import { pool } from '../src/datenbank.ts';
 import { GemerkterMailer, type Mailer } from '../src/mailer.ts';
-import type { Protokoll } from '../src/protokoll.ts';
+import { GemerktesProtokoll, type Protokoll } from '../src/protokoll.ts';
 import { legeSitzungAn } from '../src/sitzung.ts';
 import { erzeugeTerminDienst, terminSchluessel, type TerminDienst } from '../src/termine.ts';
 import { frischeDatenbank } from './hilfen/datenbank.ts';
 
 const jetzt = new Date('2026-08-03T12:00:00Z');
-const stillesProtokoll: Protokoll = { error: () => {} };
+const stillesProtokoll: Protokoll = { error: () => {}, info: () => {} };
 
 /**
  * Vier Termine, wie der Verein sie schreibt: einer mit Plätzen und Gästen,
@@ -54,8 +54,8 @@ function dienst(): TerminDienst {
   });
 }
 
-function bauen(mailer: Mailer = new GemerkterMailer()) {
-  return baueApp({ pool, mailer, jetzt: () => jetzt, terminDienst: dienst() });
+function bauen(mailer: Mailer = new GemerkterMailer(), protokoll?: Protokoll) {
+  return baueApp({ pool, mailer, jetzt: () => jetzt, terminDienst: dienst(), protokoll });
 }
 
 /** Der Schlüssel des offenen Termins, so wie ihn die App berechnen würde. */
@@ -196,6 +196,28 @@ describe('POST /termine/:schluessel — Mitglieder', () => {
     expect(antwort.json()).toEqual({ fehler: 'Die Tour ist voll.', belegt: 2, plaetze: 2 });
     await app.close();
   });
+
+  it('lehnt eine doppelte Anmeldung desselben Mitglieds weiterhin ehrlich mit 409 ab', async () => {
+    const app = bauen();
+    const s = await offenerSchluessel();
+    const { zugang } = await mitgliedMitToken('malte@example.org');
+    const anmeldung = {
+      method: 'POST' as const,
+      url: `/termine/${s}`,
+      headers: { authorization: `Bearer ${zugang}` },
+    };
+
+    await app.inject(anmeldung);
+    const zweite = await app.inject(anmeldung);
+
+    // Anders als beim Gast-Pfad (siehe unten): Wer mit Token anfragt, fragt
+    // nach dem eigenen Zustand. „Du bist schon angemeldet." ist hier die
+    // richtige, hilfreiche Antwort — kein Orakel über eine fremde Adresse,
+    // weil Mitglieder nicht für andere anfragen können.
+    expect(zweite.statusCode).toBe(409);
+    expect(zweite.json().fehler).toBe('Du bist schon angemeldet.');
+    await app.close();
+  });
 });
 
 describe('POST /termine/:schluessel — Gäste', () => {
@@ -226,9 +248,10 @@ describe('POST /termine/:schluessel — Gäste', () => {
     await app.close();
   });
 
-  it('lehnt dieselbe Adresse am selben Termin ein zweites Mal ab', async () => {
+  it('täuscht bei einer zweiten Anmeldung derselben Adresse am selben Termin Erfolg vor', async () => {
     const mailer = new GemerkterMailer();
-    const app = bauen(mailer);
+    const protokoll = new GemerktesProtokoll();
+    const app = bauen(mailer, protokoll);
     const s = await offenerSchluessel();
     const anmeldung = {
       method: 'POST' as const,
@@ -236,20 +259,41 @@ describe('POST /termine/:schluessel — Gäste', () => {
       payload: { gastName: 'Traute', gastEmail: 'traute@example.org', einwilligung: true },
     };
 
-    await app.inject(anmeldung);
+    const erste = await app.inject(anmeldung);
     const zweite = await app.inject(anmeldung);
 
-    expect(zweite.statusCode).toBe(409);
-    expect(zweite.json().fehler).toBe('Du bist schon angemeldet.');
-    // Keine zweite Mail: Sonst wäre der Doppelklick ein Werkzeug, um ein
-    // fremdes Postfach zu fluten.
+    // Kein unauthentifiziertes Teilnahme-Orakel mehr: Beide Antworten sehen
+    // wie ein Erfolg aus — derselbe Statuscode, dieselbe Körpergestalt. Wer
+    // die eigene Adresse noch einmal probiert, merkt nichts Abweichendes;
+    // wer eine fremde Adresse durchprobiert, erfährt so auch nichts über sie.
+    expect(erste.statusCode).toBe(201);
+    expect(zweite.statusCode).toBe(201);
+    expect(Object.keys(zweite.json()).sort()).toEqual(Object.keys(erste.json()).sort());
+    expect(zweite.json()).toEqual({ belegt: 1 });
+
+    // Keine zweite Mail und keine zweite Zeile: Der Unique-Index verhindert
+    // ohnehin das Einfügen, sonst wäre der Doppelklick — oder das gezielte
+    // Durchprobieren einer fremden Adresse — ein Werkzeug, um ein fremdes
+    // Postfach zu fluten.
     expect(mailer.versendet).toHaveLength(1);
+    const { rows } = await pool.query('SELECT id FROM tourenanmeldung');
+    expect(rows).toHaveLength(1);
+
+    // Laut im Protokoll bleibt es trotzdem — nur eben nicht als `error`,
+    // sondern als Alltagsrauschen, an dem der Betreiber Missbrauchsmuster
+    // erkennen kann.
+    expect(protokoll.eintraege).toHaveLength(1);
+    expect(protokoll.eintraege[0]?.daten).toMatchObject({
+      an: 'traute@example.org',
+      grund: 'schon-angemeldet',
+    });
     await app.close();
   });
 
-  it('lehnt die vierte Anmeldung derselben Adresse in der Stunde mit 429 ab', async () => {
+  it('täuscht bei der vierten Anmeldung derselben Adresse in der Stunde ebenfalls Erfolg vor', async () => {
     const mailer = new GemerkterMailer();
-    const app = bauen(mailer);
+    const protokoll = new GemerktesProtokoll();
+    const app = bauen(mailer, protokoll);
 
     // Drei Gastanmeldungen derselben Adresse zu drei anderen Terminen,
     // innerhalb der letzten Stunde — das Kontingent ist damit aufgebraucht.
@@ -268,11 +312,21 @@ describe('POST /termine/:schluessel — Gäste', () => {
       payload: { gastName: 'Traute', gastEmail: 'traute@example.org', einwilligung: true },
     });
 
-    expect(antwort.statusCode).toBe(429);
-    expect(antwort.json().fehler).toBe(
-      'Zu viele Anmeldungen für diese Adresse. Versuch es später noch einmal.',
-    );
+    // Dasselbe Bild wie bei der Doppelanmeldung: 201 statt 429, sonst ließe
+    // sich über eine fremde Adresse ausspähen, dass ihr Stundenfenster gerade
+    // erschöpft ist.
+    expect(antwort.statusCode).toBe(201);
+    expect(antwort.json()).toEqual({ belegt: 0 });
     expect(mailer.versendet).toHaveLength(0);
+
+    const { rows } = await pool.query('SELECT id FROM tourenanmeldung');
+    expect(rows).toHaveLength(3);
+
+    expect(protokoll.eintraege).toHaveLength(1);
+    expect(protokoll.eintraege[0]?.daten).toMatchObject({
+      an: 'traute@example.org',
+      grund: 'zu-viele',
+    });
     await app.close();
   });
 

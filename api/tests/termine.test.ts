@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Protokoll } from '../src/protokoll.ts';
 import { erzeugeTerminDienst, terminSchluessel } from '../src/termine.ts';
 
-const stillesProtokoll: Protokoll = { error: () => {} };
+const stillesProtokoll: Protokoll = { error: () => {}, info: () => {} };
 
 const jetzt = new Date('2026-08-03T12:00:00Z');
 
@@ -172,7 +172,7 @@ describe('TerminDienst', () => {
         if (scheitert) throw new Error('Kalender weg');
         return kalender('Proberunde');
       },
-      protokoll: { error: (o) => meldungen.push(o) },
+      protokoll: { error: (o) => meldungen.push(o), info: () => {} },
       jetzt: () => uhr,
       ttlMs: 5 * 60 * 1000,
     });

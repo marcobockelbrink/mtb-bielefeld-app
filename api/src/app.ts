@@ -560,6 +560,44 @@ export function baueApp({
     const ergebnis = await meldeAn(pool, termin, wunsch, jetzt());
 
     if (!ergebnis.ok) {
+      // `schon-angemeldet` und `zu-viele` hängen an der **Adresse**, nicht am
+      // Termin — ein unauthentifizierter Anfragender, der eine fremde
+      // `gastEmail` einschickt, dürfte aus der Antwort nicht ablesen können,
+      // ob diese Adresse dort schon angemeldet ist oder kürzlich mehrfach
+      // gemeldet wurde. Das wäre ein Teilnahme-Orakel: Ohne eigene Anmeldung
+      // ließe sich prüfen, wer bei welcher Tour mitfährt — eine Auskunft, die
+      // laut Spec nur die Guide-Rolle bekommt. Dieselbe Regel wie bei den
+      // Magic Links (`anmeldung.ts`, `fordereMagicLinkAn`): Die Antwort an
+      // einen unauthentifizierten Anfragenden darf nicht vom Zustand einer
+      // Adresse abhängen — deshalb hier 201 statt 409/429, mit derselben
+      // Körpergestalt wie ein echter Erfolg. Wer wirklich schon angemeldet
+      // ist, hat seine Bestätigungsmail mit Storno-Link längst; wer fremde
+      // Adressen durchprobiert, erfährt nichts. Es entsteht dabei ohnehin
+      // keine zweite Zeile (der Unique-Index verhindert das Einfügen) und
+      // keine zweite Mail (der Versand unten wird nur bei `ergebnis.ok`
+      // erreicht).
+      //
+      // `voll`, `abgesagt`, `vorbei` und `gaeste-nicht-erlaubt` hängen dagegen
+      // am **Termin**, nicht an der Adresse, und sind über `GET
+      // /termine/:schluessel` ohnehin öffentlich — hier bleibt es ehrlich.
+      // Für Mitglieder (mit Token) bleibt ebenfalls alles wie bisher: Wer
+      // authentifiziert ist, fragt nach dem eigenen Zustand, und „Du bist
+      // schon angemeldet." ist dort die richtige, hilfreiche Antwort.
+      const adressbezogen = ergebnis.grund === 'schon-angemeldet' || ergebnis.grund === 'zu-viele';
+      if (adressbezogen && 'gastEmail' in wunsch) {
+        // Kein `error`: Das ist Alltagsrauschen (vertippte Adresse, doppelter
+        // Klick, jemand probiert Adressen durch), kein Alarm, der den
+        // Betreiber wecken soll — er soll das Muster trotzdem im Protokoll
+        // sehen. `an` folgt derselben Konvention wie in `anmeldung.ts`: die
+        // Gast-Adresse steht dort ohnehin schon in bestehenden Einträgen.
+        log.info(
+          { an: wunsch.gastEmail, grund: ergebnis.grund },
+          'Vorgetäuschte Gastanmeldung — die Antwort verrät den Zustand der ' +
+            'Adresse nicht.',
+        );
+        return antwort.code(201).send({ belegt: ergebnis.belegt });
+      }
+
       const texte: Record<typeof ergebnis.grund, string> = {
         abgesagt: 'Dieser Termin wurde abgesagt.',
         vorbei: 'Dieser Termin liegt in der Vergangenheit.',
