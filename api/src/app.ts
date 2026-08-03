@@ -587,7 +587,13 @@ export function baueApp({
     if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
 
     const { schluessel } = anfrage.params as { schluessel: string };
-    await meldeAb(pool, schluessel, ausweis.mitgliedId, jetzt());
+    // Traf das Abmelden nichts, ist es kein Erfolg: Der Anfragende hielte
+    // sich sonst für abgemeldet, während er weiter auf der Liste steht. Der
+    // Text verrät dabei nichts, was der Anfragende nicht ohnehin über sich
+    // selbst wüsste — nur, dass **er** hier nicht angemeldet ist.
+    if (!(await meldeAb(pool, schluessel, ausweis.mitgliedId, jetzt()))) {
+      return antwort.code(404).send({ fehler: 'Du bist bei diesem Termin nicht angemeldet.' });
+    }
     return antwort.code(204).send();
   });
 

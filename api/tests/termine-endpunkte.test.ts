@@ -336,4 +336,35 @@ describe('DELETE /termine/:schluessel/ich', () => {
     expect(antwort.statusCode).toBe(401);
     await app.close();
   });
+
+  it('antwortet 404, wenn gar keine Anmeldung storniert wurde', async () => {
+    const app = bauen();
+    const s = await offenerSchluessel();
+    const { zugang } = await mitgliedMitToken('malte@example.org');
+
+    const antwort = await app.inject({
+      method: 'DELETE',
+      url: `/termine/${s}/ich`,
+      headers: { authorization: `Bearer ${zugang}` },
+    });
+
+    expect(antwort.statusCode).toBe(404);
+    expect(antwort.json().fehler).toBe('Du bist bei diesem Termin nicht angemeldet.');
+    await app.close();
+  });
+
+  it('antwortet beim zweiten Abmelden 404 statt noch einmal 204', async () => {
+    const app = bauen();
+    const s = await offenerSchluessel();
+    const { zugang } = await mitgliedMitToken('malte@example.org');
+    const kopf = { authorization: `Bearer ${zugang}` };
+    await app.inject({ method: 'POST', url: `/termine/${s}`, headers: kopf });
+
+    const erste = await app.inject({ method: 'DELETE', url: `/termine/${s}/ich`, headers: kopf });
+    const zweite = await app.inject({ method: 'DELETE', url: `/termine/${s}/ich`, headers: kopf });
+
+    expect(erste.statusCode).toBe(204);
+    expect(zweite.statusCode).toBe(404);
+    await app.close();
+  });
 });

@@ -285,11 +285,27 @@ describe('Abmelden und Storno', () => {
     const s = terminSchluessel(t);
 
     await meldeAn(pool, t, { mitgliedId: id }, jetzt);
-    await meldeAb(pool, s, id, jetzt);
+    expect(await meldeAb(pool, s, id, jetzt)).toBe(true);
 
     expect(await holeBelegung(pool, s)).toBe(0);
     const wieder = await meldeAn(pool, t, { mitgliedId: id }, jetzt);
     expect(wieder.ok).toBe(true);
+  });
+
+  it('sagt beim Abmelden, wenn nichts zu stornieren war', async () => {
+    const id = await mitglied('malte@example.org');
+    const t = termin();
+    const s = terminSchluessel(t);
+
+    // Nie angemeldet.
+    expect(await meldeAb(pool, s, id, jetzt)).toBe(false);
+    // Erfundener Termin.
+    expect(await meldeAb(pool, 'gibtsnicht@test', id, jetzt)).toBe(false);
+
+    // Und ein zweites Abmelden trifft ebenfalls nichts mehr.
+    await meldeAn(pool, t, { mitgliedId: id }, jetzt);
+    expect(await meldeAb(pool, s, id, jetzt)).toBe(true);
+    expect(await meldeAb(pool, s, id, jetzt)).toBe(false);
   });
 
   it('storniert einen Gast über den Token — genau einmal', async () => {

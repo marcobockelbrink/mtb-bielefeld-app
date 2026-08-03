@@ -269,18 +269,28 @@ function istVerletzungVon(fehler: unknown, indexname: string): boolean {
   );
 }
 
-/** Abmelden eines Mitglieds — storniert, löscht nicht: Der Platz zählt sofort frei. */
+/**
+ * Abmelden eines Mitglieds — storniert, löscht nicht: Der Platz zählt
+ * sofort frei.
+ *
+ * Gibt zurück, ob tatsächlich etwas storniert wurde. Wer nie angemeldet
+ * war, sich in einem anderen Termin abmeldet oder einen erfundenen
+ * Schlüssel schickt, trifft nichts — das darf der Endpunkt nicht als Erfolg
+ * ausgeben. Sonst hielte der Anfragende sich für abgemeldet und stünde am
+ * Sonntag trotzdem auf der Liste.
+ */
 export async function meldeAb(
   pool: pg.Pool,
   schluessel: string,
   mitgliedId: string,
   jetzt: Date,
-): Promise<void> {
-  await pool.query(
+): Promise<boolean> {
+  const { rowCount } = await pool.query(
     `UPDATE tourenanmeldung SET storniert_am = $3
       WHERE terminschluessel = $1 AND mitglied_id = $2 AND storniert_am IS NULL`,
     [schluessel, mitgliedId, jetzt],
   );
+  return (rowCount ?? 0) > 0;
 }
 
 /** Storno eines Gastes über den Token aus der Bestätigungsmail. Einmal gültig. */
