@@ -87,7 +87,7 @@ export async function frischeDatenbank(): Promise<pg.Pool> {
   await sichereEntwicklungsdatenbank(pool);
   await wendeMigrationenAn(pool);
   await pool.query(
-    'TRUNCATE sitzung, magic_link, einladung, mitglied RESTART IDENTITY CASCADE',
+    'TRUNCATE tourenanmeldung, sitzung, magic_link, einladung, mitglied RESTART IDENTITY CASCADE',
   );
   return pool;
 }
