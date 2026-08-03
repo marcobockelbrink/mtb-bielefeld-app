@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import type pg from 'pg';
 
 import { baueApp } from '../src/app.ts';
 import { pool } from '../src/datenbank.ts';
@@ -14,6 +15,23 @@ class ScheiterderMailer implements Mailer {
   async sende(): Promise<void> {
     throw new Error('Der Mailanbieter antwortet gerade nicht.');
   }
+}
+
+/**
+ * Reicht alles an den echten Pool durch, außer das Schreiben des Magic
+ * Links — das scheitert, wie es eine gestörte Datenbank auch täte. Steht
+ * für N2: Die Absicherung gegen das Mitgliedschafts-Orakel muss auch diesen
+ * Schreibzugriff abdecken, nicht nur den Mailversand danach.
+ */
+function poolMitScheiterndemMagicLinkSchreiben(echterPool: pg.Pool): pg.Pool {
+  return {
+    query: (text: unknown, werte?: unknown) => {
+      if (typeof text === 'string' && text.includes('INSERT INTO magic_link')) {
+        return Promise.reject(new Error('Die Datenbank antwortet gerade nicht.'));
+      }
+      return (echterPool.query as (text: unknown, werte?: unknown) => unknown)(text, werte);
+    },
+  } as unknown as pg.Pool;
 }
 
 beforeEach(async () => {
@@ -233,6 +251,62 @@ describe('POST /anmeldung/anfordern', () => {
     });
 
     // Der Fehler verschwindet nicht, er wechselt nur den Empfänger.
+    expect(protokoll.fehler).toHaveLength(1);
+    expect(protokoll.fehler[0]?.daten).toMatchObject({ an: 'malte@example.org' });
+    expect(String(protokoll.fehler[0]?.daten.fehler)).toMatch(/antwortet gerade nicht/);
+    await app.close();
+  });
+
+  it('bleibt bei scheiterndem Schreiben des Magic Links von außen ununterscheidbar', async () => {
+    const protokoll = new GemerktesProtokoll();
+    const mailer = new GemerkterMailer();
+    const app = baueApp({
+      pool: poolMitScheiterndemMagicLinkSchreiben(pool),
+      mailer,
+      jetzt: () => jetzt,
+      protokoll,
+    });
+    const code = await erzeugeEinladung(pool, 'malte@example.org', jetzt);
+
+    // Richtiger Code, aber das Schreiben des Magic Links scheitert.
+    const echt = await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'malte@example.org', einladungscode: code },
+    });
+    // Falscher Code — hier wird gar nicht erst geschrieben.
+    const falsch = await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'fremd@example.org', einladungscode: 'ausgedacht' },
+    });
+
+    // Genau dieser Unterschied wäre die Auskunft, wer Mitglied ist — er darf
+    // bei einer gestörten Datenbank so wenig entstehen wie bei einer
+    // gestörten Mailstrecke.
+    expect(echt.statusCode).toBe(202);
+    expect(echt.statusCode).toBe(falsch.statusCode);
+    expect(echt.body).toBe(falsch.body);
+    expect(mailer.versendet).toHaveLength(0);
+    await app.close();
+  });
+
+  it('protokolliert das gescheiterte Schreiben des Magic Links, statt es zu verschlucken', async () => {
+    const protokoll = new GemerktesProtokoll();
+    const app = baueApp({
+      pool: poolMitScheiterndemMagicLinkSchreiben(pool),
+      mailer: new GemerkterMailer(),
+      jetzt: () => jetzt,
+      protokoll,
+    });
+    const code = await erzeugeEinladung(pool, 'malte@example.org', jetzt);
+
+    await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'malte@example.org', einladungscode: code },
+    });
+
     expect(protokoll.fehler).toHaveLength(1);
     expect(protokoll.fehler[0]?.daten).toMatchObject({ an: 'malte@example.org' });
     expect(String(protokoll.fehler[0]?.daten.fehler)).toMatch(/antwortet gerade nicht/);
