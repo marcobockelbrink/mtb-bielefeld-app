@@ -9,18 +9,39 @@
 # Die Pfadliste ist nicht "alles unter /anmeldung", sondern jeder Pfad, der
 # ein Token gegen die Datenbank prüft: /anmeldung/* (Magic Link anfordern
 # und einlösen), /sitzung* (erneuern, abmelden), /konto* (Auskunft,
-# löschen), /termine/* (Bearer-Token beim Anmelden und Abmelden zu einer
-# Tour) und /gast/* (Storno-Token aus der Gäste-Mail). Bei einem
+# löschen), /gast/* (Storno-Token aus der Gäste-Mail) und /termine/*
+# (Bearer-Token beim Anmelden und Abmelden zu einer Tour). Bei einem
 # 256-Bit-Token ist Erraten aussichtslos — das macht die Begrenzung hier
 # nicht sinnlos, denn jeder Versuch kostet trotzdem eine Datenbankabfrage,
 # und es gibt keinen Grund, das ungebremst zuzulassen.
+#
+# Dieselbe Liste steht in `IP_GESCHUETZTE_PFAD_PRAEFIXE` (`api/src/app.ts`),
+# Zeile für Zeile daneben zu legen: dort `/anmeldung/`, `/sitzung`,
+# `/konto`, `/termine/`, `/gast/`. Wo hier ein Stern ohne Schrägstrich
+# davor steht, endet der Präfix dort ohne Schrägstrich dahinter.
 #
 # /sitzung* und nicht /sitzung/*: Caddys `path`-Matcher verlangt bei einem
 # Stern nach dem Schrägstrich ein weiteres Segment. Das hätte das exakte
 # `DELETE /sitzung` (Abmelden, prüft ebenfalls ein Token) durchgelassen —
 # genau die Lücke, die `app.ts` mit `startsWith('/sitzung')` bewusst
 # schließt. `/sitzung*` fasst ohne Schrägstrich davor beides: das exakte
-# `/sitzung` und jedes `/sitzung/…`.
+# `/sitzung` und jedes `/sitzung/…`. Bei /termine/* und /gast/* ist der
+# Schrägstrich dagegen richtig: Dort gibt es keinen Endpunkt ohne
+# nachfolgendes Segment, und `/termine*` würde zusätzlich auf erfundene
+# Wege wie `/termineXY` passen.
+#
+# Zwei Zonen und nicht eine: Ein `match`-Block ist **ein** Matcher-Satz und
+# verknüpft seine Bedingungen mit UND — "diese Pfade, egal welche Methode"
+# und "jene Pfade, aber nur schreibend" passen deshalb nicht in denselben
+# Block. Zwei Zonen sind zwei getrennte Kontingente je IP; das ist hier
+# richtig herum, denn eine ausgeschöpfte Anmeldeflut soll das Anmelden zu
+# einer Tour nicht mit abwürgen.
+#
+# Die Belegungsabfrage `GET /termine/…` fehlt in beiden Zonen mit Absicht —
+# dieselbe Abwägung wie in `app.ts` (siehe `NUR_SCHREIBEND_GEZAEHLT`): Eine
+# App, die eine Terminliste öffnet, stellt je Termin eine solche Anfrage
+# und würde jede sinnvoll gesetzte Grenze im Normalbetrieb reißen. Sie
+# schreibt nichts und trägt kein Token im Weg.
 #
 # Angewandt wird das in Plan 4 (Inbetriebnahme). Bis dahin ist es eine
 # Vorlage, kein laufender Schutz.
@@ -32,7 +53,17 @@ api.mtb-bielefeld.de {
 	rate_limit {
 		zone anmeldung {
 			match {
-				path /anmeldung/* /sitzung* /konto* /termine* /gast*
+				path /anmeldung/* /sitzung* /konto* /gast/*
+			}
+			key {remote_host}
+			events 10
+			window 1m
+		}
+
+		zone tourenanmeldung {
+			match {
+				path /termine/*
+				method POST DELETE
 			}
 			key {remote_host}
 			events 10

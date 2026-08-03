@@ -4,6 +4,8 @@ import { baueApp } from '../src/app.ts';
 import { pool } from '../src/datenbank.ts';
 import { IpBegrenzung } from '../src/ipbegrenzung.ts';
 import { GemerkterMailer } from '../src/mailer.ts';
+import type { Protokoll } from '../src/protokoll.ts';
+import { erzeugeTerminDienst, terminSchluessel, type TerminDienst } from '../src/termine.ts';
 import { frischeDatenbank } from './hilfen/datenbank.ts';
 
 /**
@@ -116,6 +118,33 @@ describe('IpBegrenzung', () => {
  */
 describe('IP-Begrenzung im Endpunkt', () => {
   const jetzt = new Date('2026-08-03T12:00:00Z');
+  const stillesProtokoll: Protokoll = { error: () => {} };
+
+  /** Ein einzelner offener Termin — genug für die Belegungsabfrage. */
+  const KALENDER = [
+    'BEGIN:VCALENDAR',
+    'BEGIN:VEVENT',
+    'UID:offen@test',
+    'DTSTART;TZID=Europe/Berlin:20260813T180000',
+    'DTEND;TZID=Europe/Berlin:20260813T200000',
+    'SUMMARY:Oerli Runde',
+    'DESCRIPTION:Plätze: 2\\nGäste: ja',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  function dienst(): TerminDienst {
+    return erzeugeTerminDienst({
+      ladeKalender: async () => KALENDER,
+      protokoll: stillesProtokoll,
+      jetzt: () => jetzt,
+    });
+  }
+
+  async function offenerSchluessel(): Promise<string> {
+    const termine = await dienst().holeTermine();
+    return terminSchluessel(termine[0]!);
+  }
 
   beforeEach(async () => {
     await frischeDatenbank();
@@ -302,6 +331,84 @@ describe('IP-Begrenzung im Endpunkt', () => {
 
     expect(antwort.statusCode).toBe(200);
 
+    await app.close();
+  });
+
+  it('zählt die Belegungsabfrage nicht mit — 25 GETs bleiben erlaubt', async () => {
+    // Eine App, die eine Terminliste öffnet, feuert je Termin ein GET. Mit
+    // der Voreinstellung von zwanzig je Minute wäre der Normalbetrieb schon
+    // der Angriffsfall.
+    const app = baueApp({
+      pool,
+      mailer: new GemerkterMailer(),
+      jetzt: () => jetzt,
+      terminDienst: dienst(),
+    });
+    const s = await offenerSchluessel();
+
+    for (let i = 0; i < 25; i++) {
+      const antwort = await app.inject({
+        method: 'GET',
+        url: `/termine/${s}`,
+        remoteAddress: '9.9.9.9',
+      });
+      expect(antwort.statusCode).toBe(200);
+    }
+
+    await app.close();
+  });
+
+  it('zählt POST auf denselben Termin weiterhin — der 21. wird 429', async () => {
+    const app = baueApp({
+      pool,
+      mailer: new GemerkterMailer(),
+      jetzt: () => jetzt,
+      terminDienst: dienst(),
+    });
+    const s = await offenerSchluessel();
+
+    // Die zwanzig erlaubten Versuche: Ohne Token und ohne gültigen Körper
+    // enden sie in 400 — gezählt werden sie trotzdem, die Prüfung läuft in
+    // `onRequest`, lange vor dem Endpunkt.
+    for (let i = 0; i < 20; i++) {
+      const antwort = await app.inject({
+        method: 'POST',
+        url: `/termine/${s}`,
+        payload: {},
+        remoteAddress: '9.9.9.9',
+      });
+      expect(antwort.statusCode).not.toBe(429);
+    }
+
+    const einundzwanzigster = await app.inject({
+      method: 'POST',
+      url: `/termine/${s}`,
+      payload: {},
+      remoteAddress: '9.9.9.9',
+    });
+
+    expect(einundzwanzigster.statusCode).toBe(429);
+    await app.close();
+  });
+
+  it('zählt DELETE unter /termine/ weiterhin mit', async () => {
+    const app = baueApp({
+      pool,
+      mailer: new GemerkterMailer(),
+      jetzt: () => jetzt,
+      ipBegrenzung: new IpBegrenzung(1, 60_000),
+      terminDienst: dienst(),
+    });
+    const s = await offenerSchluessel();
+
+    await app.inject({ method: 'DELETE', url: `/termine/${s}/ich`, remoteAddress: '9.9.9.9' });
+    const zweite = await app.inject({
+      method: 'DELETE',
+      url: `/termine/${s}/ich`,
+      remoteAddress: '9.9.9.9',
+    });
+
+    expect(zweite.statusCode).toBe(429);
     await app.close();
   });
 

@@ -120,11 +120,40 @@ const HOECHSTENS_ANFRAGEN_JE_MINUTE = 20;
  * `/konto` sowohl `GET /konto` als auch `DELETE /konto`. `/termine/` deckt
  * das Bearer-Token beim Anmelden und Abmelden ab, `/gast/` den Storno-Token
  * aus der Gäste-Mail.
+ *
+ * Die Schreibweise ist bewusst dieselbe wie dort — `/anmeldung/` hier gegen
+ * `/anmeldung/*` bei Caddy, `/sitzung` gegen `/sitzung*` — damit sich beide
+ * Listen Zeile für Zeile nebeneinanderlegen lassen. Wo Caddy einen Stern
+ * ohne Schrägstrich davor braucht, steht hier ein Präfix ohne Schrägstrich
+ * dahinter; wo dort `/…/*` steht, endet der Präfix hier auf `/`.
  */
 const IP_GESCHUETZTE_PFAD_PRAEFIXE = ['/anmeldung/', '/sitzung', '/konto', '/termine/', '/gast/'];
 
-function istIpGeschuetzterPfad(pfad: string): boolean {
-  return IP_GESCHUETZTE_PFAD_PRAEFIXE.some((praefix) => pfad.startsWith(praefix));
+/**
+ * Der Pfad, an dem nur die schreibenden Methoden mitgezählt werden.
+ *
+ * `GET /termine/:schluessel` ist die Belegungsabfrage — die einzige Anfrage
+ * dieser API, die eine App im gewöhnlichen Gebrauch **je Termin** stellt.
+ * Wer eine Terminliste öffnet, feuert damit ein Dutzend GETs in wenigen
+ * Sekunden und reißt die Grenze von zwanzig je Minute, ohne irgendetwas
+ * falsch zu machen. Eine Notbremse, die den Normalfall bremst, ist keine
+ * Notbremse mehr, sondern ein Fehler.
+ *
+ * Das ist eine Abwägung, keine Lücke: Ein `GET` hierher kann eine
+ * `Authorization`-Kopfzeile tragen und prüft dann ein Token gegen die
+ * Datenbank — ungezählt heißt also, dass das Durchprobieren von Zugangs-
+ * Token über diesen einen Weg von dieser Schicht nicht gebremst wird. Bei
+ * einem 256-Bit-Token ist Erraten aussichtslos, und die Abwehr einer
+ * schieren Anfrageflut ist ohnehin nicht die Aufgabe dieser Schicht,
+ * sondern die von Caddy. `POST` (Anmelden) und `DELETE` (Abmelden) zählen
+ * unverändert mit — beides sind Vorgänge, die ein Mensch je Termin einmal
+ * auslöst, nie zwanzigmal je Minute.
+ */
+const NUR_SCHREIBEND_GEZAEHLT = '/termine/';
+
+function zaehltGegenIpGrenze(methode: string, pfad: string): boolean {
+  if (!IP_GESCHUETZTE_PFAD_PRAEFIXE.some((praefix) => pfad.startsWith(praefix))) return false;
+  return !(methode === 'GET' && pfad.startsWith(NUR_SCHREIBEND_GEZAEHLT));
 }
 
 declare module 'fastify' {
@@ -237,10 +266,11 @@ export function baueApp({
   const termine = terminDienst ?? erzeugeStandardTerminDienst(log);
 
   /**
-   * Notbremse je IP für `/anmeldung/*`, `/sitzung*` und `/konto*` — siehe
-   * `ipbegrenzung.ts` für das Warum, `caddy/anmeldung.Caddyfile` für die
-   * Schicht, die das eigentlich übernehmen soll, sobald Plan 4 sie
-   * anwendet.
+   * Notbremse je IP für die tokenprüfenden Pfade (siehe
+   * `IP_GESCHUETZTE_PFAD_PRAEFIXE`), ohne die Belegungsabfrage `GET
+   * /termine/…` (siehe `NUR_SCHREIBEND_GEZAEHLT`) — `ipbegrenzung.ts`
+   * begründet das Warum dieser Schicht, `caddy/anmeldung.Caddyfile` ist die
+   * Schicht, die das eigentlich übernehmen soll, sobald Plan 4 sie anwendet.
    *
    * Ein 429 hier ist **kein** Orakel wie ein abweichender Statuscode bei
    * `/anmeldung/anfordern` es wäre: Er hängt ausschließlich daran, wie oft
@@ -256,7 +286,7 @@ export function baueApp({
    */
   app.addHook('onRequest', async (anfrage, antwort) => {
     const pfad = anfrage.url.split('?', 1)[0] ?? anfrage.url;
-    if (!istIpGeschuetzterPfad(pfad)) return;
+    if (!zaehltGegenIpGrenze(anfrage.method, pfad)) return;
 
     if (!ipBegrenzung.erlaubt(anfrage.ip, jetzt().getTime())) {
       return antwort.code(429).send({ fehler: 'Zu viele Anfragen. Versuch es gleich noch einmal.' });
