@@ -20,6 +20,7 @@ export interface KontoAuskunft {
 export async function holeKontoAuskunft(
   pool: pg.Pool,
   mitgliedId: string,
+  jetzt: Date,
 ): Promise<KontoAuskunft | null> {
   const { rows } = await pool.query<{
     email: string;
@@ -27,10 +28,17 @@ export async function holeKontoAuskunft(
     angelegt_am: Date;
     sitzungen: string;
   }>(
+    // Nach Art. 15 zählt, was tatsächlich gilt: Eine ersetzte Zeile
+    // (ersetzt_am gesetzt) ist nur noch für die Wiederverwendungserkennung
+    // da, keine nutzbare Sitzung mehr. Eine mit abgelaufener
+    // Erneuerungsfrist ebenso wenig — nur noch nicht aufgeräumt.
     `SELECT m.email, m.rolle, m.angelegt_am,
-            (SELECT count(*) FROM sitzung s WHERE s.mitglied_id = m.id) AS sitzungen
+            (SELECT count(*) FROM sitzung s
+              WHERE s.mitglied_id = m.id
+                AND s.ersetzt_am IS NULL
+                AND s.erneuerung_bis > $2) AS sitzungen
        FROM mitglied m WHERE m.id = $1`,
-    [mitgliedId],
+    [mitgliedId, jetzt],
   );
 
   const zeile = rows[0];

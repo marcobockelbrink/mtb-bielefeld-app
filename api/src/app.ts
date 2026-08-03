@@ -142,7 +142,7 @@ export function baueApp({
     const ausweis = await holeAusweis(anfrage);
     if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
 
-    const auskunft = await holeKontoAuskunft(pool, ausweis.mitgliedId);
+    const auskunft = await holeKontoAuskunft(pool, ausweis.mitgliedId, jetzt());
     if (!auskunft) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
 
     return antwort.send(auskunft);

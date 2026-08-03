@@ -8,7 +8,8 @@ import {
   verbraucheEinladung,
 } from '../src/einladung.ts';
 import { GemerkterMailer } from '../src/mailer.ts';
-import { legeSitzungAn } from '../src/sitzung.ts';
+import { erneuereSitzung, legeSitzungAn } from '../src/sitzung.ts';
+import { hashe } from '../src/token.ts';
 import { frischeDatenbank } from './hilfen/datenbank.ts';
 
 const jetzt = new Date('2026-08-02T12:00:00Z');
@@ -51,6 +52,38 @@ describe('GET /konto', () => {
     const antwort = await app.inject({ method: 'GET', url: '/konto' });
 
     expect(antwort.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('zählt nur noch gültige Sitzungen, keine ersetzten oder abgelaufenen', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    const { id, zugang } = await angemeldetesMitglied();
+
+    // Ein zweites Gerät: noch gültig, zählt mit.
+    await legeSitzungAn(pool, id, jetzt);
+
+    // Ein drittes Gerät, dessen Sitzung erneuert (also ersetzt) wurde. Nur
+    // die Nachfolgerin zählt, nicht die ersetzte Ursprungszeile.
+    const dritte = await legeSitzungAn(pool, id, jetzt);
+    await erneuereSitzung(pool, dritte.erneuerung, jetzt);
+
+    // Ein viertes Gerät, dessen Erneuerungsfrist inzwischen abgelaufen ist.
+    const vierte = await legeSitzungAn(pool, id, jetzt);
+    await pool.query('UPDATE sitzung SET erneuerung_bis = $2 WHERE zugang_hash = $1', [
+      hashe(vierte.zugang),
+      new Date(jetzt.getTime() - 1000),
+    ]);
+
+    const antwort = await app.inject({
+      method: 'GET',
+      url: '/konto',
+      headers: { authorization: `Bearer ${zugang}` },
+    });
+
+    // Gültig: die erste Anmeldung, das zweite Gerät, die Nachfolgerin der
+    // Erneuerung des dritten Geräts. Nicht gültig: die ersetzte
+    // Ursprungszeile des dritten Geräts, die abgelaufene des vierten.
+    expect(antwort.json().sitzungen).toBe(3);
     await app.close();
   });
 });
