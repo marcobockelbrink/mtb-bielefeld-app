@@ -24,7 +24,13 @@ export type Anmeldeergebnis =
   | { ok: true; belegt: number; stornoToken?: string }
   | {
       ok: false;
-      grund: 'abgesagt' | 'voll' | 'gaeste-nicht-erlaubt' | 'schon-angemeldet' | 'zu-viele';
+      grund:
+        | 'abgesagt'
+        | 'vorbei'
+        | 'voll'
+        | 'gaeste-nicht-erlaubt'
+        | 'schon-angemeldet'
+        | 'zu-viele';
       belegt: number;
       plaetze: number | null;
     };
@@ -89,6 +95,15 @@ export async function meldeAn(
   // Regeln, die keine Zählung brauchen — vor der Sperre, spart Wartezeit.
   if (termin.cancelled) {
     return { ok: false, grund: 'abgesagt', belegt: 0, plaetze };
+  }
+  // Gemessen am **Ende**, nicht am Anfang: Wer zehn Minuten nach dem Start
+  // noch am Parkplatz steht und sich eintragen will, soll das können; wer
+  // sich zu einer Tour vom letzten Sommer anmeldet, nicht. Ohne diese Regel
+  // ginge an einen Gast eine Bestätigungsmail zu einer Ausfahrt, die längst
+  // gefahren ist, und die Teilnehmerliste einer vergangenen Tour änderte
+  // sich noch Wochen danach.
+  if (termin.end.getTime() < jetzt.getTime()) {
+    return { ok: false, grund: 'vorbei', belegt: 0, plaetze };
   }
   const istGast = !('mitgliedId' in wunsch);
   if (istGast && termin.details.gaesteErlaubt !== true) {

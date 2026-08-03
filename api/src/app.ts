@@ -562,6 +562,7 @@ export function baueApp({
     if (!ergebnis.ok) {
       const texte: Record<typeof ergebnis.grund, string> = {
         abgesagt: 'Dieser Termin wurde abgesagt.',
+        vorbei: 'Dieser Termin liegt in der Vergangenheit.',
         voll: 'Die Tour ist voll.',
         'gaeste-nicht-erlaubt': 'Bei diesem Termin können sich nur Mitglieder anmelden.',
         'schon-angemeldet': 'Du bist schon angemeldet.',

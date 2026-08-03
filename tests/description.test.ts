@@ -76,6 +76,13 @@ describe('Tourdaten aus der Beschreibung', () => {
     expect(parseRideDetails('Max. Teilnehmerzahl: 12').maxParticipants).toBe(12);
   });
 
+  it('liest die Teilnehmerbegrenzung auch als "Plätze"', () => {
+    // Die kurze Schreibweise steht so im Vereinskalender — und die
+    // Tourenanmeldung der API hängt daran: Ohne diese Zahl gilt der Termin
+    // als unbegrenzt.
+    expect(parseRideDetails('Plätze: 12').maxParticipants).toBe(12);
+  });
+
   it('trennt zwei Angaben in derselben Zeile', () => {
     const details = parseRideDetails('Ausdauer: ⭐⭐ Fahrtechnik: ⭐⭐⭐');
     expect(details.endurance).toEqual({ min: 2, max: 2 });
@@ -124,5 +131,11 @@ describe('Gäste-Zeile', () => {
   it('versteht Schreibvarianten', () => {
     expect(parseRideDetails('Gäste : Ja, gerne!').gaesteErlaubt).toBe(true);
     expect(parseRideDetails('gäste: NEIN').gaesteErlaubt).toBe(false);
+  });
+
+  it('lässt das Feld bei einer Antwort offen, die weder ja noch nein ist', () => {
+    // „nach Absprache" ist keine Erlaubnis. Offen heißt für die Anmeldung
+    // der API dasselbe wie „nein" — geraten wird hier nicht.
+    expect(parseRideDetails('Gäste: nach Absprache').gaesteErlaubt).toBeUndefined();
   });
 });

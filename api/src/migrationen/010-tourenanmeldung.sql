@@ -9,6 +9,15 @@ CREATE TABLE tourenanmeldung (
   terminschluessel text NOT NULL,
   -- Der Startzeitpunkt, festgehalten beim Anmelden. Nur fürs Aufräumen:
   -- 30 Tage danach wird die Zeile gelöscht, ohne den Kalender zu fragen.
+  --
+  -- Der Wert friert dabei ein: Wird der Termin nach der Anmeldung verlegt,
+  -- richtet sich das Aufräumen weiter nach der alten Zeit. Bei einer
+  -- Verschiebung nach hinten verschwindet die Zeile also früher als 30 Tage
+  -- nach dem tatsächlichen Termin, bei einer nach vorn später. Das ist
+  -- hingenommen: Die Alternative wäre, beim Aufräumen den Kalender zu
+  -- befragen — dann hinge das Löschen von Personendaten an der
+  -- Erreichbarkeit eines fremden Servers, und ein Ausfall hieße, dass gar
+  -- nichts mehr gelöscht wird.
   termin_start     timestamptz NOT NULL,
   mitglied_id      uuid REFERENCES mitglied (id) ON DELETE CASCADE,
   gast_name        text,

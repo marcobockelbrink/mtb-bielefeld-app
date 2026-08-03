@@ -12,8 +12,8 @@ const jetzt = new Date('2026-08-03T12:00:00Z');
 const stillesProtokoll: Protokoll = { error: () => {} };
 
 /**
- * Drei Termine, wie der Verein sie schreibt: einer mit Plätzen und Gästen,
- * einer nur für Mitglieder, einer abgesagt.
+ * Vier Termine, wie der Verein sie schreibt: einer mit Plätzen und Gästen,
+ * einer nur für Mitglieder, einer abgesagt, einer schon gefahren.
  */
 const KALENDER = [
   'BEGIN:VCALENDAR',
@@ -35,6 +35,13 @@ const KALENDER = [
   'DTSTART;TZID=Europe/Berlin:20260815T180000',
   'DTEND;TZID=Europe/Berlin:20260815T200000',
   'SUMMARY:-ABGESAGT- Regenrunde',
+  'END:VEVENT',
+  'BEGIN:VEVENT',
+  'UID:vergangen@test',
+  'DTSTART;TZID=Europe/Berlin:20260720T180000',
+  'DTEND;TZID=Europe/Berlin:20260720T200000',
+  'SUMMARY:Julirunde',
+  'DESCRIPTION:Plätze: 5\\nGäste: ja',
   'END:VEVENT',
   'END:VCALENDAR',
 ].join('\r\n');
@@ -150,6 +157,23 @@ describe('POST /termine/:schluessel — Mitglieder', () => {
 
     expect(antwort.statusCode).toBe(201);
     expect(antwort.json()).toEqual({ belegt: 1 });
+    await app.close();
+  });
+
+  it('lehnt einen schon gefahrenen Termin ab', async () => {
+    const app = bauen();
+    const termine = await dienst().holeTermine();
+    const vergangen = termine.find((t) => t.uid === 'vergangen@test');
+    const { zugang } = await mitgliedMitToken('malte@example.org');
+
+    const antwort = await app.inject({
+      method: 'POST',
+      url: `/termine/${terminSchluessel(vergangen!)}`,
+      headers: { authorization: `Bearer ${zugang}` },
+    });
+
+    expect(antwort.statusCode).toBe(409);
+    expect(antwort.json().fehler).toBe('Dieser Termin liegt in der Vergangenheit.');
     await app.close();
   });
 

@@ -95,6 +95,35 @@ describe('meldeAn — Mitglieder', () => {
     if (!ergebnis.ok) expect(ergebnis.grund).toBe('abgesagt');
   });
 
+  it('lehnt einen Termin ab, der schon vorbei ist', async () => {
+    const start = new Date(jetzt.getTime() - 3 * 60 * 60 * 1000);
+    const vergangen = termin({ start, end: new Date(start.getTime() + 2 * 60 * 60 * 1000) });
+
+    const ergebnis = await meldeAn(
+      pool,
+      vergangen,
+      { mitgliedId: await mitglied('a@example.org') },
+      jetzt,
+    );
+
+    expect(ergebnis.ok).toBe(false);
+    if (!ergebnis.ok) expect(ergebnis.grund).toBe('vorbei');
+  });
+
+  it('lässt einen laufenden Termin noch zu — gemessen wird am Ende', async () => {
+    const start = new Date(jetzt.getTime() - 10 * 60 * 1000);
+    const laeuft = termin({ start, end: new Date(start.getTime() + 2 * 60 * 60 * 1000) });
+
+    const ergebnis = await meldeAn(
+      pool,
+      laeuft,
+      { mitgliedId: await mitglied('a@example.org') },
+      jetzt,
+    );
+
+    expect(ergebnis.ok).toBe(true);
+  });
+
   it('lässt ohne Platzangabe beliebig viele zu', async () => {
     const t = termin({ details: { guides: [], gaesteErlaubt: true } });
     for (const email of ['a', 'b', 'c', 'd'].map((n) => `${n}@example.org`)) {

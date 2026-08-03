@@ -17,7 +17,21 @@ import { parseCalendar } from '../../src/data/ical/parseCalendar.ts';
 import type { ClubEvent } from '../../src/domain/types.ts';
 import { serialisiereFehler, type Protokoll } from './protokoll.ts';
 
-/** Wie lange ein gelesener Kalender als frisch gilt. */
+/**
+ * Wie lange ein gelesener Kalender als frisch gilt.
+ *
+ * Fünf Minuten sind ein Kompromiss zwischen der Last beim Kalenderanbieter
+ * und der Aktualität der Regeln, die aus dem Kalender kommen — und die
+ * Aktualität ist die Seite, die etwas kostet: **Herabgesetzte Platzzahlen
+ * und Absagen wirken bis zu fünf Minuten verzögert.** Streicht ein Guide
+ * eine Tour von zwölf auf acht Plätze, kann sich in diesem Fenster noch
+ * jemand auf einen Platz anmelden, den es nicht mehr gibt; sagt er sie ab,
+ * geht in diesem Fenster noch eine Anmeldung durch. Eine Überbuchung um
+ * wenige Plätze ist damit möglich und bewusst hingenommen: Der Guide sieht
+ * die Liste und kann das ansprechen, während ein Kalenderabruf **je
+ * Anfrage** die API an die Verfügbarkeit eines fremden Servers ketten würde
+ * — fällt der aus, ginge gar keine Anmeldung mehr.
+ */
 const FRIST_MS = 5 * 60 * 1000;
 
 /**
