@@ -18,6 +18,8 @@
 
 import type pg from 'pg';
 
+import { ZAEHLFENSTER_MINUTEN } from './anmeldung.ts';
+
 export interface Aufraeumbilanz {
   sitzungen: number;
   magicLinks: number;
@@ -32,6 +34,16 @@ export interface Aufraeumbilanz {
  * erkennt. Ist die Frist dagegen vorbei, würde das Token ohnehin abgelehnt
  * — die Zeile ist dann auch für die Erkennung wertlos.
  *
+ * Bei den Magic Links genügt `gueltig_bis` **nicht**. Eine abgelaufene Zeile
+ * ist als Link zwar wertlos, für die Begrenzung je Adresse aber nicht: Die
+ * zählt auf derselben Tabelle, und zwar über `ZAEHLFENSTER_MINUTEN`
+ * (`anmeldung.ts`) — deutlich länger, als ein Link gilt. Wer nur nach
+ * `gueltig_bis` löscht, räumt der Begrenzung ihre Zählgrundlage weg: Bei
+ * einem Zeitgeber im Viertelstundentakt wäre das Fenster nie länger als
+ * etwa zwanzig Minuten gefüllt und aus „drei je Stunde" würde faktisch das
+ * Drei- bis Vierfache. Deshalb beide Bedingungen zusammen — und die Zahl
+ * kommt von dort, wo gezählt wird, nicht noch einmal von hier.
+ *
  * Bewusst zwei getrennte Anweisungen ohne Transaktion: Es gibt nichts, was
  * die beiden gemeinsam richtig oder falsch machen könnten, und ein Fehler
  * bei der einen soll die andere nicht verhindern.
@@ -40,9 +52,12 @@ export async function raeumeAuf(pool: pg.Pool, jetzt: Date): Promise<Aufraeumbil
   const sitzungen = await pool.query('DELETE FROM sitzung WHERE erneuerung_bis < $1', [
     jetzt,
   ]);
-  const magicLinks = await pool.query('DELETE FROM magic_link WHERE gueltig_bis < $1', [
-    jetzt,
-  ]);
+
+  const fensteranfang = new Date(jetzt.getTime() - ZAEHLFENSTER_MINUTEN * 60 * 1000);
+  const magicLinks = await pool.query(
+    'DELETE FROM magic_link WHERE gueltig_bis < $1 AND angelegt_am < $2',
+    [jetzt, fensteranfang],
+  );
 
   return {
     sitzungen: sitzungen.rowCount ?? 0,

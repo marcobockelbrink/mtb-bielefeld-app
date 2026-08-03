@@ -36,8 +36,21 @@ const BASIS_URL = process.env.APP_BASIS_URL ?? 'https://app.mtb-bielefeld.de';
  * Stunde reichen für „Mail nicht angekommen, nochmal", und eine Minute
  * Abstand fängt den doppelt getippten Knopf ab.
  */
-const HOECHSTENS_JE_STUNDE = 3;
+const HOECHSTENS_JE_FENSTER = 3;
 const MINDESTABSTAND_SEKUNDEN = 60;
+
+/**
+ * Über welchen Zeitraum gezählt wird — **die** eine Stelle für diese Zahl.
+ *
+ * Exportiert, weil das Aufräumen (`aufraeumen.ts`) sie genauso braucht: Die
+ * Begrenzung zählt auf `magic_link`, also darf dort erst weggeräumt werden,
+ * was auch hier nichts mehr zählt. Stünde die Zahl an zwei Stellen, liefen
+ * beide beim nächsten Verstellen wieder auseinander — und genau das war schon
+ * einmal der Fall: Das Aufräumen ging nach `gueltig_bis` (15 Minuten) und
+ * warf damit die Zeilen weg, auf denen diese Stunde zählt. Aus „drei je
+ * Stunde" wurde faktisch das Drei- bis Vierfache.
+ */
+export const ZAEHLFENSTER_MINUTEN = 60;
 
 /** `einladungId: null` heißt: bestehendes Mitglied, keine Karte nötig. */
 type Zutritt = { ok: true; einladungId: string | null } | { ok: false };
@@ -274,19 +287,19 @@ async function darfAnfordern(
   email: string,
   jetzt: Date,
 ): Promise<boolean> {
-  const stundeVorher = new Date(jetzt.getTime() - 60 * 60 * 1000);
+  const fensteranfang = new Date(jetzt.getTime() - ZAEHLFENSTER_MINUTEN * 60 * 1000);
 
   const { rows } = await verbindung.query<{ anzahl: string; letzte: Date | null }>(
     `SELECT count(*) AS anzahl, max(angelegt_am) AS letzte
        FROM magic_link
       WHERE lower(email) = lower($1) AND angelegt_am > $2`,
-    [email, stundeVorher],
+    [email, fensteranfang],
   );
 
   const zeile = rows[0];
   if (!zeile) return true;
 
-  if (Number(zeile.anzahl) >= HOECHSTENS_JE_STUNDE) return false;
+  if (Number(zeile.anzahl) >= HOECHSTENS_JE_FENSTER) return false;
 
   if (zeile.letzte) {
     const abstandSekunden = (jetzt.getTime() - zeile.letzte.getTime()) / 1000;

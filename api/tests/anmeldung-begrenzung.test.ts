@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { fordereMagicLinkAn } from '../src/anmeldung.ts';
+import { raeumeAuf } from '../src/aufraeumen.ts';
 import { pool } from '../src/datenbank.ts';
 import { GemerkterMailer } from '../src/mailer.ts';
 import type { Protokoll } from '../src/protokoll.ts';
@@ -201,5 +202,49 @@ describe('Begrenzung je Adresse', () => {
     );
 
     expect(mailer.versendet).toHaveLength(1);
+  });
+});
+
+/**
+ * Begrenzung und Aufräumen greifen auf dieselben Zeilen zu — geprüft wird
+ * das deshalb hier zusammen und nicht in zwei Dateien, die sich nie
+ * begegnen. Genau daran ist es schon einmal vorbeigelaufen: Beide Seiten
+ * waren für sich richtig, gemeinsam hob das Aufräumen die Begrenzung auf.
+ */
+describe('Begrenzung und Aufräumen zusammen', () => {
+  it('überlebt das Aufräumen, das inzwischen gelaufen ist', async () => {
+    await mitgliedAnlegen();
+    const mailer = new GemerkterMailer();
+
+    // Drei Anforderungen in zwanzig Minuten — das Kontingent der Stunde.
+    await fordere(mailer, start);
+    await fordere(mailer, new Date(start.getTime() + 5 * 60 * 1000));
+    await fordere(mailer, new Date(start.getTime() + 10 * 60 * 1000));
+    expect(mailer.versendet).toHaveLength(3);
+
+    // Der Zeitgeber räumt alle fünfzehn Minuten auf. Nach einer halben Stunde
+    // sind alle drei Links abgelaufen (sie gelten fünfzehn Minuten) — die
+    // Begrenzung zählt aber noch eine ganze Stunde auf ihnen.
+    const bilanz = await raeumeAuf(pool, new Date(start.getTime() + 30 * 60 * 1000));
+    expect(bilanz.magicLinks).toBe(0);
+
+    // Also bleibt es dabei: kein vierter Link innerhalb der Stunde.
+    const nachDemAufraeumen = await fordere(mailer, new Date(start.getTime() + 35 * 60 * 1000));
+    expect(nachDemAufraeumen).toBe(3);
+  });
+
+  it('räumt weg, sobald das Zählfenster vorbei ist', async () => {
+    await mitgliedAnlegen();
+    const mailer = new GemerkterMailer();
+
+    await fordere(mailer, start);
+
+    // Gut eine Stunde später zählt die Zeile nicht mehr — jetzt darf sie weg,
+    // und die nächste Anforderung geht wieder durch.
+    const spaeter = new Date(start.getTime() + 61 * 60 * 1000);
+    const bilanz = await raeumeAuf(pool, spaeter);
+
+    expect(bilanz.magicLinks).toBe(1);
+    expect(await fordere(mailer, spaeter)).toBe(2);
   });
 });

@@ -36,11 +36,18 @@ async function sitzung(
   );
 }
 
-async function magicLink(gueltigBis: Date): Promise<void> {
+/**
+ * Legt einen Magic Link mit frei wählbarem Anlege- und Ablaufzeitpunkt an.
+ *
+ * `angelegt_am` gehört hier ausdrücklich dazu: Daran hängt das Zählfenster
+ * der Begrenzung, und genau darüber entscheidet sich, ob eine Zeile
+ * weggeräumt werden darf.
+ */
+async function magicLink(angelegtAm: Date, gueltigBis: Date): Promise<void> {
   await pool.query(
-    `INSERT INTO magic_link (token_hash, email, gueltig_bis)
-     VALUES ($1, 'malte@example.org', $2)`,
-    [hashe(`link-${Math.random()}`), gueltigBis],
+    `INSERT INTO magic_link (token_hash, email, angelegt_am, gueltig_bis)
+     VALUES ($1, 'malte@example.org', $2, $3)`,
+    [hashe(`link-${Math.random()}`), angelegtAm, gueltigBis],
   );
 }
 
@@ -79,8 +86,10 @@ describe('raeumeAuf', () => {
     expect(rows).toHaveLength(1);
   });
 
-  it('wirft abgelaufene Magic Links weg', async () => {
-    await magicLink(gestern);
+  it('wirft Magic Links weg, die auch für die Begrenzung wertlos sind', async () => {
+    // Gestern angelegt, gestern abgelaufen: als Link nutzlos, und aus dem
+    // Zählfenster der Begrenzung längst herausgefallen.
+    await magicLink(gestern, gestern);
 
     const bilanz = await raeumeAuf(pool, jetzt);
 
@@ -90,7 +99,22 @@ describe('raeumeAuf', () => {
   });
 
   it('lässt noch gültige Magic Links stehen', async () => {
-    await magicLink(new Date('2026-08-03T12:10:00Z'));
+    await magicLink(new Date('2026-08-03T11:55:00Z'), new Date('2026-08-03T12:10:00Z'));
+
+    const bilanz = await raeumeAuf(pool, jetzt);
+
+    expect(bilanz.magicLinks).toBe(0);
+    const { rows } = await pool.query('SELECT id FROM magic_link');
+    expect(rows).toHaveLength(1);
+  });
+
+  it('lässt abgelaufene Magic Links stehen, solange die Begrenzung auf ihnen zählt', async () => {
+    // Der wichtigste Magic-Link-Test dieser Datei: Vor zwanzig Minuten
+    // angelegt, seit fünf Minuten abgelaufen — als Link wertlos, für die
+    // Begrenzung aber nicht. Die zählt eine Stunde zurück und braucht diese
+    // Zeile noch. Wer sie hier wegräumt, macht aus „drei je Stunde" faktisch
+    // das Drei- bis Vierfache, weil der Zeitgeber alle fünfzehn Minuten läuft.
+    await magicLink(new Date('2026-08-03T11:40:00Z'), new Date('2026-08-03T11:55:00Z'));
 
     const bilanz = await raeumeAuf(pool, jetzt);
 
