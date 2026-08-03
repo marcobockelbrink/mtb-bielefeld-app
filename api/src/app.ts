@@ -20,7 +20,31 @@ export interface Abhaengigkeiten {
   jetzt?: () => Date;
   /** Standard: der Logger der Fastify-Instanz. Tests reichen eine Attrappe. */
   protokoll?: Protokoll;
+  /**
+   * Standard: `HOECHSTENS_GLEICHZEITIG`. Tests setzen sie klein, weil sich
+   * Überlast sonst nur mit Dutzenden Anfragen herstellen ließe.
+   */
+  hoechstensGleichzeitig?: number;
 }
+
+/**
+ * Wie viele Hintergrundvorgänge höchstens gleichzeitig laufen dürfen.
+ *
+ * Solange die Antwort auf die Arbeit wartete, bremste die Arbeit den
+ * Anfragenden: Wer schneller schickte, als die Datenbank antwortete, wartete
+ * selbst. Seit die Antwort vorausgeht, ist diese Bremse weg — und die
+ * IP-Schicht, die sie ersetzen soll, kommt erst mit Plan 4 (`caddy/`). Ohne
+ * Grenze wüchsen `laufendeArbeit` und die Warteschlange des Verbindungspools
+ * mit der Anfragerate, bis der Speicher voll ist; die Begrenzung je Adresse
+ * hilft dagegen nicht, denn sie greift erst **in** der Arbeit und für viele
+ * verschiedene Adressen gar nicht.
+ *
+ * Fünfzig: Der Pool hält voreingestellt zehn Verbindungen. Was darüber
+ * hinaus läuft, wartet ohnehin schon auf eine freie — ein paar Dutzend
+ * fangen eine kurze Spitze ab, alles darüber ist keine Pufferung mehr,
+ * sondern eine unbegrenzte Warteschlange mit anderem Namen.
+ */
+const HOECHSTENS_GLEICHZEITIG = 50;
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -57,6 +81,7 @@ export function baueApp({
   mailer,
   jetzt = () => new Date(),
   protokoll,
+  hoechstensGleichzeitig = HOECHSTENS_GLEICHZEITIG,
 }: Abhaengigkeiten): FastifyInstance {
   const app = Fastify({ logger: protokollEinstellung });
   const log = protokoll ?? app.log;
@@ -76,7 +101,30 @@ export function baueApp({
    */
   const laufendeArbeit = new Set<Promise<unknown>>();
 
-  function imHintergrund(arbeit: Promise<unknown>): void {
+  /**
+   * Nimmt die Arbeit als Funktion und nicht als schon laufendes Promise:
+   * Über der Grenze soll sie **nicht** anfangen. Wäre sie beim Aufruf schon
+   * gestartet, hielte sie längst eine Poolverbindung — genau das, was die
+   * Grenze verhindern soll.
+   */
+  function imHintergrund(beginne: () => Promise<unknown>): void {
+    if (laufendeArbeit.size >= hoechstensGleichzeitig) {
+      // Verworfen, aber nicht still: Für den Anfragenden bleibt es bei 202 —
+      // ein anderer Code oder Text wäre ein neues Orakel, denn verworfen wird
+      // unabhängig davon, ob die Adresse zum Verein gehört. Wer die Mail
+      // erwartet hat, bekommt sie hier nicht und fordert sie neu an; der
+      // Betreiber sieht am Protokoll, dass die Grenze greift.
+      log.error(
+        { laufend: laufendeArbeit.size, grenze: hoechstensGleichzeitig },
+        'Zu viele Hintergrundvorgänge gleichzeitig — dieser wurde verworfen, ' +
+          'statt die Warteschlange weiter wachsen zu lassen. Der Anfragende ' +
+          'hat trotzdem 202 bekommen, weil eine abweichende Antwort verraten ' +
+          'würde, dass die Adresse zum Verein gehört.',
+      );
+      return;
+    }
+
+    const arbeit = beginne();
     laufendeArbeit.add(arbeit);
     void arbeit
       // Nichts darf hier unbemerkt sterben: Ein unbehandelter Fehlschlag
@@ -107,7 +155,11 @@ export function baueApp({
       return antwort.code(400).send({ fehler: 'Einladungscode muss Text sein.' });
     }
 
-    imHintergrund(
+    // Der Zeitpunkt gehört zur Anfrage, nicht zum Start der Arbeit: Die
+    // eingespeiste Uhr wird deshalb hier abgelesen und nicht erst drinnen.
+    const angefragtAm = jetzt();
+
+    imHintergrund(() =>
       fordereMagicLinkAn(
         pool,
         mailer,
@@ -116,7 +168,7 @@ export function baueApp({
         einladungscode === undefined || einladungscode.length === 0
           ? undefined
           : einladungscode,
-        jetzt(),
+        angefragtAm,
       ),
     );
 

@@ -18,6 +18,42 @@ class ScheiterderMailer implements Mailer {
 }
 
 /**
+ * Bleibt im Versand stehen, bis der Test freigibt.
+ *
+ * Damit lässt sich Überlast ohne Zeitannahmen herstellen: Solange der erste
+ * Vorgang hier hängt, ist er nachweislich noch am Laufen — ein Test, der
+ * stattdessen darauf setzt, dass die nächste Anfrage schon eintrifft, bevor
+ * die Datenbank geantwortet hat, wäre ein Wettrennen mit sich selbst.
+ */
+class AnhaltenderMailer implements Mailer {
+  readonly angekommen: string[] = [];
+  /** Erfüllt sich, sobald der erste Versand wirklich angefangen hat. */
+  readonly begonnen: Promise<void>;
+  readonly #freigabe: Promise<void>;
+  #meldeBeginn!: () => void;
+  #freigeben!: () => void;
+
+  constructor() {
+    this.begonnen = new Promise((erfuellen) => {
+      this.#meldeBeginn = erfuellen;
+    });
+    this.#freigabe = new Promise((erfuellen) => {
+      this.#freigeben = erfuellen;
+    });
+  }
+
+  gibFrei(): void {
+    this.#freigeben();
+  }
+
+  async sende(an: string): Promise<void> {
+    this.angekommen.push(an);
+    this.#meldeBeginn();
+    await this.#freigabe;
+  }
+}
+
+/**
  * Reicht alles an den echten Pool durch, außer das Schreiben des Magic
  * Links — das scheitert, wie es eine gestörte Datenbank auch täte. Steht
  * für N2: Die Absicherung gegen das Mitgliedschafts-Orakel muss auch diesen
@@ -492,6 +528,97 @@ describe('POST /anmeldung/anfordern', () => {
     expect(mailer.versendet.length).toBeGreaterThanOrEqual(1);
     const { rows } = await pool.query('SELECT id FROM magic_link');
     expect(rows.length).toBe(mailer.versendet.length);
+    await app.close();
+  });
+
+  it('antwortet bei Überlast unverändert und verwirft die Arbeit laut', async () => {
+    // Der entscheidende Test für W4. Seit die Antwort der Arbeit vorausgeht,
+    // bremst nichts mehr den Anfragenden: Ohne Obergrenze wüchsen die Menge
+    // der laufenden Vorgänge und die Warteschlange des Pools mit der
+    // Anfragerate. Die Grenze steht hier auf eins, damit Überlast ohne
+    // Dutzende Anfragen entsteht.
+    const mailer = new AnhaltenderMailer();
+    const protokoll = new GemerktesProtokoll();
+    const app = baueApp({
+      pool,
+      mailer,
+      jetzt: () => jetzt,
+      protokoll,
+      hoechstensGleichzeitig: 1,
+    });
+    await pool.query("INSERT INTO mitglied (email) VALUES ('malte@example.org')");
+
+    const anfordern = (email: string) =>
+      app.inject({ method: 'POST', url: '/anmeldung/anfordern', payload: { email } });
+
+    const erste = await anfordern('malte@example.org');
+    // Ab hier steht der erste Vorgang nachweislich im Mailer — die Grenze ist
+    // erreicht, ohne dass der Test auf eine Reihenfolge hoffen muss.
+    await mailer.begonnen;
+
+    const zweite = await anfordern('malte@example.org');
+    const dritte = await anfordern('fremd@example.org');
+
+    // Das Entscheidende: Von außen ist Überlast nicht zu erkennen. Wäre sie
+    // es, wäre die Antwort wieder ein Orakel — verworfen wird unabhängig
+    // davon, ob die Adresse zum Verein gehört, und genau das muss sie auch
+    // bleiben.
+    expect(erste.statusCode).toBe(202);
+    expect(zweite.statusCode).toBe(erste.statusCode);
+    expect(zweite.body).toBe(erste.body);
+    expect(dritte.statusCode).toBe(erste.statusCode);
+    expect(dritte.body).toBe(erste.body);
+
+    // Verworfen, aber nicht still — sonst wäre die Grenze ein stiller
+    // Fehlschlag mit Obergrenze.
+    expect(protokoll.fehler).toHaveLength(2);
+    expect(protokoll.fehler[0]?.nachricht).toMatch(/verworfen/);
+    expect(protokoll.fehler[0]?.daten).toMatchObject({ laufend: 1, grenze: 1 });
+
+    // Und die verworfene Arbeit hat auch wirklich nicht angefangen: keine
+    // zweite Mail, keine zweite Zeile.
+    mailer.gibFrei();
+    await app.warteAufHintergrundarbeit();
+    expect(mailer.angekommen).toEqual(['malte@example.org']);
+    const { rows } = await pool.query('SELECT id FROM magic_link');
+    expect(rows).toHaveLength(1);
+    await app.close();
+  });
+
+  it('nimmt nach dem Ende eines Vorgangs wieder Arbeit an', async () => {
+    // Die Grenze ist eine Obergrenze für gleichzeitige Vorgänge, kein
+    // dauerhafter Riegel: Ist der laufende fertig, ist wieder Platz.
+    const mailer = new GemerkterMailer();
+    const protokoll = new GemerktesProtokoll();
+    let momentan = jetzt;
+    const app = baueApp({
+      pool,
+      mailer,
+      jetzt: () => momentan,
+      protokoll,
+      hoechstensGleichzeitig: 1,
+    });
+    await pool.query("INSERT INTO mitglied (email) VALUES ('malte@example.org')");
+
+    await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'malte@example.org' },
+    });
+    await app.warteAufHintergrundarbeit();
+
+    // Fünf Minuten später — sonst bremste der Mindestabstand der Begrenzung
+    // statt der Obergrenze, und der Test bewiese das Falsche.
+    momentan = new Date(jetzt.getTime() + 5 * 60 * 1000);
+    await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'malte@example.org' },
+    });
+    await app.warteAufHintergrundarbeit();
+
+    expect(mailer.versendet).toHaveLength(2);
+    expect(protokoll.fehler).toHaveLength(0);
     await app.close();
   });
 
