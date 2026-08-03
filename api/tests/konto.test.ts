@@ -118,6 +118,10 @@ describe('DELETE /konto', () => {
       url: '/anmeldung/anfordern',
       payload: { email: 'malte@example.org', einladungscode: code },
     });
+    // Ohne dieses Warten wäre offen, ob die magic_link-Zeile beim Löschen
+    // überhaupt schon existierte — der Test würde dann grün, weil es nichts
+    // aufzuräumen gab, nicht weil das Aufräumen funktioniert.
+    await app.warteAufHintergrundarbeit();
     const { zugang } = await angemeldetesMitglied();
 
     await app.inject({
