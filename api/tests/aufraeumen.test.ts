@@ -51,6 +51,16 @@ async function magicLink(angelegtAm: Date, gueltigBis: Date): Promise<void> {
   );
 }
 
+/** Eine Gastanmeldung mit frei wählbarem Terminbeginn — fürs Fristen-Prüfen. */
+async function gastanmeldung(schluessel: string, terminStart: Date): Promise<void> {
+  await pool.query(
+    `INSERT INTO tourenanmeldung
+       (terminschluessel, termin_start, gast_name, gast_email, storno_hash, angelegt_am)
+     VALUES ($1, $2, 'Traute', 'traute@example.org', $3, $4)`,
+    [schluessel, terminStart, hashe(`storno-${schluessel}`), terminStart],
+  );
+}
+
 beforeEach(async () => {
   await frischeDatenbank();
 });
@@ -124,6 +134,34 @@ describe('raeumeAuf', () => {
   });
 
   it('meldet null, wenn es nichts zu tun gibt', async () => {
-    expect(await raeumeAuf(pool, jetzt)).toEqual({ sitzungen: 0, magicLinks: 0 });
+    expect(await raeumeAuf(pool, jetzt)).toEqual({
+      sitzungen: 0,
+      magicLinks: 0,
+      tourenanmeldungen: 0,
+    });
+  });
+});
+
+describe('raeumeAuf — Tourenanmeldungen', () => {
+  it('löscht Anmeldungen 30 Tage nach dem Termin', async () => {
+    const vor31Tagen = new Date(jetzt.getTime() - 31 * 24 * 60 * 60 * 1000);
+    await gastanmeldung('alt~1', vor31Tagen);
+
+    const bilanz = await raeumeAuf(pool, jetzt);
+
+    expect(bilanz.tourenanmeldungen).toBe(1);
+    const { rows } = await pool.query('SELECT id FROM tourenanmeldung');
+    expect(rows).toHaveLength(0);
+  });
+
+  it('lässt Anmeldungen zu jüngeren Terminen stehen', async () => {
+    const vor10Tagen = new Date(jetzt.getTime() - 10 * 24 * 60 * 60 * 1000);
+    await gastanmeldung('frisch~1', vor10Tagen);
+
+    const bilanz = await raeumeAuf(pool, jetzt);
+
+    expect(bilanz.tourenanmeldungen).toBe(0);
+    const { rows } = await pool.query('SELECT id FROM tourenanmeldung');
+    expect(rows).toHaveLength(1);
   });
 });

@@ -23,7 +23,19 @@ import { ZAEHLFENSTER_MINUTEN } from './anmeldung.ts';
 export interface Aufraeumbilanz {
   sitzungen: number;
   magicLinks: number;
+  tourenanmeldungen: number;
 }
+
+/**
+ * Wie lange eine Anmeldung nach dem Termin aufbewahrt bleibt.
+ *
+ * Die Frist kommt aus der Spec und gilt der Gastanmeldung: Name und Adresse
+ * eines Nicht-Mitglieds haben kein Bleiberecht über den Zweck hinaus. Sie
+ * gilt hier bewusst für **alle** Anmeldungen — auch die von Mitgliedern.
+ * Eine Buchhaltung vergangener Ausfahrten ist nicht der Zweck dieser
+ * Tabelle, und was nicht da ist, muss niemand schützen.
+ */
+const ANMELDUNG_AUFBEWAHRUNG_TAGE = 30;
 
 /**
  * Räumt weg, was seine Frist überschritten hat.
@@ -59,8 +71,17 @@ export async function raeumeAuf(pool: pg.Pool, jetzt: Date): Promise<Aufraeumbil
     [jetzt, fensteranfang],
   );
 
+  const tourengrenze = new Date(
+    jetzt.getTime() - ANMELDUNG_AUFBEWAHRUNG_TAGE * 24 * 60 * 60 * 1000,
+  );
+  const tourenanmeldungen = await pool.query(
+    'DELETE FROM tourenanmeldung WHERE termin_start < $1',
+    [tourengrenze],
+  );
+
   return {
     sitzungen: sitzungen.rowCount ?? 0,
     magicLinks: magicLinks.rowCount ?? 0,
+    tourenanmeldungen: tourenanmeldungen.rowCount ?? 0,
   };
 }

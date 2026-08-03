@@ -86,6 +86,29 @@ describe('GET /konto', () => {
     expect(antwort.json().sitzungen).toBe(3);
     await app.close();
   });
+
+  it('nennt die aktiven Anmeldungen in der Auskunft', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    const { id, zugang } = await angemeldetesMitglied();
+    await pool.query(
+      `INSERT INTO tourenanmeldung (terminschluessel, termin_start, mitglied_id, angelegt_am)
+       VALUES ('tour~1', $2, $1, $3), ('tour~2', $2, $1, $3)`,
+      [id, new Date('2026-08-20T16:00:00Z'), jetzt],
+    );
+    await pool.query(
+      `UPDATE tourenanmeldung SET storniert_am = $1 WHERE terminschluessel = 'tour~2'`,
+      [jetzt],
+    );
+
+    const antwort = await app.inject({
+      method: 'GET',
+      url: '/konto',
+      headers: { authorization: `Bearer ${zugang}` },
+    });
+
+    expect(antwort.json().anmeldungen).toBe(1);
+    await app.close();
+  });
 });
 
 describe('DELETE /konto', () => {
@@ -195,6 +218,26 @@ describe('DELETE /konto', () => {
       headers: { authorization: `Bearer ${zugang}` },
     });
     expect(danach.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('nimmt die Anmeldungen bei der Kontolöschung mit', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    const { id, zugang } = await angemeldetesMitglied();
+    await pool.query(
+      `INSERT INTO tourenanmeldung (terminschluessel, termin_start, mitglied_id, angelegt_am)
+       VALUES ('tour~1', $2, $1, $3)`,
+      [id, new Date('2026-08-20T16:00:00Z'), jetzt],
+    );
+
+    await app.inject({
+      method: 'DELETE',
+      url: '/konto',
+      headers: { authorization: `Bearer ${zugang}` },
+    });
+
+    const { rows } = await pool.query('SELECT id FROM tourenanmeldung');
+    expect(rows).toHaveLength(0);
     await app.close();
   });
 });
