@@ -192,6 +192,11 @@ async function findeOderLegeMitgliedAn(
  * die Antwort nicht mitbekommen. Beide Fälle behandeln wir gleich streng:
  * Alle Sitzungen dieses Mitglieds fliegen raus. Wer wirklich der Eigentümer
  * ist, meldet sich neu an; wer es nicht ist, hält nichts mehr in der Hand.
+ *
+ * Hier hängt auch das Aufräumen: Die Erneuerung ist die Stelle, an der die
+ * Tabelle wächst, also ist sie die Stelle, an der sie auch schrumpfen soll.
+ * Ein eigener Zeitplan wäre ein zweites bewegliches Teil für eine Aufgabe,
+ * die genau dann anfällt.
  */
 export async function erneuereSitzung(
   pool: pg.Pool,
@@ -201,6 +206,8 @@ export async function erneuereSitzung(
   const verbindung = await pool.connect();
   try {
     await verbindung.query('BEGIN');
+
+    await raeumeAbgelaufeneSitzungenAuf(verbindung, jetzt);
 
     const { rows } = await verbindung.query<{
       id: string;
@@ -247,6 +254,36 @@ export async function erneuereSitzung(
   } finally {
     verbindung.release();
   }
+}
+
+/**
+ * Wirft Sitzungen weg, deren Erneuerungsfrist vorbei ist.
+ *
+ * Ohne das wächst `sitzung` unbegrenzt: Jede Erneuerung legt eine Zeile an,
+ * und die alte bleibt absichtlich stehen, damit die
+ * Wiederverwendungserkennung sie noch findet. Was nie abgeräumt wird,
+ * wächst — und zwar mit jedem Gerät alle 15 Minuten.
+ *
+ * Die Grenze ist bewusst `erneuerung_bis` und **nicht** `ersetzt_am`: Eine
+ * ersetzte, aber noch nicht abgelaufene Zeile ist genau das, woran die
+ * Kopiererkennung ein wiederaufgetauchtes Token erkennt. Wer sie wegräumt,
+ * macht aus einem gestohlenen Token wieder ein unbekanntes — und aus
+ * „Alarm“ ein stilles „gilt nicht“. Ist die Frist dagegen abgelaufen, ist
+ * die Zeile auch für die Erkennung wertlos: Das Token würde ohnehin
+ * abgelehnt.
+ *
+ * Gibt die Zahl der weggeräumten Zeilen zurück, damit ein Aufrufer sie
+ * protokollieren kann.
+ */
+export async function raeumeAbgelaufeneSitzungenAuf(
+  ausfuehrer: pg.Pool | pg.PoolClient,
+  jetzt: Date,
+): Promise<number> {
+  const { rowCount } = await ausfuehrer.query(
+    'DELETE FROM sitzung WHERE erneuerung_bis < $1',
+    [jetzt],
+  );
+  return rowCount ?? 0;
 }
 
 /** Abmelden: die Sitzung zu diesem Erneuerungs-Token verschwindet. */
