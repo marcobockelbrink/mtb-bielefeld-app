@@ -145,6 +145,13 @@ describe('DELETE /konto', () => {
     // überhaupt schon existierte — der Test würde dann grün, weil es nichts
     // aufzuräumen gab, nicht weil das Aufräumen funktioniert.
     await app.warteAufHintergrundarbeit();
+    // Dieselbe Person, bevor sie Mitglied wurde: einmal als Gast mitgefahren.
+    await pool.query(
+      `INSERT INTO tourenanmeldung
+         (terminschluessel, termin_start, gast_name, gast_email, storno_hash, angelegt_am)
+       VALUES ('tour~1', $1, 'Malte', 'Malte@Example.org', 'hash-1', $2)`,
+      [new Date('2026-08-20T16:00:00Z'), jetzt],
+    );
     const { zugang } = await angemeldetesMitglied();
 
     await app.inject({
@@ -153,8 +160,9 @@ describe('DELETE /konto', () => {
       headers: { authorization: `Bearer ${zugang}` },
     });
 
-    // Die Adresse steht in drei Tabellen. ON DELETE CASCADE erwischt nur
-    // die Sitzungen — die anderen beiden müssen von Hand aufgeräumt werden.
+    // Die Adresse steht in vier Tabellen. ON DELETE CASCADE erwischt nur
+    // die Sitzungen (und die Anmeldungen an der Mitglieds-ID) — die
+    // übrigen müssen von Hand aufgeräumt werden.
     const { rows: treffer } = await pool.query<{ tabelle: string }>(
       `SELECT 'mitglied' AS tabelle FROM mitglied
         WHERE lower(email) = lower($1)
@@ -162,10 +170,45 @@ describe('DELETE /konto', () => {
        SELECT 'magic_link' FROM magic_link WHERE lower(email) = lower($1)
        UNION ALL
        SELECT 'einladung' FROM einladung
-        WHERE lower(ausgestellt_fuer) = lower($1)`,
+        WHERE lower(ausgestellt_fuer) = lower($1)
+       UNION ALL
+       SELECT 'tourenanmeldung' FROM tourenanmeldung
+        WHERE lower(gast_email) = lower($1)`,
       ['malte@example.org'],
     );
     expect(treffer).toEqual([]);
+    await app.close();
+  });
+
+  it('nimmt die Gastzeilen derselben Adresse mit', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    // Erst als Gast mitgefahren, später Mitglied geworden: Die Gastzeile
+    // hängt an keiner Mitglieds-ID, ON DELETE CASCADE erwischt sie nicht.
+    await pool.query(
+      `INSERT INTO tourenanmeldung
+         (terminschluessel, termin_start, gast_name, gast_email, storno_hash, angelegt_am)
+       VALUES ('tour~1', $1, 'Malte', 'malte@example.org', 'hash-1', $2)`,
+      [new Date('2026-08-20T16:00:00Z'), jetzt],
+    );
+    // Eine fremde Gastzeile am selben Termin bleibt unangetastet.
+    await pool.query(
+      `INSERT INTO tourenanmeldung
+         (terminschluessel, termin_start, gast_name, gast_email, storno_hash, angelegt_am)
+       VALUES ('tour~1', $1, 'Traute', 'traute@example.org', 'hash-2', $2)`,
+      [new Date('2026-08-20T16:00:00Z'), jetzt],
+    );
+    const { zugang } = await angemeldetesMitglied();
+
+    await app.inject({
+      method: 'DELETE',
+      url: '/konto',
+      headers: { authorization: `Bearer ${zugang}` },
+    });
+
+    const { rows } = await pool.query<{ gast_email: string }>(
+      'SELECT gast_email FROM tourenanmeldung',
+    );
+    expect(rows).toEqual([{ gast_email: 'traute@example.org' }]);
     await app.close();
   });
 

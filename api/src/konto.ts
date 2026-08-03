@@ -62,15 +62,24 @@ export async function holeKontoAuskunft(
  * Räumt alles weg, was zu dieser Person gespeichert ist.
  *
  * `DELETE FROM mitglied` allein genügt nicht: `ON DELETE CASCADE` erwischt
- * nur `sitzung`. Dieselbe Adresse steht aber auch in `magic_link.email` und
- * in `einladung.ausgestellt_fuer` — beides ohne Fremdschlüssel, beides
- * ohne Aufräumen. Nach Art. 17 muss sie überall verschwinden.
+ * nur `sitzung` und die Anmeldungen, die an der Mitglieds-ID hängen.
+ * Dieselbe Adresse steht aber auch in `magic_link.email`, in
+ * `einladung.ausgestellt_fuer` und in `tourenanmeldung.gast_email` — alle
+ * drei ohne Fremdschlüssel, alle drei ohne Aufräumen. Nach Art. 17 muss sie
+ * überall verschwinden.
  *
- * Der Unterschied zwischen beiden: Magic Links sind Wegwerfzeug und werden
+ * Der Unterschied zwischen ihnen: Magic Links sind Wegwerfzeug und werden
  * gelöscht. Die Einladungszeile bleibt und verliert nur die Adresse — der
  * Verein soll nachvollziehen können, dass ein Code ausgestellt und
  * eingelöst wurde, ohne die personenbezogene Angabe zu behalten.
  * `eingeloest_von` geht über `ON DELETE SET NULL` von selbst mit.
+ *
+ * Die Gastzeilen werden gelöscht, nicht anonymisiert: Wer erst als Gast
+ * mitfuhr und später Mitglied wurde, hinterließe dort sonst Name **und**
+ * Adresse — genau die beiden Angaben, die die Löschung beseitigen soll. Ein
+ * Fremdschlüssel gibt es dafür nicht; die Zeilen kennen nur die Adresse,
+ * also wird über sie verglichen (`lower`, weil „Traute@…" und „traute@…"
+ * dasselbe Postfach sind).
  *
  * Alles in einer Transaktion: Ein Abbruch zwischendurch hinterließe ein
  * gelöschtes Konto, dessen Adresse noch in der Datenbank steht — genau der
@@ -96,6 +105,12 @@ export async function loescheKonto(pool: pg.Pool, mitgliedId: string): Promise<v
       `UPDATE einladung SET ausgestellt_fuer = NULL
         WHERE lower(ausgestellt_fuer)
               = (SELECT lower(email) FROM mitglied WHERE id = $1)`,
+      [mitgliedId],
+    );
+
+    await verbindung.query(
+      `DELETE FROM tourenanmeldung
+        WHERE lower(gast_email) = (SELECT lower(email) FROM mitglied WHERE id = $1)`,
       [mitgliedId],
     );
 
