@@ -107,6 +107,25 @@ async function waermePoolAuf(anzahl: number): Promise<void> {
   await Promise.all(Array.from({ length: anzahl }, () => pool.query('SELECT 1')));
 }
 
+/**
+ * Wartet, bis eine bestimmte Adresse beim `AnhaltenderMailer` angekommen
+ * ist — als Beleg, dass ein Hintergrundvorgang wirklich angefangen hat, und
+ * nicht nur, dass die Antwort des Endpunkts das nahelegt.
+ */
+async function warteAufAnkunft(
+  mailer: AnhaltenderMailer,
+  adresse: string,
+  hoechstensMs = 2_000,
+): Promise<void> {
+  const start = Date.now();
+  while (!mailer.angekommen.includes(adresse)) {
+    if (Date.now() - start > hoechstensMs) {
+      throw new Error(`„${adresse}" ist nicht innerhalb von ${hoechstensMs}ms angekommen.`);
+    }
+    await new Promise((erfuellen) => setTimeout(erfuellen, 5));
+  }
+}
+
 beforeEach(async () => {
   await frischeDatenbank();
 });
@@ -619,6 +638,65 @@ describe('POST /anmeldung/anfordern', () => {
 
     expect(mailer.versendet).toHaveLength(2);
     expect(protokoll.fehler).toHaveLength(0);
+    await app.close();
+  });
+
+  it('gibt den Platz eines hängenden Vorgangs nach der Zeitschranke frei', async () => {
+    // B aus der Nachprüfung: Eine Obergrenze, deren Plätze nur im
+    // `.finally()` der Arbeit selbst frei werden, setzt sich dauerhaft zu,
+    // sobald ein Vorgang hängt. Hier hält der erste Vorgang absichtlich für
+    // immer im Mailer fest — die Zeitschranke muss den Platz trotzdem
+    // freigeben, ohne dass der erste Vorgang selbst je fertig wird.
+    const mailer = new AnhaltenderMailer();
+    const protokoll = new GemerktesProtokoll();
+    const app = baueApp({
+      pool,
+      mailer,
+      jetzt: () => jetzt,
+      protokoll,
+      hoechstensGleichzeitig: 1,
+      hintergrundZeitschrankeMs: 20,
+    });
+    await pool.query("INSERT INTO mitglied (email) VALUES ('malte@example.org')");
+    await pool.query("INSERT INTO mitglied (email) VALUES ('anna@example.org')");
+
+    const erste = await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'malte@example.org' },
+    });
+    // Ab hier hält der erste Vorgang den einzigen Platz und wird ihn nie
+    // von selbst freigeben — er hängt im Mailer, bis der Test freigibt.
+    await mailer.begonnen;
+
+    // Auf die Zeitschranke warten (real, sie ist mit 20ms knapp bemessen).
+    await new Promise((erfuellen) => setTimeout(erfuellen, 200));
+
+    const zweite = await app.inject({
+      method: 'POST',
+      url: '/anmeldung/anfordern',
+      payload: { email: 'anna@example.org' },
+    });
+
+    expect(erste.statusCode).toBe(202);
+    expect(zweite.statusCode).toBe(202);
+
+    // Das Entscheidende: Der zweite Vorgang hat wirklich angefangen — nicht
+    // nur, dass die Antwort gleich aussieht, sondern dass er tatsächlich bis
+    // zum Mailer kam. Das wäre unmöglich geblieben, hätte der erste, ewig
+    // hängende Vorgang den einzigen Platz für immer behalten.
+    await warteAufAnkunft(mailer, 'anna@example.org');
+
+    // Und der Zeitüberlauf des ersten Vorgangs wurde laut protokolliert,
+    // statt still zu bleiben.
+    expect(
+      protokoll.fehler.some((eintrag) => eintrag.nachricht.includes('Zeitschranke')),
+    ).toBe(true);
+
+    // Aufräumen: beide hängenden Sende-Aufrufe freigeben, damit die
+    // Hintergrundarbeit dieses Tests nicht in den nächsten hineinläuft.
+    mailer.gibFrei();
+    await new Promise((erfuellen) => setTimeout(erfuellen, 50));
     await app.close();
   });
 

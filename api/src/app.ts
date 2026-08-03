@@ -25,6 +25,12 @@ export interface Abhaengigkeiten {
    * Überlast sonst nur mit Dutzenden Anfragen herstellen ließe.
    */
   hoechstensGleichzeitig?: number;
+  /**
+   * Standard: `HINTERGRUND_ZEITSCHRANKE_MS`. Tests setzen sie klein, weil
+   * sich ein hängender Vorgang sonst nur mit einer echten Wartezeit in
+   * dieser Größenordnung herstellen ließe.
+   */
+  hintergrundZeitschrankeMs?: number;
 }
 
 /**
@@ -43,8 +49,33 @@ export interface Abhaengigkeiten {
  * hinaus läuft, wartet ohnehin schon auf eine freie — ein paar Dutzend
  * fangen eine kurze Spitze ab, alles darüber ist keine Pufferung mehr,
  * sondern eine unbegrenzte Warteschlange mit anderem Namen.
+ *
+ * Die Grenze ist **global**, nicht je Adresse und nicht je IP: Wer mit
+ * vielen verschiedenen Adressen flutet, statt eine einzelne zu wiederholen,
+ * verdrängt damit echte Anmeldungen — die Begrenzung je Adresse
+ * (`anmeldung.ts`) hilft dagegen nicht, sie zählt pro Adresse, nicht über
+ * alle hinweg. Das ist eine bewusste Abwägung, keine Lücke: Die Schicht, die
+ * das eigentlich abfangen soll, ist die IP-Ebene, und die kommt erst mit
+ * Plan 4 (`caddy/`). Bis dahin ist diese globale Grenze das Einzige, was
+ * zwischen einer Anfrageflut und dem Speicher steht.
  */
 const HOECHSTENS_GLEICHZEITIG = 50;
+
+/**
+ * Wie lange ein Hintergrundvorgang höchstens seinen Platz behält, bevor er
+ * ihn auf jeden Fall wieder freigibt.
+ *
+ * Ohne dieses Limit wird der Platz ausschließlich im `.finally()` der
+ * Arbeit selbst frei — ein Zähler, der nur in eine Richtung läuft. Hängt ein
+ * Vorgang dauerhaft (echter SMTP-Versand ohne eigene Zeitschranke ab Plan 4,
+ * oder ein Warten auf die Adresssperre in `anmeldung.ts`), sind nach
+ * `HOECHSTENS_GLEICHZEITIG` solcher Fälle alle Plätze für immer belegt, und
+ * der Endpunkt verwirft ab dann jede Anmeldung, unbegrenzt lange. Diese
+ * Zeitschranke gibt den Platz in jedem Fall frei, unabhängig davon, ob die
+ * Arbeit selbst jemals fertig wird — sie bricht die Arbeit dabei nicht ab,
+ * sie hört nur auf, sie mitzuzählen.
+ */
+const HINTERGRUND_ZEITSCHRANKE_MS = 30_000;
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -82,6 +113,7 @@ export function baueApp({
   jetzt = () => new Date(),
   protokoll,
   hoechstensGleichzeitig = HOECHSTENS_GLEICHZEITIG,
+  hintergrundZeitschrankeMs = HINTERGRUND_ZEITSCHRANKE_MS,
 }: Abhaengigkeiten): FastifyInstance {
   const app = Fastify({ logger: protokollEinstellung });
   const log = protokoll ?? app.log;
@@ -126,11 +158,31 @@ export function baueApp({
 
     const arbeit = beginne();
     laufendeArbeit.add(arbeit);
+
+    // Zeitschranke statt eines Platzes, der nur befreit wird, wenn die
+    // Arbeit selbst das tut: Läuft sie ab, während `arbeit` noch offen ist,
+    // wird der Platz trotzdem frei — laut protokolliert, damit der Betreiber
+    // sieht, dass hier etwas hängt. Die Arbeit selbst läuft weiter, sie
+    // zählt nur nicht mehr gegen die Obergrenze.
+    const zeitgeber = setTimeout(() => {
+      if (!laufendeArbeit.delete(arbeit)) return; // schon regulär fertig
+      log.error(
+        { zeitschrankeMs: hintergrundZeitschrankeMs },
+        'Hintergrundvorgang lief länger als die Zeitschranke — der Platz ' +
+          'wurde freigegeben, damit die Obergrenze nicht dauerhaft zugeht. ' +
+          'Der Vorgang selbst läuft weiter, zählt aber nicht mehr mit.',
+      );
+    }, hintergrundZeitschrankeMs);
+    zeitgeber.unref();
+
     void arbeit
       // Nichts darf hier unbemerkt sterben: Ein unbehandelter Fehlschlag
       // wäre genau der stille Fehlschlag, den dieses Projekt ausschließt.
       .catch((fehler) => log.error({ fehler: serialisiereFehler(fehler) }, 'Hintergrundarbeit fehlgeschlagen'))
-      .finally(() => laufendeArbeit.delete(arbeit));
+      .finally(() => {
+        clearTimeout(zeitgeber);
+        laufendeArbeit.delete(arbeit);
+      });
   }
 
   app.decorate('warteAufHintergrundarbeit', async () => {
