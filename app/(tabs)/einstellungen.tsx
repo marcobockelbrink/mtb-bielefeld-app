@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppData } from '../../src/data/AppDataContext';
 import type { EventCategory } from '../../src/domain/types';
 import { formatAge } from '../../src/features/events/format';
+import { AnmeldeKarte } from '../../src/features/konto/AnmeldeKarte';
 import { useNotifications } from '../../src/notifications/NotificationContext';
 import { LEAD_TIME_OPTIONS } from '../../src/notifications/settings';
 import { categoryDisplay, font, fontSize, spacing } from '../../src/theme';
@@ -36,6 +37,8 @@ export default function EinstellungenScreen() {
 
   return (
     <ScrollView contentContainerStyle={[styles.inhalt, { paddingBottom: insets.bottom + spacing.xxl }]}>
+      <AnmeldeKarte />
+
       <Card>
         <View style={styles.schalterZeile}>
           <View style={styles.schalterText}>
