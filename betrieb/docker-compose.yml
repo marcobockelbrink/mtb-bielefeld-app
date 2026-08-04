@@ -40,6 +40,10 @@ services:
       APP_BASIS_URL: ${APP_BASIS_URL}
       API_BASIS_URL: ${API_BASIS_URL}
       NODE_ENV: production
+      # Die Adresse des Compose-Netzes: Nur Anfragen von dort — also von
+      # Caddy — dürfen `X-Forwarded-For` bestimmen, wer die IP-Begrenzung
+      # sieht. Siehe `vertrauterProxy` in `api/src/app.ts`.
+      VERTRAUTER_PROXY: ${VERTRAUTER_PROXY:-172.16.0.0/12}
     depends_on:
       postgres:
         condition: service_healthy

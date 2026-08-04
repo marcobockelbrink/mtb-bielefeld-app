@@ -43,8 +43,12 @@
 # und würde jede sinnvoll gesetzte Grenze im Normalbetrieb reißen. Sie
 # schreibt nichts und trägt kein Token im Weg.
 #
-# Angewandt wird das in Plan 4 (Inbetriebnahme). Bis dahin ist es eine
-# Vorlage, kein laufender Schutz.
+# Angewandt und gegen einen laufenden Caddy geprüft ist das in
+# `betrieb/Caddyfile` (Plan 4, `betrieb/pruefe-begrenzung.sh`) — dieselben
+# Zonen, nur mit `:80` statt der Domain und `reverse_proxy api:3000` statt
+# `localhost:3000`, weil dort kein DNS und kein Compose-Netz-Alias gilt.
+# Weicht diese Vorlage künftig von `betrieb/Caddyfile` ab, ist die dort
+# geprüfte Fassung die Wahrheit — diese Datei zieht nach.
 #
 # Braucht das Modul caddy-ratelimit:
 #   xcaddy build --with github.com/mholt/caddy-ratelimit

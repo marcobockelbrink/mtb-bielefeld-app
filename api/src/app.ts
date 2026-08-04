@@ -251,6 +251,19 @@ interface AnfordernKoerper {
   einladungscode?: unknown;
 }
 
+/**
+ * Hinter Caddy steht in `anfrage.ip` sonst immer die Adresse des Proxys —
+ * ein einziger Eimer für den ganzen Verein, und die Begrenzung je IP wäre
+ * wertlos (`ipbegrenzung.ts`).
+ *
+ * Bewusst nicht `true`, sondern die Adresse des Proxys: `true` würde jedem
+ * geglaubt, der ein `X-Forwarded-For` mitschickt — dann setzt sich ein
+ * Angreifer für jede Anfrage eine neue Adresse und die Begrenzung ist
+ * wieder wertlos. `VERTRAUTER_PROXY` kommt aus der Umgebung; ohne den Wert
+ * bleibt es bei `false`, was für die Entwicklung ohne Proxy richtig ist.
+ */
+const vertrauterProxy = process.env.VERTRAUTER_PROXY;
+
 export function baueApp({
   pool,
   mailer,
@@ -261,7 +274,7 @@ export function baueApp({
   ipBegrenzung = new IpBegrenzung(HOECHSTENS_ANFRAGEN_JE_MINUTE, EINE_MINUTE_MS),
   terminDienst,
 }: Abhaengigkeiten): FastifyInstance {
-  const app = Fastify({ logger: protokollEinstellung });
+  const app = Fastify({ logger: protokollEinstellung, trustProxy: vertrauterProxy ?? false });
   const log = protokoll ?? app.log;
   const termine = terminDienst ?? erzeugeStandardTerminDienst(log);
 
