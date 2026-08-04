@@ -1,0 +1,55 @@
+# **Vorläufig.** Der Aufbau auf dem Server, solange Domain und Mailzugang
+# noch fehlen.
+#
+#     docker compose -f betrieb/docker-compose.yml \
+#                    -f betrieb/docker-compose.vorlaeufig.yml up -d --build
+#
+# Diese Datei ist zum **Löschen** gedacht, nicht zum Pflegen. Sobald der
+# DNS-Eintrag steht und die SMTP-Zugangsdaten da sind, tritt
+# `docker-compose.server.yml` an ihre Stelle, und diese hier verschwindet.
+#
+# ## Was dabei fehlt — und was das bedeutet
+#
+# **Kein TLS.** Für eine nackte IP-Adresse gibt es kein Zertifikat von Let's
+# Encrypt; die Caddyfile hört deshalb weiter auf `:80` wie lokal. Alles geht
+# unverschlüsselt über das Netz — auch die Magic-Link-Token aus den
+# Anmeldemails. Wer mitliest, kann sich anmelden.
+#
+# **Deshalb: In diesem Zustand darf kein echtes Vereinsmitglied eingeladen
+# werden.** Der Aufbau ist zum Prüfen da, ob Container, Datenbank,
+# Migrationen, Ratenbegrenzung und Kalenderabruf auf dieser Maschine
+# zusammenspielen. Das ist viel wert und geht ohne Domain — echte Adressen
+# gehören trotzdem erst hinein, wenn HTTPS steht.
+#
+# **Mailpit läuft mit**, statt eines echten Mailservers, und bleibt an
+# `127.0.0.1` gebunden — von außen also unerreichbar. Wer die Anmeldemails
+# sehen will, legt einen SSH-Tunnel:
+#
+#     ssh -L 8025:127.0.0.1:8025 mtb
+#
+# und öffnet dann http://localhost:8025 im eigenen Browser.
+#
+# Der Riegel aus `docker-compose.server.yml` (`SMTP_HOST:?`, der den Start
+# verweigert, wenn der Mailzugang fehlt) wird hier **nicht** umgangen — diese
+# Datei überlagert die lokale Fassung, nicht die Server-Fassung. Beide
+# zusammen zu benutzen ergibt keinen Sinn und wäre ein Widerspruch.
+
+services:
+  postgres:
+    restart: unless-stopped
+
+  api:
+    restart: unless-stopped
+
+  caddy:
+    restart: unless-stopped
+    # `!override`, weil Compose Portlisten sonst aneinanderhängt, statt sie zu
+    # ersetzen: Die lokale `127.0.0.1:80:80` bliebe stehen und Port 80 wäre
+    # doppelt belegt. Nachgemessen, nicht angenommen.
+    ports: !override
+      # Auf allen Adressen, sonst wäre der Server von außen unerreichbar.
+      # Nur 80: Ohne Domain gibt es kein Zertifikat, 443 stünde leer herum.
+      - '80:80'
+
+  mailpit:
+    restart: unless-stopped
