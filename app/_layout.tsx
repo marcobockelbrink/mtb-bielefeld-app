@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppDataProvider } from '../src/data/AppDataContext';
+import { KontoProvider } from '../src/konto/KontoContext';
 import { configureNotificationHandler } from '../src/notifications';
 import { useAppFonts } from '../src/ui/fonts';
 // Nur wegen der Nebenwirkung: Das Modul meldet den Hintergrundauftrag im
@@ -29,9 +30,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AppDataProvider>
-        <NotificationProvider>
-          <AppStack />
-        </NotificationProvider>
+        <KontoProvider>
+          <NotificationProvider>
+            <AppStack />
+          </NotificationProvider>
+        </KontoProvider>
       </AppDataProvider>
     </SafeAreaProvider>
   );
