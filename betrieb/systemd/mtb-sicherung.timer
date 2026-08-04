@@ -1,0 +1,15 @@
+[Unit]
+Description=Alle zwei Stunden sichern
+
+[Timer]
+# Alle zwei Stunden zur vollen Stunde. `Persistent` holt einen Lauf nach,
+# der ausgefallen ist, weil die Maschine aus war — sonst klafft nach jedem
+# Neustart eine Lücke, die niemand bemerkt.
+OnCalendar=*-*-* 00/2:00:00
+Persistent=true
+# Bis zu fünf Minuten Versatz: Nicht alle Aufgaben sollen gleichzeitig
+# loslaufen, und dem SFTP-Ziel tut es auch gut.
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

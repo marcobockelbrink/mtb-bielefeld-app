@@ -1,0 +1,10 @@
+[Unit]
+Description=Meldet, dass %i gescheitert ist
+
+[Service]
+Type=oneshot
+# Vorläufig nur ins Systemprotokoll und in eine Datei, die beim Anmelden
+# auffällt. Sobald der Mailzugang des Vereins eingerichtet ist, gehört hier
+# ein Versand hin — dann erfährt es jemand, ohne sich anzumelden.
+ExecStart=/bin/sh -c 'logger -t mtb-sicherung -p user.err "SICHERUNG GESCHEITERT: %i — journalctl -u %i"; \
+  echo "$(date -Is) Sicherung gescheitert (%i). Siehe: journalctl -u %i" >> /home/verein/SICHERUNG-GESCHEITERT.txt'
