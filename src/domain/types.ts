@@ -77,7 +77,7 @@ export interface ClubEvent {
    * in der Serie nennt und nicht die neue Uhrzeit. Bei einem gewöhnlichen
    * Einzeltermin leistet das die `uid` allein; dort ist dieser Wert gleich
    * `start` und würde bei einer Verschiebung mitwandern (siehe
-   * `terminSchluessel` in `api/src/termine.ts`).
+   * `terminSchluessel` in `src/domain/terminSchluessel.ts`).
    */
   originalStartInstant: number;
   /** UID aus dem Kalender. Bei Serien für alle Einzeltermine gleich. */

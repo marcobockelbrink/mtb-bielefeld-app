@@ -13,6 +13,7 @@ import { Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { CONTACT } from '../../src/config';
 import { useAppData } from '../../src/data/AppDataContext';
 import { buildSignupMailto, offersMailSignup } from '../../src/features/events/signup';
+import { TeilnahmeKarte } from '../../src/features/events/TeilnahmeKarte';
 import { categoryDisplay, font, fontSize, levelDisplay, spacing } from '../../src/theme';
 import { ActionButton, Badge, Banner, Card, DetailRow, EmptyState, LoadingState } from '../../src/ui/components';
 import { SkillSpan } from '../../src/ui/SkillSpan';
@@ -147,6 +148,14 @@ export default function TerminDetailScreen() {
           </View>
         ) : null}
       </Card>
+
+      {/*
+        Die Belegung kommt vom Server und darf fehlen, ohne dass die Ansicht
+        darunter leidet — die Karte verschwindet dann von selbst (siehe ihr
+        Dateikopf). Der Mail-Knopf danach bleibt in jedem Fall stehen: Er ist
+        die Rückfallebene, wenn die API nicht erreichbar ist.
+      */}
+      <TeilnahmeKarte event={event} />
 
       {/*
         Zwei Wege zur Anmeldung, nie beide gleichzeitig: Nennt der Verein in

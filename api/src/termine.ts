@@ -14,6 +14,7 @@
 
 import { CALENDAR_ICS_URL } from '../../src/config.ts';
 import { parseCalendar } from '../../src/data/ical/parseCalendar.ts';
+import { terminSchluessel } from '../../src/domain/terminSchluessel.ts';
 import type { ClubEvent } from '../../src/domain/types.ts';
 import { serialisiereFehler, type Protokoll } from './protokoll.ts';
 
@@ -34,30 +35,12 @@ import { serialisiereFehler, type Protokoll } from './protokoll.ts';
  */
 const FRIST_MS = 5 * 60 * 1000;
 
-/**
- * Der stabile Schlüssel eines Termins.
- *
- * Bei einem **gewöhnlichen Einzeltermin** genügt die `uid` allein — sie ist
- * im Kalender schon eindeutig, und genau sie überlebt eine Verschiebung.
- * Nähme man auch hier den Zeitanteil dazu, wäre der Schlüssel bei der
- * häufigsten Verschiebung überhaupt kaputt: Ein Einzeltermin trägt keine
- * `RECURRENCE-ID`, `originalStartInstant` ist bei ihm schlicht `start` —
- * verlegt der Guide ihn, wandert der Zeitanteil mit, der Schlüssel ändert
- * sich, und alle Anmeldungen hingen ins Leere.
- *
- * Bei **Serien** trägt jeder Einzeltermin dieselbe `uid`; erst der
- * ursprüngliche Zeitpunkt (`originalStartInstant`, aus `RECURRENCE-ID` bei
- * einem verschobenen Einzeltermin) trennt sie voneinander. Er ist dort auch
- * verschiebungsfest, denn er nennt den Platz in der Serie, nicht die neue
- * Uhrzeit.
- *
- * Der Schlüssel wird **nie geparst**, nur mit neu berechneten verglichen —
- * deshalb braucht die Tilde keine Sonderbehandlung, falls sie je in einer
- * `uid` auftauchen sollte. In URL-Pfaden steht sie unkodiert.
- */
-export function terminSchluessel(termin: ClubEvent): string {
-  return termin.recurring ? `${termin.uid}~${termin.originalStartInstant}` : termin.uid;
-}
+// Dieselbe Regel wie in der App — sie steht in `src/domain/terminSchluessel.ts`
+// und nicht hier, weil ein Schlüssel, der in beiden Welten verschieden
+// entsteht, Anmeldungen ihren Termin nicht finden lässt. Re-Export, damit
+// Aufrufe innerhalb der API (hier und in `tourenanmeldung.ts`) unverändert
+// bleiben.
+export { terminSchluessel };
 
 export interface TerminDienst {
   holeTermine(): Promise<ClubEvent[]>;

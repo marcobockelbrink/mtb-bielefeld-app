@@ -20,24 +20,32 @@
  * sondern stimmt mit der Gegenseite überein.
  *
  * **Wo die Grenze dieser Probe liegt.** Geprüft wird alles, was ohne React
- * Native läuft — `src/data/api.ts` und `src/konto/magicLink.ts`. Der
- * Kontext (`KontoContext.tsx`), die Bildschirme und das Antippen eines
+ * Native läuft — `src/data/api.ts`, `src/konto/magicLink.ts`,
+ * `src/domain/terminSchluessel.ts` und `src/features/events/teilnahmeFehler.ts`.
+ * Der Kontext (`KontoContext.tsx`), die Bildschirme und das Antippen eines
  * echten Mail-Links brauchen ein Gerät oder den Simulator; dafür ist diese
  * Probe nicht gedacht und täuscht es auch nicht vor.
  *
  * **Die Ratenbegrenzung ist scharf.** Ein Durchlauf verbraucht etwa fünf der
- * zehn Anfragen je Minute auf den Anmeldewegen. Zwei Läufe unmittelbar
- * hintereinander laufen deshalb in ein 429 — das ist die Bremse von vorhin,
- * kein kaputter Ablauf. Eine Minute warten.
+ * zehn Anfragen je Minute in der Caddy-Zone "anmeldung" (`/anmeldung/*`,
+ * `/sitzung*`, `/konto*`) und etwa fünf der zehn in der eigenen Zone
+ * "tourenanmeldung" (`POST`/`DELETE` auf `/termine/*`, `betrieb/Caddyfile`)
+ * — zwei getrennte Kontingente. Zwei Läufe unmittelbar hintereinander laufen
+ * deshalb in ein 429 — das ist die Bremse von vorhin, kein kaputter Ablauf.
+ * Eine Minute warten.
  */
 
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
+import { CALENDAR_ICS_URL } from '../src/config.ts';
 import { ApiFehler, ApiZugang } from '../src/data/api.ts';
-import { extrahiereMagicToken } from '../src/konto/magicLink.ts';
+import { parseCalendar } from '../src/data/ical/parseCalendar.ts';
 import type { TokenSpeicher } from '../src/data/tokenSpeicher.ts';
+import { terminSchluessel } from '../src/domain/terminSchluessel.ts';
+import { beschreibeTeilnahmeFehler } from '../src/features/events/teilnahmeFehler.ts';
+import { extrahiereMagicToken } from '../src/konto/magicLink.ts';
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const COMPOSE = ['compose', '-f', path.join(WURZEL, 'betrieb/docker-compose.yml')];
@@ -222,6 +230,84 @@ pruefe('DELETE ohne Körper meldet ab', nachher.belegt === vorher.belegt, {
   vorher: vorher.belegt,
   nachher: nachher.belegt,
 });
+
+// --- Terminschlüssel: App und API einig? -----------------------------------
+abschnitt('Terminschlüssel: App-seitig berechnet, von der API angenommen (Aufgabe 4)');
+
+// Kein Umweg über den Container nötig: Außerhalb des Browsers löst
+// `CALENDAR_ICS_URL` (`src/config.ts`) auf die echte Google-Kalender-Adresse
+// auf, ohne CORS-Sperre. Hier liest also dasselbe Modul denselben
+// Vereinskalender wie die App auf dem Telefon, und `terminSchluessel`
+// (`src/domain/terminSchluessel.ts`) ist seit Aufgabe 4 exakt die Funktion,
+// die auch `api/src/termine.ts` per Re-Export verwendet — kein Vergleich
+// zweier Kopien mehr, sondern die Probe, dass ein damit berechneter
+// Schlüssel bei der echten API wirklich einen Termin trifft (die Kodierung
+// mit `encodeURIComponent` eingeschlossen, wegen des `@` in der `uid`).
+const rohkalenderFuerSchluessel = await fetch(CALENDAR_ICS_URL).then((r) => r.text());
+const eigeneTermine = parseCalendar(rohkalenderFuerSchluessel);
+const naechsterEigener = eigeneTermine.find(
+  (t) => !t.cancelled && t.start.getTime() > Date.now(),
+);
+if (!naechsterEigener) {
+  console.error('FEHLGESCHLAGEN: kein anstehender, nicht abgesagter Termin im echten Kalender.');
+  process.exit(1);
+}
+const eigenerSchluessel = terminSchluessel(naechsterEigener);
+const belegungEigenerTermin = await fetch(
+  `${BASIS}/termine/${encodeURIComponent(eigenerSchluessel)}`,
+);
+pruefe(
+  'GET /termine/:schluessel nimmt den App-seitig berechneten Schlüssel an (200, kein 404)',
+  belegungEigenerTermin.status === 200,
+  belegungEigenerTermin.status,
+);
+
+// --- Fehler der Tourenanmeldung: verständlich übersetzt? -------------------
+abschnitt('beschreibeTeilnahmeFehler gegen echte Antworten der API (Aufgabe 4)');
+
+await api.sende(pfad, 'POST');
+try {
+  await api.sende(pfad, 'POST');
+  pruefe('Eine zweite Anmeldung zum selben Termin wird abgelehnt', false);
+} catch (fehler) {
+  pruefe('Sie wirft einen ApiFehler mit Status 409', fehler instanceof ApiFehler && fehler.status === 409, fehler instanceof ApiFehler ? fehler.status : fehler);
+  pruefe(
+    'beschreibeTeilnahmeFehler reicht „Du bist schon angemeldet." unverändert durch',
+    beschreibeTeilnahmeFehler(fehler) === 'Du bist schon angemeldet.',
+    beschreibeTeilnahmeFehler(fehler),
+  );
+}
+// Aufräumen: der Termin soll wieder im Ausgangszustand stehen.
+await api.sende(`${pfad}/ich`, 'DELETE');
+
+// Abmelden ohne gültige Sitzung — ein frischer, nie eingeloggter Zugang.
+let ohneToken: string | null = null;
+const anonymerSpeicher: TokenSpeicher = {
+  lies: async () => ohneToken,
+  schreib: async (token) => {
+    ohneToken = token;
+  },
+  loesche: async () => {
+    ohneToken = null;
+  },
+};
+const anonymerZugang = new ApiZugang({ basisUrl: BASIS, speicher: anonymerSpeicher });
+try {
+  await anonymerZugang.sende(`${pfad}/ich`, 'DELETE');
+  pruefe('Abmelden ohne Sitzung wird abgelehnt', false);
+} catch (fehler) {
+  pruefe(
+    'Sie wirft einen ApiFehler mit Status 401',
+    fehler instanceof ApiFehler && fehler.status === 401,
+    fehler instanceof ApiFehler ? fehler.status : fehler,
+  );
+  pruefe(
+    'beschreibeTeilnahmeFehler nennt den nächsten Schritt (neu anmelden), nicht nur „Nicht angemeldet."',
+    beschreibeTeilnahmeFehler(fehler) ===
+      'Deine Anmeldung ist nicht mehr gültig. Melde dich unter Einstellungen erneut an.',
+    beschreibeTeilnahmeFehler(fehler),
+  );
+}
 
 // --- Der Fehlerweg ---------------------------------------------------------
 abschnitt('Fehler: kommen sie auf Deutsch und als ApiFehler an?');
