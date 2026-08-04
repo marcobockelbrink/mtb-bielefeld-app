@@ -85,9 +85,31 @@ jobs:
         with:
           node-version: 26
           cache: npm
-          cache-dependency-path: api/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            api/package-lock.json
 
       - name: Abhängigkeiten installieren
+        run: npm ci
+
+      # Auch die der Wurzel, obwohl hier nur die API geprüft wird.
+      #
+      # Die API bindet die geteilten Module aus der Projektwurzel ein
+      # (`src/config.ts`, `src/data/ical/`, `src/domain/`). Für eine Datei
+      # dort sucht vitest die nächstgelegene `tsconfig.json` — und das ist die
+      # der App, die `expo/tsconfig.base` erweitert. Ohne die Wurzel-Pakete
+      # scheitert deshalb schon das Übersetzen:
+      #
+      #     [TSCONFIG_ERROR] Failed to load tsconfig 'expo/tsconfig.base'
+      #
+      # Lokal fiel das nie auf, weil auf dem Entwicklungsrechner beide
+      # Installationen nebeneinanderliegen. Genau darin lag der Fehler: Dieser
+      # Auftrag war schlanker als die Wirklichkeit, und deshalb war die CI vom
+      # 3. bis 4. August rot, während `cd api && npm test` durchlief. Ein
+      # Prüflauf, der weniger installiert als die Entwicklung, prüft etwas
+      # anderes als das, was gebaut wird.
+      - name: Abhängigkeiten der Wurzel (für die geteilten Module)
+        working-directory: .
         run: npm ci
 
       # Ein Dienst-Container startet Postgres, führt aber
