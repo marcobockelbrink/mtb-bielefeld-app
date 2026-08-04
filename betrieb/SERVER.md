@@ -169,9 +169,9 @@ Stand nach der Einrichtung: Docker 29.7.1, Compose v5.4.0.
 
 ## Der Aufbau läuft — vorläufig
 
-Seit dem 5. August läuft der Betriebsaufbau auf dieser Maschine, aber in der
-**vorläufigen** Fassung (`betrieb/docker-compose.vorlaeufig.yml`), weil Domain
-und Mailzugang noch fehlen:
+Seit dem 5. August läuft der Betriebsaufbau unter **https://api.bockelbrink.net**
+(Testdomain; die Vereinsdomain kommt später). Noch in der **vorläufigen**
+Fassung, weil der Mailzugang fehlt:
 
 ```bash
 cd ~/mtb-bielefeld-app
@@ -179,17 +179,23 @@ docker compose -f betrieb/docker-compose.yml \
                -f betrieb/docker-compose.vorlaeufig.yml up -d --build
 ```
 
-Geprüft und bestanden: API antwortet über das Netz (`http://169.58.129.20/gesundheit`),
-sechs Tabellen migriert, `pruefe-begrenzung.sh` und `pruefe-ablauf.sh` beide
-mit 0 — samt echtem Kalenderabruf aus dem Container und dem vollständigen
-Anmeldeablauf über Mailpit.
+Der Domainname steht in `betrieb/.env` als `API_DOMAIN` und wird von dort in
+die Caddyfile gereicht — beim Umzug auf die Vereinsdomain ändert sich eine
+Zeile, keine Datei im Repository.
 
-> **In diesem Zustand darf kein echtes Vereinsmitglied eingeladen werden.**
-> Ohne Domain gibt es kein Zertifikat; alles läuft unverschlüsselt, auch die
-> Magic-Link-Token. Praktisch ist der Aufbau derzeit geschlossen — ohne
-> Einladungscode kommt niemand hinein, und Mails gehen ausschließlich an
-> Mailpit, verlassen die Maschine also nicht. Aber verlassen sollte sich
-> darauf niemand.
+| Geprüft | Ergebnis |
+| --- | --- |
+| Zertifikat | Let's Encrypt, per HTTP-01 geholt, gültig bis 2. November; Caddy verlängert selbst |
+| `https://…/gesundheit` | 200 in 62 ms |
+| HTTP → HTTPS | 308 Umleitung |
+| Migrationen | sechs Tabellen |
+| `pruefe-begrenzung.sh` | 0, auch über HTTPS — inklusive `trustProxy` in beide Richtungen |
+| `pruefe-ablauf.sh` | 0 über HTTPS — Einladungscode, Mail, Link, Konto, an- und abmelden |
+| Reverse-DNS | `169.58.129.20` → `api.bockelbrink.net` → `169.58.129.20` (FCrDNS stimmt) |
+
+> **In diesem Zustand darf kein echtes Vereinsmitglied eingeladen werden** —
+> nicht mehr wegen fehlender Verschlüsselung, die steht jetzt, sondern weil
+> niemand je einen Anmeldelink bekäme. Er landet in Mailpit auf dem Server.
 
 Anmeldemails ansehen (Mailpit hört nur auf `127.0.0.1`):
 
@@ -198,13 +204,22 @@ ssh -L 8025:127.0.0.1:8025 mtb
 # dann im eigenen Browser: http://localhost:8025
 ```
 
+### Zum Reverse-DNS
+
+Ist eingerichtet und stimmt in beide Richtungen. **Für diesen Aufbau ist es
+allerdings nicht tragend:** Die API verschickt nicht selbst, sondern meldet
+sich als Klient beim Mailserver des Vereins an — nach außen sendet weiterhin
+dieser, und geprüft wird dessen Adresse, nicht die hier. Gut, dass es steht;
+gebraucht würde es erst, wenn dieser Server jemals selbst zustellen soll. Das
+ist nicht geplant.
+
 ## Was noch nicht eingerichtet ist
 
-- **Domain, DNS und TLS** — Plan 4b, Aufgabe 4. Ein `A`-Eintrag auf diese
-  Adresse, dann `docker-compose.server.yml` statt der vorläufigen Fassung.
-  Caddy holt das Zertifikat selbst.
 - **Der Mailzugang des Vereins** — Host, Port, Benutzer, Passwort in die
-  `.env`. Erst danach bekommt ein Mensch je einen Anmeldelink.
+  `.env`. Erst danach bekommt ein Mensch je einen Anmeldelink, und erst
+  danach tritt `docker-compose.server.yml` an die Stelle der vorläufigen
+  Fassung.
+- **Die Vereinsdomain** — `API_DOMAIN` in der `.env` umstellen, mehr nicht.
 - **Backups** — Plan 4b, Aufgabe 5. **Nichts wird gesichert, solange das
   fehlt.** Solange nur Testkonten in der Datenbank liegen, ist das
   verschmerzbar; ab dem ersten echten Mitglied nicht mehr.
