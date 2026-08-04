@@ -123,8 +123,9 @@ echo "Ablauf gegen $BASIS, Postfach unter $MAILPIT."
 
 # --- Schritt 0: Vorprüfung ------------------------------------------------
 schritt "Vorprüfung: Läuft der Aufbau?"
-GESUNDHEIT=$(curl -s -o /tmp/mtbie-gesundheit.$$ -w '%{http_code}' "$BASIS/gesundheit" 2>/dev/null)
-KOERPER=$(cat /tmp/mtbie-gesundheit.$$ 2>/dev/null); rm -f /tmp/mtbie-gesundheit.$$
+ANTWORT_DATEI=$(mktemp)
+GESUNDHEIT=$(curl -s -o "$ANTWORT_DATEI" -w '%{http_code}' "$BASIS/gesundheit" 2>/dev/null)
+KOERPER=$(cat "$ANTWORT_DATEI"); rm -f "$ANTWORT_DATEI"
 erwarte_status 200 "$GESUNDHEIT" "$KOERPER"
 
 # --- Schritt 1: Einladungscode erzeugen -----------------------------------
