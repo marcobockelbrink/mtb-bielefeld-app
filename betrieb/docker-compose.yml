@@ -1,28 +1,23 @@
 # Der vollständige Betriebsaufbau auf dem Entwicklungsrechner.
 #
-# Dieselbe Datei trägt später den Server. Was hier zusammenspielt, spielt
-# dort zusammen — aber vier Stellen müssen sich ändern, und sie stehen hier,
-# damit aus „Simulation" kein Selbstbetrug wird:
-#
-#   1. `SMTP_HOST: mailpit` und `SMTP_PORT: '1025'` stehen unten fest
-#      verdrahtet, nicht in der `.env` — Mailpit ist ein Fänger, kein
-#      Anbieter. Auf dem Server treten Host, Port, Benutzer und Passwort
-#      eines echten Anbieters an ihre Stelle und gehören dann in die `.env`.
-#      Der Dienst `mailpit` selbst entfällt.
-#   2. `ports: '127.0.0.1:80:80'` bei Caddy bindet bewusst nur auf die
-#      Rückschleife — lokal richtig, auf einem Server wäre der Dienst so von
-#      außen unerreichbar. Dort `'80:80'` und `'443:443'`.
-#   3. Kein `restart:`. Lokal soll nichts von selbst wieder hochkommen; auf
-#      einem Server gehört an jeden Dienst `restart: unless-stopped`, sonst
-#      übersteht der Aufbau keinen Neustart der Maschine.
-#   4. Der Domainname in der `Caddyfile` (dort im Kopf beschrieben).
-#
-# Das ist die Liste für Plan 4b. Wer hier etwas ergänzt, das lokal anders
-# sein muss als auf dem Server, schreibt es dazu.
-#
 #   docker compose -f betrieb/docker-compose.yml up --build
 #
 # Danach: API über http://localhost, Postfach über http://localhost:8025
+#
+# Was auf dem Server anders ist, steht daneben in
+# `docker-compose.server.yml` und wird darübergelegt:
+#
+#     docker compose -f betrieb/docker-compose.yml \
+#                    -f betrieb/docker-compose.server.yml up -d --build
+#
+# Eine Überlagerung und keine zweite Vollfassung: So bleibt der Unterschied
+# an einer Stelle und in dreißig Sekunden lesbar, statt beim ersten Ändern
+# auseinanderzulaufen. Wer hier etwas ergänzt, das auf dem Server anders sein
+# muss, trägt es dort ein — nicht als Kommentar hierher.
+#
+# Was dort geändert wird: Portbindung und 443, `restart: unless-stopped`, die
+# Caddyfile mit dem Domainnamen, SMTP ohne Rückfall auf Mailpit, und Mailpit
+# selbst läuft nicht mit.
 
 services:
   postgres:

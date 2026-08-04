@@ -1,0 +1,78 @@
+# Was auf dem Server anders ist als lokal — und nur das.
+#
+#     docker compose -f betrieb/docker-compose.yml \
+#                    -f betrieb/docker-compose.server.yml up -d --build
+#
+# **Bewusst eine Überlagerung und keine Kopie.** Eine zweite vollständige
+# Datei liefe beim ersten Ändern auseinander, ohne dass es jemand merkt —
+# und dann stimmt der Satz „was hier zusammenspielt, spielt dort zusammen"
+# nicht mehr. So steht der Unterschied an einer Stelle und ist in dreißig
+# Sekunden zu lesen.
+#
+# Wer hier etwas ergänzt, prüfe zuerst, ob es nicht in die `.env` gehört:
+# Werte, die sich zwischen zwei Servern unterscheiden, haben in einer
+# versionierten Datei nichts verloren. Hierher gehört nur, was sich zwischen
+# *Entwicklungsrechner* und *Server* unterscheidet.
+
+services:
+  postgres:
+    restart: unless-stopped
+
+  api:
+    restart: unless-stopped
+    environment:
+      # Kein Rückfall auf Mailpit — hier muss die `.env` liefern.
+      #
+      # Die lokale Datei setzt `${SMTP_HOST:-mailpit}`, damit der
+      # Entwicklungsaufbau ohne Zutun läuft. Auf einem Server wäre genau das
+      # eine Falle: Vergisst jemand die vier Zeilen in der `.env`, zeigte die
+      # Vorgabe auf einen Rechner namens `mailpit`, den es dort nicht gibt.
+      # Die API liefe an, `/anmeldung/anfordern` antwortete weiterhin mit 202
+      # — die Antwort ist absichtlich immer dieselbe —, und **kein Mensch
+      # bekäme je einen Link**. Sichtbar wäre das nur im Protokoll.
+      #
+      # `:?` dreht das um: Fehlt der Wert, startet der Dienst gar nicht erst
+      # und sagt warum. Ein Aufbau, der nicht anläuft, ist unangenehm; einer,
+      # der scheinbar läuft und stumm keine Mail verschickt, ist schlimmer.
+      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST fehlt in betrieb/.env — ohne Mailserver kann sich niemand anmelden}
+      SMTP_PORT: ${SMTP_PORT:?SMTP_PORT fehlt in betrieb/.env (587 für STARTTLS, 465 für TLS)}
+      # Benutzer und Passwort bleiben ohne `:?`: Ein Mailserver, der dem
+      # eigenen Netz ohne Anmeldung vertraut, ist ungewöhnlich, aber möglich.
+      # Das zu erzwingen wäre eine Annahme über fremde Technik.
+      SMTP_BENUTZER: ${SMTP_BENUTZER:-}
+      SMTP_PASSWORT: ${SMTP_PASSWORT:-}
+
+  caddy:
+    restart: unless-stopped
+    # `!override` und nicht bloß `ports:` — nachgemessen, nicht angenommen:
+    # Compose **verschmilzt** Listen aus Überlagerungsdateien, statt sie zu
+    # ersetzen. Ohne diese Angabe stünde in der zusammengeführten Fassung
+    # sowohl `127.0.0.1:80:80` aus der lokalen Datei als auch `80:80` von
+    # hier — Port 80 doppelt belegt, und der Aufbau käme gar nicht erst hoch.
+    # Genau so sah es aus, bevor das hier stand.
+    ports: !override
+      # Lokal auf 127.0.0.1 gebunden — dort soll nichts aus dem Netz
+      # hereinkommen. Hier auf alle Adressen, sonst wäre der Dienst von außen
+      # unerreichbar und der ganze Server sinnlos.
+      #
+      # 443 kommt dazu: Darüber läuft aller Verkehr. Port 80 bleibt trotzdem
+      # offen, denn Caddy braucht ihn für den Zertifikatsnachweis bei Let's
+      # Encrypt und leitet von dort auf 443 um. Wer 80 zumacht, bekommt beim
+      # nächsten Verlängern kein Zertifikat mehr — und merkt es erst, wenn es
+      # abgelaufen ist.
+      - '80:80'
+      - '443:443'
+    volumes:
+      # Dieselben Zonen wie lokal, nur mit dem Domainnamen statt `:80`.
+      - ./Caddyfile.server:/etc/caddy/Caddyfile:ro
+
+  # Mailpit fängt Mail ab, statt sie zuzustellen. Auf einem Server wäre das
+  # die stille Variante von „es geht keine Mail raus" — der Anmeldeablauf
+  # sähe von außen fehlerfrei aus, und niemand bekäme je einen Link.
+  #
+  # Ein Profil nimmt den Dienst aus dem Standardlauf: Compose startet einen
+  # Dienst mit `profiles` nur, wenn das Profil ausdrücklich angefordert wird
+  # (`--profile nur-lokal`). Die lokale Datei setzt keines, dort läuft er
+  # also normal weiter.
+  mailpit:
+    profiles: ['nur-lokal']
