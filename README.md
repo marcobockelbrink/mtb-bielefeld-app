@@ -16,6 +16,13 @@ Termine, Aktuelles und Vereinsinfos — aus den Daten, die der Verein ohnehin pf
 > Umgebung, in der die Aufnahmen entstanden: Dort hatte der Browser keinen
 > direkten Netzzugang. Auf einem normalen Rechner sind die Bilder da.
 
+Die Anmeldung als Mitglied und die Tourenanmeldung sind auf einem echten
+iOS-System aufgenommen (iPhone 17 Pro, iOS 26.5):
+
+| Nach dem Anmeldelink | Angemeldet | Zu einer Tour eintragen |
+| --- | --- | --- |
+| ![Terminliste, auf der der angetippte Anmeldelink landet](docs/screenshots/simulator-nach-magiclink.png) | ![Einstellungen mit der Karte „Mein Konto" und dem Zustand „Du bist angemeldet"](docs/screenshots/simulator-angemeldet.png) | ![Terminansicht mit der Belegung und dem Knopf „Ich bin dabei", darunter der Mail-Knopf](docs/screenshots/simulator-teilnahme.png) |
+
 ## Worum es geht
 
 Der Verein hat einen guten Kalender und eine gute Website. Was fehlt, ist die
@@ -64,7 +71,16 @@ Frage von zwei Fingertipps — im Kalender-Abo ist sie unbeantwortbar.
   wie der Verein sie vergibt. Ein Tipp auf „Racing" zeigt die Rennberichte,
   sonst nichts.
 - **Verein & Mitmachen** — Angebote, Beiträge, Mitglied werden, Kontakt.
-- **Funktioniert ohne Empfang** — im Wald zählt, was auf dem Gerät liegt.
+- **Anmelden ohne Passwort** — wer im Verein ist, gibt seine Adresse ein und
+  bekommt einen Link per Mail. Beim ersten Mal braucht es zusätzlich einen
+  Einladungscode; danach genügt die Adresse. Wer sich nie anmeldet, sieht die
+  App wie bisher — nichts drängt sich auf.
+- **Zu Touren eintragen** — die Terminansicht zeigt, wie viele Plätze belegt
+  sind, und ein Tipp trägt ein oder wieder aus. Der Mail-Knopf bleibt daneben
+  bestehen: Ohne Netz ist der Mail-Entwurf die einzige Anmeldung, die noch geht.
+- **Funktioniert ohne Empfang** — im Wald zählt, was auf dem Gerät liegt. Auch
+  ohne den Vereinsserver: Termine, Filter, Aktuelles und Erinnerungen kommen
+  ohne ihn aus. Dann fehlt nur die Belegung.
 
 ## Woher die Daten kommen
 
@@ -266,9 +282,40 @@ src/
 tests/                   Tests, u.a. gegen echte Kalenderdaten
 ```
 
+## Der Vereinsserver
+
+Für alles außer Anmeldung und Tourenanmeldung braucht die App **keinen**
+eigenen Server — Termine und Beiträge holt sie direkt bei Google und der
+Website. Der Server ist ein Zusatz. Fällt er aus, fehlt die Belegung; der Rest
+bleibt.
+
+Er liegt unter `api/` (Fastify, Postgres, rohes SQL ohne ORM) und läuft für die
+Entwicklung vollständig in Docker:
+
+```bash
+cp betrieb/.env.beispiel betrieb/.env
+docker compose -f betrieb/docker-compose.yml up --build
+```
+
+Vier Container: Postgres, die API, Caddy als Proxy davor und Mailpit als
+Postfach daneben. Danach ist die API über `http://localhost` erreichbar und
+jede verschickte Mail unter `http://localhost:8025` zu sehen — nichts geht
+nach draußen. `betrieb/LIESMICH.md` führt den Anmeldeablauf in fünf Schritten
+von Hand vor.
+
+Ein Wort zur Anmeldung: **Es gibt keine Passwörter.** Wer sich anmeldet,
+bekommt einen Link per Mail. Die App hält danach zwei Token — eines gilt 15
+Minuten und lebt nur im Arbeitsspeicher, das andere gilt 60 Tage und liegt im
+Schlüsselbund des Geräts. In der Datenbank stehen ausschließlich Hashes.
+
+Warum das so gebaut ist und woran man sich beim Ändern die Finger verbrennt,
+steht in **[docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md)**.
+
 ## Über die Tests
 
-149 Tests, die ohne Gerät und ohne Netz laufen. Nennenswert:
+240 Tests, die ohne Gerät und ohne Netz laufen — in einem Bruchteil einer
+Sekunde. Dazu 171 Tests der API (`cd api && npm test`, gegen ein lokales
+Postgres). Nennenswert:
 
 - **Echte Daten als Prüfstein.** `tests/fixtures/kalender-auszug.ics` ist ein
   eingefrorener Auszug des Vereinskalenders — bewusst mit den kniffligen Fällen:
@@ -302,12 +349,50 @@ nebeneinander. Ursache war `Link asChild` — es ersetzt das äußere Element, w
 dessen Stil verlorengeht. Tests, Typprüfung und Bündeln waren dabei die ganze
 Zeit grün.
 
+### Und warum `npm run rauchprobe` dazugehört
+
+Die Testsuite stellt `fetch` selbst — und eine Attrappe antwortet immer so, wie
+der Schreibende es erwartet hat. `npm run rauchprobe` lässt stattdessen
+**dieselben Module, die auf dem Telefon laufen**, gegen den laufenden
+Docker-Aufbau arbeiten: Einladungscode, echte Mail aus Mailpit, Link einlösen,
+Konto abfragen, zu einem echten Termin an- und abmelden.
+
+Auch das hat sofort etwas gefunden, das siebzehn grüne Tests nicht sahen: Der
+API-Zugang setzte `content-type: application/json` auch ohne Anfragekörper.
+Fastify weist so etwas mit 400 ab, noch bevor das Token geprüft wird — die
+Tourenanmeldung hätte auf keinem Gerät je funktioniert.
+
+Vier Stufen, und jede sieht etwas, das die davor nicht sehen kann:
+
+| Befehl | Sieht | Ist blind für |
+| --- | --- | --- |
+| `npm test` | Rechenlogik | alles, was ein Gerät oder einen Server braucht |
+| `npm run typecheck` | Typfehler | ob es sich sinnvoll verhält |
+| `npm run vorschau` | ob die Oberfläche etwas darstellt | ob sie mit der API zusammenspielt |
+| `npm run rauchprobe` | die echten Module gegen die echte API | React Native, Bildschirme, angetippte Links |
+
+Was keine der vier sieht, ist ein angetippter Link. Genau dort steckte der
+letzte Fehler: Der Anmeldelink landete auf expo-routers englischem
+Notbildschirm „Unmatched Route", weil die Route dafür fehlte. Die Anmeldung
+gelang im Hintergrund — sichtbar war eine Fehlerseite in einer fremden
+Sprache. Gefunden hat es erst der Simulator.
+
 ## Was noch offen ist
 
-- **Auf echten Geräten testen.** Termine, Filter und Auswertung sind geprüft;
-  Erinnerungen und Hintergrund-Aktualisierung sind bisher nur als Rechenlogik
-  getestet, nicht auf einem Gerät. Vor der Veröffentlichung nötig. Zum Auslösen
-  ohne Warten hilft `BackgroundTask.triggerTaskWorkerForTestingAsync()`.
+- **Der Vereinsserver läuft nur lokal.** Domain, Zertifikat, ein Mailanbieter
+  mit Sitz in der EU samt SPF, DKIM und DMARC, SSH-Härtung, Firewall und
+  Backups mit regelmäßiger Rücksicherungsprobe stehen noch aus. Die vier
+  Stellen, die sich dafür ändern müssen, sind im Kopf von
+  `betrieb/docker-compose.yml` aufgezählt. Dazu die rechtlichen Punkte
+  (Verzeichnis von Verarbeitungstätigkeiten, Auftragsverarbeitungsvertrag,
+  neue Datenschutzerklärung) — und die Frage, die noch niemand beantwortet
+  hat: **Wer betreibt das auf Dauer?**
+- **Erinnerungen auf einem echten Gerät.** Anmeldung und Tourenanmeldung sind
+  auf dem Simulator geprüft; Erinnerungen und Hintergrund-Aktualisierung
+  bisher nur als Rechenlogik. Die App verzichtet bewusst auf die
+  Push-Berechtigung — lokale Erinnerungen sollten sie nicht brauchen, geprüft
+  ist das aber nie. Zum Auslösen ohne Warten hilft
+  `BackgroundTask.triggerTaskWorkerForTestingAsync()`.
 - **Symbole auf echten Geräten ansehen.** App-Symbol und Startbild stammen aus
   dem Vereinslogo (siehe unten), sind aber bisher nur als Bilddatei geprüft —
   nicht auf einem Startbildschirm.
