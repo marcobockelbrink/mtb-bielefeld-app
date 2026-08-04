@@ -5,13 +5,10 @@
 import { baueApp } from './app.ts';
 import { raeumeAuf } from './aufraeumen.ts';
 import { pool } from './datenbank.ts';
-// Der echte Mailversand ist noch offen (siehe `mailer.ts`, Plan 4). Bis
-// dahin scheitert ein Anmeldeversuch laut statt eine Mail vorzutäuschen,
-// die nie ankommt.
-import { NichtEingerichteterMailer } from './mailer.ts';
+import { NichtEingerichteterMailer, waehleMailer } from './mailer.ts';
 
 const port = Number(process.env.PORT ?? 3000);
-const mailer = new NichtEingerichteterMailer();
+const mailer = waehleMailer();
 const app = baueApp({ pool, mailer });
 
 try {
