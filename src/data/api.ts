@@ -44,6 +44,8 @@ export class ApiZugang {
   readonly #fetch: typeof fetch;
   /** Nur im Arbeitsspeicher — nie auf der Platte. */
   #zugang: string | null = null;
+  /** Läuft schon eine Erneuerung, teilen sich weitere Aufrufer ihr Ergebnis. */
+  #erneuerungLaeuft: Promise<boolean> | null = null;
 
   constructor({ basisUrl, speicher, fetchImpl }: ApiAbhaengigkeiten) {
     this.#basisUrl = basisUrl.replace(/\/$/, '');
@@ -58,8 +60,35 @@ export class ApiZugang {
       return await this.#fetch(`${this.#basisUrl}${pfad}`, {
         ...init,
         signal: controller.signal,
-        headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
+        headers: {
+          ...(init.headers ?? {}),
+          // Nur setzen, wenn wirklich ein Körper mitgeht. Fastify weist eine
+          // Anfrage mit dieser Kopfzeile, aber leerem Körper schon vor jeder
+          // eigenen Prüfung ab (FST_ERR_CTP_EMPTY_JSON_BODY) — noch bevor
+          // das Token geprüft wird. Genau das trifft `sende(pfad, 'POST')`
+          // und `sende(pfad, 'DELETE')` ohne `koerper`, etwa die Tour- und
+          // die Abmelde-Anfrage der Tourenanmeldung: Beide lesen laut
+          // `api/src/app.ts` keinen Körper. Stünde die Kopfzeile immer da,
+          // käme keine der beiden Anfragen je durch — die Tourenanmeldung
+          // funktionierte nie.
+          ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}),
+        },
       });
+    } catch (fehler) {
+      // `fetch` selbst schlägt fehl: kein Netz, DNS-Fehler, abgebrochene
+      // Verbindung — oder unser eigener Abbruch nach ZEITGRENZE_MS. Das ist
+      // im Wald der Normalfall, kein Ausnahmezustand, und muss deshalb
+      // genauso als `ApiFehler` bei der Person ankommen wie jede Antwort
+      // der API — sonst sähe sie einen englischen "TypeError: Failed to
+      // fetch" oder gar nichts. Status 0, weil nie eine Antwort vom Server
+      // eintraf, also auch kein echter Statuscode existiert.
+      const abgebrochen = fehler instanceof Error && fehler.name === 'AbortError';
+      throw new ApiFehler(
+        0,
+        abgebrochen
+          ? 'Die Anfrage hat zu lange gedauert. Bitte prüfe deine Verbindung.'
+          : 'Keine Verbindung zum Server. Bitte prüfe deine Verbindung.',
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -69,14 +98,31 @@ export class ApiZugang {
   async #auswerten<T>(antwort: Response): Promise<T> {
     const koerper = (await antwort.json().catch(() => ({}))) as Record<string, unknown>;
     if (!antwort.ok) {
-      throw new ApiFehler(
-        antwort.status,
-        typeof koerper.fehler === 'string' ? koerper.fehler : 'Da ist etwas schiefgegangen.',
-        {
-          belegt: typeof koerper.belegt === 'number' ? koerper.belegt : undefined,
-          plaetze: typeof koerper.plaetze === 'number' ? koerper.plaetze : null,
-        },
-      );
+      // `fehler` ist unser eigenes Feld. Anfragen, die schon Fastify selbst
+      // abweist — bevor unser Code überhaupt läuft, etwa bei einem falsch
+      // gesetzten `content-type` — kommen stattdessen mit `message` herein.
+      // Ohne diesen zweiten Blick sähe die Person bei einem Protokollfehler
+      // nur "Da ist etwas schiefgegangen." statt eines Hinweises.
+      const nachricht =
+        typeof koerper.fehler === 'string'
+          ? koerper.fehler
+          : typeof koerper.message === 'string'
+            ? koerper.message
+            : 'Da ist etwas schiefgegangen.';
+
+      // `plaetze` nur übernehmen, wenn die Antwort es wirklich mitschickt.
+      // `null` heißt in der API "unbegrenzt viele Plätze"
+      // (`api/src/app.ts`) — würden wir es auch dann setzen, wenn das Feld
+      // schlicht fehlt (etwa bei 404, "Termin gibt es nicht"), sähe ein
+      // nicht existierender Termin wie einer ohne Platzgrenze aus.
+      const plaetzeWert = koerper.plaetze;
+      const plaetze =
+        typeof plaetzeWert === 'number' ? plaetzeWert : plaetzeWert === null ? null : undefined;
+
+      throw new ApiFehler(antwort.status, nachricht, {
+        belegt: typeof koerper.belegt === 'number' ? koerper.belegt : undefined,
+        plaetze,
+      });
     }
     return koerper as T;
   }
@@ -126,8 +172,53 @@ export class ApiZugang {
     }
   }
 
-  /** Zieht ein neues Zugangs-Token nach. `false`, wenn das nicht mehr geht. */
-  async #erneuern(): Promise<boolean> {
+  /**
+   * Zieht ein neues Zugangs-Token nach — geteilt zwischen gleichzeitigen
+   * Aufrufern.
+   *
+   * Ohne dieses Teilen wäre der Normalfall der Fehlerfall: Nach 15 Minuten
+   * Ruhe treffen beim Öffnen der App typischerweise mehrere Anfragen
+   * gleichzeitig auf ein abgelaufenes Zugangs-Token — etwa Kontoabfrage und
+   * Belegung nebeneinander. Schickte jede ihr eigenes Erneuerungs-Token los,
+   * träfe die zweite auf die Wiederverwendungserkennung in
+   * `api/src/sitzung.ts`: Die hält ein zweimal benutztes Erneuerungs-Token
+   * für gestohlen und löscht *alle* Sitzungen des Mitglieds — das gerade
+   * erst frisch geschriebene eingeschlossen. Läuft schon eine Erneuerung,
+   * warten weitere Aufrufer auf ihr Ergebnis, statt eine zweite loszuschicken.
+   *
+   * Bewusst kein `async`: Die Zuweisung an `#erneuerungLaeuft` muss
+   * synchron passieren, bevor irgendein `await` die Kontrolle abgibt —
+   * sonst könnten zwei gleichzeitige Aufrufer die Prüfung `if
+   * (!this.#erneuerungLaeuft)` beide noch als „leer" sehen und doch zwei
+   * Erneuerungen lostreten.
+   */
+  #erneuern(): Promise<boolean> {
+    if (!this.#erneuerungLaeuft) {
+      this.#erneuerungLaeuft = this.#erneuernJetzt().finally(() => {
+        this.#erneuerungLaeuft = null;
+      });
+    }
+    return this.#erneuerungLaeuft;
+  }
+
+  /**
+   * Die eigentliche Erneuerung — zwei Fehlerarten, zwei Antworten.
+   *
+   * Das Naheliegende („jeder Fehlschlag heißt: Sitzung tot, Schlüsselbund
+   * räumen") ist hier falsch:
+   *
+   * - **401** — das Erneuerungs-Token selbst gilt nicht mehr (abgelaufen,
+   *   schon verbraucht, serverseitig widerrufen). Nur dann ist die Sitzung
+   *   wirklich vorbei.
+   * - **alles andere** (429 durch die Ratenbegrenzung, 5xx, …) — ein
+   *   vorübergehendes Problem des Servers oder der IP-Notbremse
+   *   (`api/src/app.ts`), nicht des Tokens. Ein Vereins-WLAN hinter einer
+   *   NAT reicht, um mehrere Geräte gemeinsam über diese Grenze laufen zu
+   *   lassen. Würde hier jeder Fehlschlag löschen, verlöre ein Mitglied sein
+   *   60 Tage gültiges Token wegen eines Servers, der gerade nur überlastet
+   *   ist — eine stille Zwangsabmeldung, die niemand versteht.
+   */
+  async #erneuernJetzt(): Promise<boolean> {
     const erneuerung = await this.#speicher.lies();
     if (!erneuerung) return false;
 
@@ -135,12 +226,13 @@ export class ApiZugang {
       method: 'POST',
       body: JSON.stringify({ erneuerung }),
     });
-    if (!antwort.ok) {
-      // Das Erneuerungs-Token gilt nicht mehr — dann ist die Sitzung vorbei.
+    if (antwort.status === 401) {
       this.#zugang = null;
       await this.#speicher.loesche();
       return false;
     }
+    if (!antwort.ok) return false;
+
     const paar = (await antwort.json()) as { zugang: string; erneuerung: string };
     this.#zugang = paar.zugang;
     await this.#speicher.schreib(paar.erneuerung);
