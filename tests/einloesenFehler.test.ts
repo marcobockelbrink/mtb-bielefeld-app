@@ -22,9 +22,12 @@ describe('beschreibeEinloesenFehler', () => {
     );
   });
 
-  it('erklärt eine Ratenbegrenzung (Status 429) als vorübergehend', () => {
+  it('rät bei einer Ratenbegrenzung zum Warten — mit demselben Satz wie überall sonst', () => {
+    // Vorher fiel dieser Fall auf den allgemeinen Text zurück. Dieselbe Lage
+    // hieß dadurch je nach Bildschirm etwas anderes, und ausgerechnet der
+    // Rat, der hier hilft — eine Minute warten —, fehlte.
     expect(beschreibeEinloesenFehler(new ApiFehler(429, 'Zu viele Versuche.'))).toBe(
-      'Der Verein ist gerade nicht erreichbar. Versuch es später noch einmal.',
+      'Zu viele Versuche hintereinander. Warte eine Minute und probier es dann noch einmal.',
     );
   });
 

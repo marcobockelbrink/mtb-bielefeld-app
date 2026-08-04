@@ -18,10 +18,21 @@
  */
 
 import { ApiFehler } from '../data/api';
+import { NICHT_ERREICHBAR, ZU_VIELE_VERSUCHE } from '../features/events/teilnahmeFehler';
 
 export function beschreibeEinloesenFehler(fehler: unknown): string {
-  if (fehler instanceof ApiFehler && fehler.status === 401) {
-    return 'Dieser Anmeldelink gilt nicht mehr. Fordere einen neuen an.';
+  if (fehler instanceof ApiFehler) {
+    if (fehler.status === 401) {
+      return 'Dieser Anmeldelink gilt nicht mehr. Fordere einen neuen an.';
+    }
+    // Wie in `anfordernFehler.ts` und `teilnahmeFehler.ts`: Bei einer
+    // Ratenbegrenzung hilft Warten, und das gehört gesagt — sonst tippt
+    // jemand den Link immer wieder an und macht es schlimmer. Vorher fiel
+    // dieser Fall hier auf den allgemeinen Satz zurück, und dieselbe Lage
+    // hieß je nach Bildschirm etwas anderes.
+    if (fehler.status === 429) {
+      return ZU_VIELE_VERSUCHE;
+    }
   }
-  return 'Der Verein ist gerade nicht erreichbar. Versuch es später noch einmal.';
+  return NICHT_ERREICHBAR;
 }

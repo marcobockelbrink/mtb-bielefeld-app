@@ -20,12 +20,38 @@ export class ApiFehler extends Error {
   readonly status: number;
   /** Zusatzangaben, die die API mitschickt — etwa Belegung bei „voll". */
   readonly feld?: { belegt?: number; plaetze?: number | null };
+  /**
+   * Hat einen Menschen als Adressaten — oder nicht?
+   *
+   * `true` heißt: Der Text stammt aus dem Feld `fehler`, das die Vereins-API
+   * selbst setzt, und ist dort bewusst für Mitglieder geschrieben („Die Tour
+   * ist voll.", „Der Vereinskalender ist gerade nicht erreichbar."). Solche
+   * Sätze weiterzureichen ist besser als jede eigene Erfindung.
+   *
+   * `false` heißt: Der Text kommt von woanders her — von Fastify, das ohne
+   * eigenen Fehlerbehandler bei 5xx schlicht `error.message` durchreicht,
+   * oder aus unserem eigenen Notbehelf. Dort steht dann so etwas wie
+   * „canceling statement due to statement timeout" (der Zeitablauf aus
+   * `api/src/tourenanmeldung.ts`), und das hat im Banner eines
+   * Vereinsmitglieds nichts verloren.
+   *
+   * Ohne diese Unterscheidung bleibt nur die Wahl zwischen „alles
+   * durchreichen" (dann sieht jemand Datenbankinterna) und „nichts
+   * durchreichen" (dann gehen die guten Sätze der API mit verloren).
+   */
+  readonly vonDerApi: boolean;
 
-  constructor(status: number, nachricht: string, feld?: ApiFehler['feld']) {
+  constructor(
+    status: number,
+    nachricht: string,
+    feld?: ApiFehler['feld'],
+    vonDerApi = false,
+  ) {
     super(nachricht);
     this.name = 'ApiFehler';
     this.status = status;
     this.feld = feld;
+    this.vonDerApi = vonDerApi;
   }
 }
 
@@ -33,10 +59,33 @@ export interface ApiAbhaengigkeiten {
   basisUrl: string;
   speicher: TokenSpeicher;
   fetchImpl?: typeof fetch;
+  /**
+   * Wird gerufen, wenn die Sitzung wirklich vorbei ist — das
+   * Erneuerungs-Token wurde vom Server abgelehnt und hier gelöscht.
+   *
+   * Ohne diesen Weg erfährt die Oberfläche davon nichts: `KontoContext`
+   * setzt `angemeldet` nur beim Start, beim Einlösen und beim Abmelden. Die
+   * Anmeldekarte zeigte danach weiter „Du bist angemeldet." mit einem
+   * Abmelden-Knopf und ohne Formular — während die Fehlermeldung an anderer
+   * Stelle riet, sich neu anzumelden. Ein Rat, der auf einen Bildschirm
+   * führt, auf dem man ihn nicht befolgen kann.
+   */
+  beiSitzungsende?: () => void;
 }
 
 /** Nach dieser Zeit gilt eine Anfrage als gescheitert. */
 const ZEITGRENZE_MS = 15000;
+
+/**
+ * Wie eine Erneuerung ausging — drei Fälle, die Verschiedenes bedeuten.
+ *
+ * Ein bloßes `false` warf zwei grundverschiedene Lagen zusammen: „die
+ * Sitzung ist wirklich vorbei" und „der Server hustet gerade". Der Aufrufer
+ * gab danach den ursprünglichen 401 weiter, und die Oberfläche riet dem
+ * Mitglied, sich neu anzumelden — auch dann, wenn nur die Ratenbegrenzung
+ * zugeschlagen hatte und das Token noch sechzig Tage gilt.
+ */
+type Erneuerung = 'erneuert' | 'sitzung-vorbei' | 'voruebergehend';
 
 export class ApiZugang {
   readonly #basisUrl: string;
@@ -45,12 +94,25 @@ export class ApiZugang {
   /** Nur im Arbeitsspeicher — nie auf der Platte. */
   #zugang: string | null = null;
   /** Läuft schon eine Erneuerung, teilen sich weitere Aufrufer ihr Ergebnis. */
-  #erneuerungLaeuft: Promise<boolean> | null = null;
+  #erneuerungLaeuft: Promise<Erneuerung> | null = null;
+  /**
+   * Zählt jedes Abmelden mit.
+   *
+   * Ohne diesen Zähler konnte `abmelden()` mit einer schon laufenden
+   * Erneuerung kollidieren: Es räumte den Schlüsselbund, und die Erneuerung
+   * schrieb Sekundenbruchteile später ein frisches, sechzig Tage gültiges
+   * Token zurück. Die Oberfläche meldete abgemeldet, beim nächsten Start
+   * stand wieder „Du bist angemeldet." — ein Abmelden, das nicht abmeldet,
+   * ist ein Vertrauensbruch, kein Schönheitsfehler.
+   */
+  #abmeldungen = 0;
+  readonly #beiSitzungsende?: () => void;
 
-  constructor({ basisUrl, speicher, fetchImpl }: ApiAbhaengigkeiten) {
+  constructor({ basisUrl, speicher, fetchImpl, beiSitzungsende }: ApiAbhaengigkeiten) {
     this.#basisUrl = basisUrl.replace(/\/$/, '');
     this.#speicher = speicher;
     this.#fetch = fetchImpl ?? fetch;
+    this.#beiSitzungsende = beiSitzungsende;
   }
 
   async #ruf(pfad: string, init: RequestInit = {}): Promise<Response> {
@@ -103,12 +165,12 @@ export class ApiZugang {
       // gesetzten `content-type` — kommen stattdessen mit `message` herein.
       // Ohne diesen zweiten Blick sähe die Person bei einem Protokollfehler
       // nur "Da ist etwas schiefgegangen." statt eines Hinweises.
-      const nachricht =
-        typeof koerper.fehler === 'string'
-          ? koerper.fehler
-          : typeof koerper.message === 'string'
-            ? koerper.message
-            : 'Da ist etwas schiefgegangen.';
+      const vonDerApi = typeof koerper.fehler === 'string';
+      const nachricht = vonDerApi
+        ? (koerper.fehler as string)
+        : typeof koerper.message === 'string'
+          ? koerper.message
+          : 'Da ist etwas schiefgegangen.';
 
       // `plaetze` nur übernehmen, wenn die Antwort es wirklich mitschickt.
       // `null` heißt in der API "unbegrenzt viele Plätze"
@@ -119,10 +181,15 @@ export class ApiZugang {
       const plaetze =
         typeof plaetzeWert === 'number' ? plaetzeWert : plaetzeWert === null ? null : undefined;
 
-      throw new ApiFehler(antwort.status, nachricht, {
-        belegt: typeof koerper.belegt === 'number' ? koerper.belegt : undefined,
-        plaetze,
-      });
+      throw new ApiFehler(
+        antwort.status,
+        nachricht,
+        {
+          belegt: typeof koerper.belegt === 'number' ? koerper.belegt : undefined,
+          plaetze,
+        },
+        vonDerApi,
+      );
     }
     return koerper as T;
   }
@@ -157,6 +224,11 @@ export class ApiZugang {
    * hustet, wäre das Gegenteil dessen, was der Knopf verspricht.
    */
   async abmelden(): Promise<void> {
+    // Zuerst hochzählen, vor jedem `await`: Eine Erneuerung, die gerade
+    // unterwegs ist, erkennt daran, dass sie nichts mehr zurückschreiben
+    // darf (siehe `#abmeldungen`).
+    this.#abmeldungen += 1;
+    this.#erneuerungLaeuft = null;
     const erneuerung = await this.#speicher.lies();
     this.#zugang = null;
     await this.#speicher.loesche();
@@ -192,7 +264,7 @@ export class ApiZugang {
    * (!this.#erneuerungLaeuft)` beide noch als „leer" sehen und doch zwei
    * Erneuerungen lostreten.
    */
-  #erneuern(): Promise<boolean> {
+  #erneuern(): Promise<Erneuerung> {
     if (!this.#erneuerungLaeuft) {
       this.#erneuerungLaeuft = this.#erneuernJetzt().finally(() => {
         this.#erneuerungLaeuft = null;
@@ -218,9 +290,10 @@ export class ApiZugang {
    *   60 Tage gültiges Token wegen eines Servers, der gerade nur überlastet
    *   ist — eine stille Zwangsabmeldung, die niemand versteht.
    */
-  async #erneuernJetzt(): Promise<boolean> {
+  async #erneuernJetzt(): Promise<Erneuerung> {
+    const stand = this.#abmeldungen;
     const erneuerung = await this.#speicher.lies();
-    if (!erneuerung) return false;
+    if (!erneuerung) return 'sitzung-vorbei';
 
     const antwort = await this.#ruf('/sitzung/erneuern', {
       method: 'POST',
@@ -229,14 +302,19 @@ export class ApiZugang {
     if (antwort.status === 401) {
       this.#zugang = null;
       await this.#speicher.loesche();
-      return false;
+      this.#beiSitzungsende?.();
+      return 'sitzung-vorbei';
     }
-    if (!antwort.ok) return false;
+    if (!antwort.ok) return 'voruebergehend';
 
     const paar = (await antwort.json()) as { zugang: string; erneuerung: string };
+    // Zwischenzeitlich abgemeldet? Dann ist dieses frische Token nicht mehr
+    // gewollt — es zurückzuschreiben hieße, das Abmelden rückgängig zu
+    // machen. Serverseitig läuft die Sitzung von selbst ab.
+    if (stand !== this.#abmeldungen) return 'sitzung-vorbei';
     this.#zugang = paar.zugang;
     await this.#speicher.schreib(paar.erneuerung);
-    return true;
+    return 'erneuert';
   }
 
   async #mitToken<T>(pfad: string, init: RequestInit): Promise<T> {
@@ -247,8 +325,22 @@ export class ApiZugang {
 
     // Ein abgelaufenes Zugangs-Token ist der Normalfall, nicht die Ausnahme:
     // Es gilt 15 Minuten. Einmal nachziehen und wiederholen.
-    if (antwort.status === 401 && (await this.#erneuern())) {
-      antwort = await this.#ruf(pfad, { ...init, headers: kopf() });
+    if (antwort.status === 401) {
+      const ergebnis = await this.#erneuern();
+      if (ergebnis === 'erneuert') {
+        antwort = await this.#ruf(pfad, { ...init, headers: kopf() });
+      } else if (ergebnis === 'voruebergehend') {
+        // Nicht den ursprünglichen 401 durchreichen: Der hieße für die
+        // Oberfläche „deine Anmeldung gilt nicht mehr, melde dich neu an" —
+        // und das wäre ein falscher Rat. Das Erneuerungs-Token liegt noch im
+        // Schlüsselbund und gilt weiter; nur der Server war gerade nicht in
+        // der Lage zu antworten (429 durch die Ratenbegrenzung, 5xx). Hier
+        // hilft Warten, kein neues Anmelden.
+        throw new ApiFehler(
+          0,
+          'Der Verein ist gerade nicht erreichbar. Versuch es später noch einmal.',
+        );
+      }
     }
 
     return this.#auswerten<T>(antwort);

@@ -53,8 +53,17 @@ export function KontoProvider({
   speicher?: TokenSpeicher;
   basisUrl?: string;
 }) {
-  const api = useMemo(() => new ApiZugang({ basisUrl, speicher }), [basisUrl, speicher]);
   const [angemeldet, setAngemeldet] = useState(false);
+  // `beiSitzungsende` schließt die Lücke zwischen Datenschicht und Anzeige:
+  // Wirft der Server das Erneuerungs-Token weg, löscht `api.ts` es auch hier
+  // — ohne diesen Rückruf bliebe `angemeldet: true` stehen, und die
+  // Anmeldekarte zeigte weiter „Du bist angemeldet." samt Abmelden-Knopf,
+  // aber ohne Formular, mit dem man dem Rat „melde dich neu an" folgen
+  // könnte.
+  const api = useMemo(
+    () => new ApiZugang({ basisUrl, speicher, beiSitzungsende: () => setAngemeldet(false) }),
+    [basisUrl, speicher],
+  );
   const [laedt, setLaedt] = useState(true);
   const [zuletztEingeloest, setZuletztEingeloest] = useState<number | null>(null);
   const [einloesenFehlgeschlagen, setEinloesenFehlgeschlagen] = useState<string | null>(null);

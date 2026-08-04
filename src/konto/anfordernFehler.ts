@@ -31,6 +31,7 @@
  */
 
 import { ApiFehler } from '../data/api';
+import { NICHT_ERREICHBAR, ZU_VIELE_VERSUCHE } from '../features/events/teilnahmeFehler';
 
 export function beschreibeAnfordernFehler(fehler: unknown): string {
   if (fehler instanceof ApiFehler) {
@@ -40,8 +41,8 @@ export function beschreibeAnfordernFehler(fehler: unknown): string {
       return fehler.message.trim() || 'Prüf deine E-Mail-Adresse.';
     }
     if (fehler.status === 429) {
-      return 'Zu viele Versuche hintereinander. Warte eine Minute und probier es dann noch einmal.';
+      return ZU_VIELE_VERSUCHE;
     }
   }
-  return 'Der Verein ist gerade nicht erreichbar. Versuch es später noch einmal.';
+  return NICHT_ERREICHBAR;
 }

@@ -37,7 +37,6 @@ interface Belegung {
   belegt: number;
   plaetze: number | null;
   frei: number | null;
-  gaesteErlaubt: boolean;
   abgesagt: boolean;
 }
 
@@ -61,14 +60,29 @@ export function TeilnahmeKarte({ event }: { event: ClubEvent }) {
   // API — überlebt kein Neuladen der Ansicht.
   const [istDabei, setIstDabei] = useState(false);
 
-  const laden = useCallback(async () => {
-    try {
-      setBelegung(await api.hole<Belegung>(pfad));
-      setErreichbar(true);
-    } catch {
-      setErreichbar(false);
-    }
-  }, [api, pfad]);
+  /**
+   * Zahlen holen. `darfVerbergen` steuert, was ein Fehlschlag bedeutet.
+   *
+   * Beim **ersten** Laden heißt „geht nicht" schlicht: Es gibt hier nichts zu
+   * zeigen, die Karte bleibt weg. Beim **Nachladen nach einer Anmeldung**
+   * darf derselbe Fehlschlag die Karte nicht verschwinden lassen — sonst
+   * verschwände mit ihr die gerade gesetzte Bestätigung „Eingetragen. Bis
+   * dann!", und die Person stünde vor einem Bildschirm, der so aussieht, als
+   * hätte sie nie etwas getan. Die Anmeldung ist zu diesem Zeitpunkt aber
+   * längst durch; nur die neue Zahl kam nicht an. Dann lieber die alte Zahl
+   * stehen lassen als den ganzen Zustand einziehen.
+   */
+  const laden = useCallback(
+    async (darfVerbergen = true) => {
+      try {
+        setBelegung(await api.hole<Belegung>(pfad));
+        setErreichbar(true);
+      } catch {
+        if (darfVerbergen) setErreichbar(false);
+      }
+    },
+    [api, pfad],
+  );
 
   useEffect(() => {
     void laden();
@@ -83,7 +97,7 @@ export function TeilnahmeKarte({ event }: { event: ClubEvent }) {
       await api.sende(pfad, 'POST');
       setIstDabei(true);
       setMeldung({ text: 'Eingetragen. Bis dann!', fehler: false });
-      await laden();
+      await laden(false);
     } catch (fehler) {
       setMeldung({ text: beschreibeTeilnahmeFehler(fehler), fehler: true });
     } finally {
@@ -98,7 +112,7 @@ export function TeilnahmeKarte({ event }: { event: ClubEvent }) {
       await api.sende(`${pfad}/ich`, 'DELETE');
       setIstDabei(false);
       setMeldung({ text: 'Du bist wieder ausgetragen.', fehler: false });
-      await laden();
+      await laden(false);
     } catch (fehler) {
       setMeldung({ text: beschreibeTeilnahmeFehler(fehler), fehler: true });
     } finally {

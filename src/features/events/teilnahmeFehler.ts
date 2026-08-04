@@ -48,15 +48,46 @@
 
 import { ApiFehler } from '../../data/api.ts';
 
+/**
+ * Ein Satz, vier Stellen.
+ *
+ * Derselbe Fall soll überall gleich klingen: `einloesenFehler.ts`,
+ * `anfordernFehler.ts` und diese Datei greifen auf denselben Wortlaut
+ * zurück, damit die App nicht je nach Bildschirm anders über dasselbe
+ * Problem spricht.
+ */
+export const NICHT_ERREICHBAR =
+  'Der Verein ist gerade nicht erreichbar. Versuch es später noch einmal.';
+
+/** Ebenso: Bei einer Ratenbegrenzung hilft Warten, überall gleich formuliert. */
+export const ZU_VIELE_VERSUCHE =
+  'Zu viele Versuche hintereinander. Warte eine Minute und probier es dann noch einmal.';
+
 export function beschreibeTeilnahmeFehler(fehler: unknown): string {
   if (fehler instanceof ApiFehler) {
     if (fehler.status === 401) {
       return 'Deine Anmeldung ist nicht mehr gültig. Melde dich unter Einstellungen erneut an.';
     }
     if (fehler.status === 429) {
-      return 'Zu viele Versuche hintereinander. Warte eine Minute und probier es dann noch einmal.';
+      return ZU_VIELE_VERSUCHE;
     }
-    return fehler.message.trim() || 'Der Verein ist gerade nicht erreichbar. Versuch es später noch einmal.';
+    // Status 0 heißt „gar nicht angekommen" — `api.ts` schreibt dafür schon
+    // den genaueren Satz (Zeitablauf oder keine Verbindung) und unterscheidet
+    // beides; das ist mehr, als hier zu erfahren wäre.
+    if (fehler.status === 0) {
+      return fehler.message.trim() || NICHT_ERREICHBAR;
+    }
+    // Sonst nur durchreichen, was die API selbst formuliert hat (Feld
+    // `fehler`) — „Die Tour ist voll.", „Der Vereinskalender ist gerade nicht
+    // erreichbar." Was Fastify bei 5xx ohne eigenen Fehlerbehandler
+    // durchreicht, ist dagegen der rohe Text der Ursache: Bei einem
+    // Zeitablauf aus `api/src/tourenanmeldung.ts` stünde „canceling statement
+    // due to statement timeout" im Banner eines Vereinsmitglieds. Ein
+    // durchgereichter Fehlertext ist nur so gut wie seine Quelle, und
+    // `ApiFehler.vonDerApi` sagt, welche das war.
+    if (fehler.vonDerApi) {
+      return fehler.message.trim() || NICHT_ERREICHBAR;
+    }
   }
-  return 'Der Verein ist gerade nicht erreichbar. Versuch es später noch einmal.';
+  return NICHT_ERREICHBAR;
 }
