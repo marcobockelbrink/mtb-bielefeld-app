@@ -5,6 +5,12 @@
 # braucht dafür nur, dass die Domain schon auf diesen Server zeigt und Port
 # 80 von außen erreichbar ist.
 #
+# Der Name kommt aus der Umgebung (`API_DOMAIN` in `betrieb/.env`), nicht
+# fest aus dieser Datei: Zum Prüfen läuft der Aufbau unter einer anderen
+# Domain als später beim Verein. Ein fest eingetragener Name müsste dafür
+# geändert werden — und wäre danach womöglich falsch stehen geblieben.
+# Fehlt `API_DOMAIN`, verweigert Compose den Start (siehe `:?` dort).
+#
 # Die Zonen darunter sind unverändert. Wer eine ändert, ändert sie in beiden
 # Dateien; weichen sie ab, ist die hier laufende die Wahrheit und die lokale
 # zieht nach — dieselbe Regel wie zwischen `api/caddy/anmeldung.Caddyfile`
@@ -17,7 +23,7 @@
 # `VERTRAUTER_PROXY` mit anpassen (`api/src/app.ts`), sonst ist die
 # Begrenzung je IP wertlos, ohne dass ein Test rot wird.
 
-api.mtb-bielefeld.de {
+{$API_DOMAIN} {
 	rate_limit {
 		zone anmeldung {
 			match {

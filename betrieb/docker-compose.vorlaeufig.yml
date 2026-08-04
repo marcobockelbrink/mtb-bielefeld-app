@@ -10,16 +10,16 @@
 #
 # ## Was dabei fehlt — und was das bedeutet
 #
-# **Kein TLS.** Für eine nackte IP-Adresse gibt es kein Zertifikat von Let's
-# Encrypt; die Caddyfile hört deshalb weiter auf `:80` wie lokal. Alles geht
-# unverschlüsselt über das Netz — auch die Magic-Link-Token aus den
-# Anmeldemails. Wer mitliest, kann sich anmelden.
+# **Kein Mailversand.** Es fehlen die SMTP-Zugangsdaten des Vereins-
+# Mailservers; deshalb läuft Mailpit weiter mit und fängt jede Mail ab.
 #
 # **Deshalb: In diesem Zustand darf kein echtes Vereinsmitglied eingeladen
-# werden.** Der Aufbau ist zum Prüfen da, ob Container, Datenbank,
-# Migrationen, Ratenbegrenzung und Kalenderabruf auf dieser Maschine
-# zusammenspielen. Das ist viel wert und geht ohne Domain — echte Adressen
-# gehören trotzdem erst hinein, wenn HTTPS steht.
+# werden.** Nicht wegen der Verschlüsselung — TLS steht — sondern weil
+# niemand je einen Anmeldelink bekäme. Er landete in Mailpit auf dem Server.
+#
+# Der Aufbau ist zum Prüfen da: ob Container, Datenbank, Migrationen,
+# Zertifikat, Ratenbegrenzung und Kalenderabruf auf dieser Maschine
+# zusammenspielen. Das ist viel wert und geht ohne Mailzugang.
 #
 # **Mailpit läuft mit**, statt eines echten Mailservers, und bleibt an
 # `127.0.0.1` gebunden — von außen also unerreichbar. Wer die Anmeldemails
@@ -46,10 +46,17 @@ services:
     # `!override`, weil Compose Portlisten sonst aneinanderhängt, statt sie zu
     # ersetzen: Die lokale `127.0.0.1:80:80` bliebe stehen und Port 80 wäre
     # doppelt belegt. Nachgemessen, nicht angenommen.
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN fehlt in betrieb/.env}
     ports: !override
-      # Auf allen Adressen, sonst wäre der Server von außen unerreichbar.
-      # Nur 80: Ohne Domain gibt es kein Zertifikat, 443 stünde leer herum.
+      # Wie in der Server-Fassung: 443 für den Verkehr, 80 für Umleitung und
+      # Zertifikatsnachweis.
       - '80:80'
+      - '443:443'
+    volumes:
+      # Dieselbe Caddyfile wie im Endzustand — der Domainname kommt aus der
+      # Umgebung, es gibt also keine eigene Testfassung, die veralten könnte.
+      - ./Caddyfile.server:/etc/caddy/Caddyfile:ro
 
   mailpit:
     restart: unless-stopped

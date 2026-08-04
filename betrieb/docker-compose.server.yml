@@ -44,6 +44,12 @@ services:
 
   caddy:
     restart: unless-stopped
+    environment:
+      # Der Domainname steht in der `.env`, nicht in der Caddyfile: Zum
+      # Prüfen läuft der Aufbau unter einer anderen Domain als beim Verein.
+      # `:?` statt Vorgabe — ein falscher oder fehlender Name kostet
+      # Zertifikatsversuche bei Let's Encrypt, und die sind kontingentiert.
+      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN fehlt in betrieb/.env (z. B. api.mtb-bielefeld.de)}
     # `!override` und nicht bloß `ports:` — nachgemessen, nicht angenommen:
     # Compose **verschmilzt** Listen aus Überlagerungsdateien, statt sie zu
     # ersetzen. Ohne diese Angabe stünde in der zusammengeführten Fassung
