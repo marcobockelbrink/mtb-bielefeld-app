@@ -167,11 +167,47 @@ Prüfen mit `docker run --rm hello-world` **ohne** `sudo`.
 
 Stand nach der Einrichtung: Docker 29.7.1, Compose v5.4.0.
 
+## Der Aufbau läuft — vorläufig
+
+Seit dem 5. August läuft der Betriebsaufbau auf dieser Maschine, aber in der
+**vorläufigen** Fassung (`betrieb/docker-compose.vorlaeufig.yml`), weil Domain
+und Mailzugang noch fehlen:
+
+```bash
+cd ~/mtb-bielefeld-app
+docker compose -f betrieb/docker-compose.yml \
+               -f betrieb/docker-compose.vorlaeufig.yml up -d --build
+```
+
+Geprüft und bestanden: API antwortet über das Netz (`http://169.58.129.20/gesundheit`),
+sechs Tabellen migriert, `pruefe-begrenzung.sh` und `pruefe-ablauf.sh` beide
+mit 0 — samt echtem Kalenderabruf aus dem Container und dem vollständigen
+Anmeldeablauf über Mailpit.
+
+> **In diesem Zustand darf kein echtes Vereinsmitglied eingeladen werden.**
+> Ohne Domain gibt es kein Zertifikat; alles läuft unverschlüsselt, auch die
+> Magic-Link-Token. Praktisch ist der Aufbau derzeit geschlossen — ohne
+> Einladungscode kommt niemand hinein, und Mails gehen ausschließlich an
+> Mailpit, verlassen die Maschine also nicht. Aber verlassen sollte sich
+> darauf niemand.
+
+Anmeldemails ansehen (Mailpit hört nur auf `127.0.0.1`):
+
+```bash
+ssh -L 8025:127.0.0.1:8025 mtb
+# dann im eigenen Browser: http://localhost:8025
+```
+
 ## Was noch nicht eingerichtet ist
 
-- **Der Aufbau selbst** — Plan 4b, Aufgabe 4. Braucht Domain, DNS und die
-  SMTP-Zugangsdaten des Vereins-Mailservers.
-- **Backups** — Plan 4b, Aufgabe 5. Nichts wird gesichert, solange das fehlt.
+- **Domain, DNS und TLS** — Plan 4b, Aufgabe 4. Ein `A`-Eintrag auf diese
+  Adresse, dann `docker-compose.server.yml` statt der vorläufigen Fassung.
+  Caddy holt das Zertifikat selbst.
+- **Der Mailzugang des Vereins** — Host, Port, Benutzer, Passwort in die
+  `.env`. Erst danach bekommt ein Mensch je einen Anmeldelink.
+- **Backups** — Plan 4b, Aufgabe 5. **Nichts wird gesichert, solange das
+  fehlt.** Solange nur Testkonten in der Datenbank liegen, ist das
+  verschmerzbar; ab dem ersten echten Mitglied nicht mehr.
 - **Ein zweiter Zugang** — siehe oben.
 
 ## Laufender Betrieb
