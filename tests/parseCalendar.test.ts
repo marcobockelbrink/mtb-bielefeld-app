@@ -208,7 +208,13 @@ describe('originalStartInstant', () => {
     ].join('\r\n');
 
     const termine = parseCalendar(raw, { now: new Date('2026-08-03T12:00:00Z') });
-    const verschoben = termine.find((t) => t.start.getHours() === 19);
+    // Gesucht über den **Zeitpunkt**, nicht über `getHours()`: Das rechnet in
+    // der Zeitzone des ausführenden Rechners. In Bielefeld ergibt der
+    // verschobene Termin 19 Uhr, in UTC 17 — der Test lief deshalb auf dem
+    // Entwicklungsrechner durch und in der CI nicht. Ein Zeitpunkt ist
+    // absolut und überall derselbe.
+    const verschobenAuf = new Date('2026-08-12T19:00:00+02:00').getTime();
+    const verschoben = termine.find((t) => t.start.getTime() === verschobenAuf);
     const urspruenglich = new Date('2026-08-12T18:00:00+02:00').getTime();
 
     expect(verschoben).toBeDefined();
