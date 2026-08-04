@@ -108,3 +108,33 @@ export const EXPANSION_WINDOW_DAYS_FUTURE = 365;
 
 /** Wie lange zwischengespeicherte Daten als "frisch" gelten (Millisekunden). */
 export const CACHE_TTL_MS = 30 * 60 * 1000; // 30 Minuten
+
+/**
+ * Die Adresse der Vereins-API.
+ *
+ * Nur für Anmeldung und Tourenanmeldung. Termine und Beiträge holt die App
+ * weiterhin direkt von Google und der Website — die API ist ein Zusatz, kein
+ * Umweg. Fällt sie aus, bleibt die App vollständig benutzbar.
+ *
+ * In der Entwicklung zeigt sie auf `http://localhost`, **nicht** auf
+ * `:3000`: Der Betriebsaufbau (`betrieb/docker-compose.yml`, siehe
+ * `betrieb/LIESMICH.md`) stellt die API über Caddy auf Port 80 bereit — die
+ * API selbst hat keine eigene Portfreigabe, `:3000` liefe ins Leere. Ein
+ * bloßes `cd api && npm start` genügt zudem nicht: Ohne `SMTP_HOST` wirft
+ * der Mailer absichtlich, ein Magic Link käme nie an. Der Docker-Aufbau ist
+ * die einzige Umgebung, in der der Anmeldeablauf vollständig durchläuft.
+ *
+ * `EXPO_PUBLIC_API_URL` überschreibt sie, ohne dass jemand Code anfassen
+ * muss — auf einem echten Telefon trägt sie die WLAN-Adresse des
+ * Entwicklungsrechners, denn dort ist `localhost` das Telefon selbst.
+ *
+ * Zugriff auf `__DEV__` über `globalThis`, aus demselben Grund wie bei
+ * `imBrowserWaehrendEntwicklung` oben: Die Datei bleibt auch unter Node
+ * typisierbar, wo es weder die `dom`-Lib noch eine `__DEV__`-Deklaration
+ * gibt.
+ */
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ??
+  ((globalThis as { __DEV__?: boolean }).__DEV__ === true
+    ? 'http://localhost'
+    : 'https://api.mtb-bielefeld.de');
