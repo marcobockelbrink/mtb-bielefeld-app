@@ -82,7 +82,15 @@ curl http://localhost/konto -H "Authorization: Bearer <zugang>"
 ```bash
 betrieb/pruefe-ablauf.sh      # der ganze Weg oben, jeder Schritt hart geprüft
 betrieb/pruefe-begrenzung.sh  # die beiden Ratenbegrenzungs-Schichten
+npm run rauchprobe            # die Module der App gegen diese laufende API
 ```
+
+Die ersten beiden prüfen die API von außen, mit `curl`. Die **Rauchprobe**
+prüft etwas anderes: Sie lädt dieselben Module, die auf dem Telefon laufen
+(`src/data/api.ts`, `src/konto/magicLink.ts`), und lässt sie gegen diesen
+Aufbau arbeiten. Damit fällt auf, was `npm test` nicht sehen kann — dort
+stellt die Suite `fetch` selbst, und eine Attrappe antwortet immer so, wie
+der Schreibende es erwartet hat.
 
 `pruefe-ablauf.sh` geht denselben Weg bis zur Tourenanmeldung durch — samt
 einem echten Termin aus dem Vereinskalender — und endet mit einem Wert

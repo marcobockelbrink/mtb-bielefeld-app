@@ -44,6 +44,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "vitest run",
+    "rauchprobe": "node --experimental-strip-types tools/rauchprobe.mts",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "vorschau": "expo export --platform web --output-dir .vorschau-web && node tools/serve-und-schiessen.mjs",
