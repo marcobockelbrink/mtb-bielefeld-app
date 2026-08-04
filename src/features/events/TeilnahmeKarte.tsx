@@ -51,7 +51,12 @@ export function TeilnahmeKarte({ event }: { event: ClubEvent }) {
   const [belegung, setBelegung] = useState<Belegung | null>(null);
   const [erreichbar, setErreichbar] = useState(true);
   const [laeuft, setLaeuft] = useState(false);
-  const [meldung, setMeldung] = useState<string | null>(null);
+  // Text **und** Art: Ein misslungener Versuch darf nicht aussehen wie eine
+  // Bestätigung. `Banner` unterscheidet die beiden nur über `tone`, und ohne
+  // diese Unterscheidung stünde „Die Tour ist voll." in derselben ruhigen
+  // Vereinsfarbe da wie „Du bist dabei." — die Person läse Erfolg, wo keiner
+  // war, und liefe am Mittwoch umsonst zum Treffpunkt.
+  const [meldung, setMeldung] = useState<{ text: string; fehler: boolean } | null>(null);
   // Siehe Dateikopf: nur ein Zustand im Arbeitsspeicher, keine Auskunft der
   // API — überlebt kein Neuladen der Ansicht.
   const [istDabei, setIstDabei] = useState(false);
@@ -77,10 +82,10 @@ export function TeilnahmeKarte({ event }: { event: ClubEvent }) {
     try {
       await api.sende(pfad, 'POST');
       setIstDabei(true);
-      setMeldung('Du bist dabei.');
+      setMeldung({ text: 'Eingetragen. Bis dann!', fehler: false });
       await laden();
     } catch (fehler) {
-      setMeldung(beschreibeTeilnahmeFehler(fehler));
+      setMeldung({ text: beschreibeTeilnahmeFehler(fehler), fehler: true });
     } finally {
       setLaeuft(false);
     }
@@ -92,10 +97,10 @@ export function TeilnahmeKarte({ event }: { event: ClubEvent }) {
     try {
       await api.sende(`${pfad}/ich`, 'DELETE');
       setIstDabei(false);
-      setMeldung('Du bist nicht mehr angemeldet.');
+      setMeldung({ text: 'Du bist wieder ausgetragen.', fehler: false });
       await laden();
     } catch (fehler) {
-      setMeldung(beschreibeTeilnahmeFehler(fehler));
+      setMeldung({ text: beschreibeTeilnahmeFehler(fehler), fehler: true });
     } finally {
       setLaeuft(false);
     }
@@ -119,7 +124,7 @@ export function TeilnahmeKarte({ event }: { event: ClubEvent }) {
 
       {meldung ? (
         <View style={styles.banner}>
-          <Banner tone="info" text={meldung} />
+          <Banner tone={meldung.fehler ? 'danger' : 'info'} text={meldung.text} />
         </View>
       ) : null}
 
