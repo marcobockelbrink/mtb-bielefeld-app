@@ -1,4 +1,6 @@
-# Nur für die Entwicklung. Die Inbetriebnahme kommt in Plan 4.
+# Nur für die Entwicklung: das Postgres, gegen das `npm test` läuft.
+# Der Betriebsaufbau steht getrennt davon in `betrieb/docker-compose.yml`
+# und hat ein eigenes Volume — beide laufen nebeneinander.
 services:
   postgres:
     image: postgres:16-alpine

@@ -1,9 +1,10 @@
 /**
  * Mailversand hinter einer Schnittstelle.
  *
- * Welcher Anbieter tatsächlich verschickt, ist in der Spec noch offen. Die
- * Schnittstelle hält diese Entscheidung heraus: Tests nutzen den gemerkten
- * Mailer, die Umsetzung des echten Versands kommt in Plan 4.
+ * Welcher Anbieter tatsächlich verschickt, ist noch offen. Die Schnittstelle
+ * hält diese Entscheidung heraus: Tests nutzen den gemerkten Mailer, der
+ * echte Versand läuft über `SmtpMailer` weiter unten. Welcher Anbieter
+ * dahinter steht, entscheidet allein die Umgebung (`waehleMailer`).
  *
  * Ein eigener Mailserver kommt nicht in Frage — Zustellbarkeit ist ein
  * Vollzeitproblem.
@@ -41,8 +42,8 @@ export class GemerkterMailer implements Mailer {
 export class NichtEingerichteterMailer implements Mailer {
   async sende(_an: string, _betreff: string, _text: string): Promise<void> {
     throw new Error(
-      'Mailversand ist noch nicht eingerichtet — welcher Anbieter ' +
-        'verschickt, klärt Plan 4. Bis dahin kann keine Mail raus.',
+      'Mailversand ist nicht eingerichtet — es fehlt SMTP_HOST in der ' +
+        'Umgebung. Ohne das kann keine Mail raus.',
     );
   }
 }

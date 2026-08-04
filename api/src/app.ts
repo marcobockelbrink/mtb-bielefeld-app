@@ -59,8 +59,7 @@ export interface Abhaengigkeiten {
  *
  * Solange die Antwort auf die Arbeit wartete, bremste die Arbeit den
  * Anfragenden: Wer schneller schickte, als die Datenbank antwortete, wartete
- * selbst. Seit die Antwort vorausgeht, ist diese Bremse weg — und die
- * IP-Schicht, die sie ersetzen soll, kommt erst mit Plan 4 (`caddy/`). Ohne
+ * selbst. Seit die Antwort vorausgeht, ist diese Bremse weg. Ohne
  * Grenze wüchsen `laufendeArbeit` und die Warteschlange des Verbindungspools
  * mit der Anfragerate, bis der Speicher voll ist; die Begrenzung je Adresse
  * hilft dagegen nicht, denn sie greift erst **in** der Arbeit und für viele
@@ -76,9 +75,11 @@ export interface Abhaengigkeiten {
  * verdrängt damit echte Anmeldungen — die Begrenzung je Adresse
  * (`anmeldung.ts`) hilft dagegen nicht, sie zählt pro Adresse, nicht über
  * alle hinweg. Das ist eine bewusste Abwägung, keine Lücke: Die Schicht, die
- * das eigentlich abfangen soll, ist die IP-Ebene, und die kommt erst mit
- * Plan 4 (`caddy/`). Bis dahin ist diese globale Grenze das Einzige, was
- * zwischen einer Anfrageflut und dem Speicher steht.
+ * das eigentlich abfangen soll, ist die IP-Ebene — Caddy davor
+ * (`betrieb/Caddyfile`, gegen den laufenden Aufbau geprüft) und
+ * `ipbegrenzung.ts` dahinter. Diese globale Grenze bleibt trotzdem: Sie
+ * greift auch dann, wenn eine Flut über viele IPs verteilt kommt, und ist
+ * das Letzte, was zwischen einer Anfrageflut und dem Speicher steht.
  */
 const HOECHSTENS_GLEICHZEITIG = 50;
 
@@ -88,7 +89,7 @@ const HOECHSTENS_GLEICHZEITIG = 50;
  *
  * Ohne dieses Limit wird der Platz ausschließlich im `.finally()` der
  * Arbeit selbst frei — ein Zähler, der nur in eine Richtung läuft. Hängt ein
- * Vorgang dauerhaft (echter SMTP-Versand ohne eigene Zeitschranke ab Plan 4,
+ * Vorgang dauerhaft (echter SMTP-Versand ohne eigene Zeitschranke,
  * oder ein Warten auf die Adresssperre in `anmeldung.ts`), sind nach
  * `HOECHSTENS_GLEICHZEITIG` solcher Fälle alle Plätze für immer belegt, und
  * der Endpunkt verwirft ab dann jede Anmeldung, unbegrenzt lange. Diese
@@ -676,7 +677,7 @@ export function baueApp({
     // bei den Magic Links (`fordereMagicLinkAn`), und aus demselben Grund:
     // Der vorgetäuschte Zweig oben antwortet sofort, ohne je einen Mailer
     // anzufassen. Wartete der echte Erfolg hier auf `mailer.sende(...)`, wäre
-    // mit einem echten Mailanbieter (Plan 4) die Antwortzeit selbst wieder
+    // mit einem echten Mailanbieter die Antwortzeit selbst wieder
     // ein Orakel — ein Angreifer, der eine fremde Adresse probiert, könnte am
     // Zeitunterschied ablesen, ob sie noch frei war (schnelle Antwort, keine
     // Mail) oder gerade wirklich angemeldet wurde (langsamere Antwort, echter

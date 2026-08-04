@@ -4,8 +4,14 @@
 # Kontextwurzel oder unter `<Dockerfile>.dockerignore`. Ein `api/.dockerignore`
 # läge im Kontext, würde aber nie gelesen — stille Wirkungslosigkeit, die erst
 # auffiele, wenn ein künftiges `COPY . .` sich darauf verließe.
-node_modules
-tests
+#
+# Die Muster mit `**/`, nicht bloß `node_modules`: Ein Muster ohne Stern gilt
+# ausschließlich an der Kontextwurzel. `node_modules` allein schlösse also
+# `./node_modules` aus, aber nicht `api/node_modules` — und gerade das
+# künftige `COPY . .`, mit dem diese Datei begründet ist, kopierte es dann
+# doch mit.
+**/node_modules
+**/tests
 .superpowers
-docker-compose.yml
-caddy
+**/docker-compose.yml
+api/caddy
