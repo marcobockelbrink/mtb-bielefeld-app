@@ -49,7 +49,9 @@
             "backgroundColor": "#0f1519"
           }
         }
-      ]
+      ],
+      "expo-image",
+      "expo-secure-store"
     ],
     "scheme": "mtbie"
   }
