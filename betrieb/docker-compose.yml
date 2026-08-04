@@ -50,8 +50,20 @@ services:
       dockerfile: api/Dockerfile
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      SMTP_HOST: mailpit
-      SMTP_PORT: '1025'
+      # Lokal fängt Mailpit alles ab; auf dem Server steht hier der
+      # Mailserver des Vereins. Die Vorgaben nach `:-` gelten nur, wenn die
+      # `.env` dazu schweigt — so bleibt der lokale Aufbau ohne Zutun
+      # lauffähig, und der Server braucht nur vier Zeilen in seiner `.env`.
+      #
+      # Benutzer und Passwort bewusst mit **leerer** Vorgabe statt weggelassen:
+      # `waehleMailer` (`api/src/mailer.ts`) prüft `benutzer && passwort`, und
+      # ein leerer String ist falsch — es bleibt also bei Mailpit ohne
+      # Anmeldung, genau richtig. Ausgeschrieben ist das lesbar; ganz
+      # weggelassen müsste man den Quelltext lesen, um dasselbe zu wissen.
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_BENUTZER: ${SMTP_BENUTZER:-}
+      SMTP_PASSWORT: ${SMTP_PASSWORT:-}
       MAIL_ABSENDER: ${MAIL_ABSENDER}
       APP_BASIS_URL: ${APP_BASIS_URL}
       API_BASIS_URL: ${API_BASIS_URL}

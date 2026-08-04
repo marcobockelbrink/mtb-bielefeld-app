@@ -22,6 +22,28 @@ Danach:
 - Postfach über `http://localhost:8025` — jede Mail, die die App
   verschickt, landet hier statt bei einem echten Empfänger.
 
+### Auf einen echten Mailserver umstellen
+
+Vier Zeilen in `betrieb/.env`, sonst nichts:
+
+```bash
+SMTP_HOST=mail.mtb-bielefeld.de
+SMTP_PORT=587
+SMTP_BENUTZER=noreply@mtb-bielefeld.de
+SMTP_PASSWORT=…
+```
+
+Danach `docker compose -f betrieb/docker-compose.yml up -d api`. Ohne diese
+Werte bleibt es bei Mailpit — die Vorgaben stehen in der Compose-Datei, nicht
+im Code. Der Mailer wählt allein anhand der Portnummer zwischen STARTTLS (587)
+und TLS von Anfang an (465); die Anmeldung greift, sobald Benutzer **und**
+Passwort gesetzt sind.
+
+**Vorsicht beim lokalen Ausprobieren:** Mit echten Zugangsdaten gehen Mails
+wirklich hinaus. `betrieb/pruefe-ablauf.sh` legt bei jedem Lauf ein neues
+Testkonto an und erwartet die Mail in Mailpit — mit echtem Mailserver
+scheitert es, und zwar zu Recht.
+
 Beenden mit `Strg+C` oder, im Hintergrund gestartet
 (`up --build -d`), mit `docker compose -f betrieb/docker-compose.yml down`.
 
