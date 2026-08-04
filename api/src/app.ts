@@ -261,6 +261,24 @@ interface AnfordernKoerper {
  * Angreifer für jede Anfrage eine neue Adresse und die Begrenzung ist
  * wieder wertlos. `VERTRAUTER_PROXY` kommt aus der Umgebung; ohne den Wert
  * bleibt es bei `false`, was für die Entwicklung ohne Proxy richtig ist.
+ *
+ * **Wovon das abhängt, gemessen und nicht angenommen:** `172.16.0.0/12` ist
+ * der ganze Docker-Bereich, nicht eine einzelne Adresse — Compose vergibt
+ * die Container-Adressen dynamisch, eine feste ließe sich nicht eintragen.
+ * Wer aus diesem Bereich anfragt, darf also bestimmen, welche IP hier
+ * ankommt; direkt gegen die API gemessen wird aus `X-Forwarded-For:
+ * 9.9.9.9` tatsächlich `anfrage.ip === '9.9.9.9'`. Zwei Dinge halten das
+ * zusammen: Die API hat keine Portfreigabe, erreichbar ist sie nur aus dem
+ * Compose-Netz — und Caddy **ersetzt** ein mitgeschicktes
+ * `X-Forwarded-For`, statt die echte Adresse anzuhängen (seit Caddy 2.7,
+ * solange `trusted_proxies` leer bleibt). Über Caddy kommt die Fälschung
+ * deshalb nicht durch, gemessen ebenfalls.
+ *
+ * Daraus folgt die Bedingung für später: **Wer `trusted_proxies` in den
+ * Caddyfile schreibt** — der naheliegende Handgriff, sobald ein CDN oder
+ * ein Lastverteiler davorsteht — **hebelt diese Begrenzung aus**, ohne dass
+ * ein Test rot wird. Dann muss `VERTRAUTER_PROXY` mitwachsen und die Kette
+ * neu durchgerechnet werden.
  */
 const vertrauterProxy = process.env.VERTRAUTER_PROXY;
 
@@ -283,7 +301,8 @@ export function baueApp({
    * `IP_GESCHUETZTE_PFAD_PRAEFIXE`), ohne die Belegungsabfrage `GET
    * /termine/…` (siehe `NUR_SCHREIBEND_GEZAEHLT`) — `ipbegrenzung.ts`
    * begründet das Warum dieser Schicht, `caddy/anmeldung.Caddyfile` ist die
-   * Schicht, die das eigentlich übernehmen soll, sobald Plan 4 sie anwendet.
+   * Schicht, die das eigentlich übernehmen soll — angewandt und gegen einen
+   * laufenden Caddy geprüft in `betrieb/Caddyfile`.
    *
    * Ein 429 hier ist **kein** Orakel wie ein abweichender Statuscode bei
    * `/anmeldung/anfordern` es wäre: Er hängt ausschließlich daran, wie oft

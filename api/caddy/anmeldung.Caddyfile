@@ -50,6 +50,12 @@
 # Weicht diese Vorlage künftig von `betrieb/Caddyfile` ab, ist die dort
 # geprüfte Fassung die Wahrheit — diese Datei zieht nach.
 #
+# Hier steht mit Absicht **kein** `trusted_proxies`: Ohne diese Zeile
+# ersetzt Caddy ein mitgeschicktes `X-Forwarded-For` durch die echte
+# Adresse, statt sie anzuhängen. Darauf ruht `VERTRAUTER_PROXY` in
+# `api/src/app.ts` — dort steht die ganze Kette ausgeschrieben. Wer
+# `trusted_proxies` einträgt, muss sie neu durchrechnen.
+#
 # Braucht das Modul caddy-ratelimit:
 #   xcaddy build --with github.com/mholt/caddy-ratelimit
 

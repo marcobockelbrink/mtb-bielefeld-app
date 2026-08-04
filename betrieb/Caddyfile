@@ -9,6 +9,17 @@
 # Alles andere — Zonen, Pfade, Kontingente — ist identisch mit dem, was
 # später auf dem Server läuft. Genau deshalb ist dieser Aufbau mehr als
 # eine Attrappe: Was hier greift, greift dort.
+#
+# Hier steht mit Absicht **kein** `trusted_proxies`. Ohne diese Zeile
+# ersetzt Caddy ein mitgeschicktes `X-Forwarded-For` durch die echte
+# Adresse des Anfragenden, statt sie anzuhängen — und nur deshalb kann
+# niemand der API von außen eine erfundene IP unterschieben. Die API
+# vertraut nämlich dem ganzen Docker-Bereich `172.16.0.0/12`
+# (`VERTRAUTER_PROXY`, siehe `api/src/app.ts`), weil Compose die
+# Container-Adressen dynamisch vergibt. Wer `trusted_proxies` einträgt —
+# der naheliegende Handgriff, sobald ein CDN oder Lastverteiler davorsteht
+# — muss `VERTRAUTER_PROXY` mit anpassen, sonst ist die Begrenzung je IP
+# wertlos, ohne dass irgendein Test rot wird.
 
 :80 {
 	rate_limit {
