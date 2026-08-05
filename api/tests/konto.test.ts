@@ -43,7 +43,11 @@ describe('GET /konto', () => {
     });
 
     expect(antwort.statusCode).toBe(200);
-    expect(antwort.json()).toMatchObject({ email: 'malte@example.org', rolle: 'mitglied' });
+    expect(antwort.json()).toMatchObject({
+      email: 'malte@example.org',
+      rolle: 'mitglied',
+      jugendBenachrichtigung: false,
+    });
     await app.close();
   });
 
@@ -107,6 +111,54 @@ describe('GET /konto', () => {
     });
 
     expect(antwort.json().anmeldungen).toBe(1);
+    await app.close();
+  });
+});
+
+describe('PUT /konto/jugend-benachrichtigung', () => {
+  it('schaltet den Schalter um und die Auskunft zeigt es', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    const { zugang } = await angemeldetesMitglied();
+
+    const antwort = await app.inject({
+      method: 'PUT',
+      url: '/konto/jugend-benachrichtigung',
+      headers: { authorization: `Bearer ${zugang}` },
+      payload: { an: true },
+    });
+    expect(antwort.statusCode).toBe(204);
+
+    const auskunft = await app.inject({
+      method: 'GET',
+      url: '/konto',
+      headers: { authorization: `Bearer ${zugang}` },
+    });
+    expect(auskunft.json().jugendBenachrichtigung).toBe(true);
+    await app.close();
+  });
+
+  it('lehnt ohne Token mit 401 ab', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    const antwort = await app.inject({
+      method: 'PUT',
+      url: '/konto/jugend-benachrichtigung',
+      payload: { an: true },
+    });
+    expect(antwort.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('verlangt einen booleschen Wert', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    const { zugang } = await angemeldetesMitglied();
+
+    const antwort = await app.inject({
+      method: 'PUT',
+      url: '/konto/jugend-benachrichtigung',
+      headers: { authorization: `Bearer ${zugang}` },
+      payload: {},
+    });
+    expect(antwort.statusCode).toBe(400);
     await app.close();
   });
 });

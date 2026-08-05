@@ -11,6 +11,7 @@ import type pg from 'pg';
 import { fordereMagicLinkAn } from './anmeldung.ts';
 import { IpBegrenzung } from './ipbegrenzung.ts';
 import * as jugend from './jugendtraining.ts';
+import * as jugendmails from './jugendmails.ts';
 import { holeKontoAuskunft, loescheKonto } from './konto.ts';
 import type { Mailer } from './mailer.ts';
 import { serialisiereFehler, type Protokoll } from './protokoll.ts';
@@ -532,6 +533,18 @@ export function baueApp({
     return antwort.code(204).send();
   });
 
+  app.put('/konto/jugend-benachrichtigung', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const koerper = anfrage.body as Record<string, unknown>;
+    if (typeof koerper?.an !== 'boolean') {
+      return antwort.code(400).send({ fehler: 'An oder aus angeben.' });
+    }
+    await jugendmails.setzeAbonnement(pool, ausweis.mitgliedId, koerper.an);
+    return antwort.code(204).send();
+  });
+
   app.get('/termine/:schluessel', async (anfrage, antwort) => {
     const { schluessel } = anfrage.params as { schluessel: string };
 
@@ -768,16 +781,49 @@ export function baueApp({
   });
 
   /**
-   * Drei leere Platzhalter, absichtlich ohne Inhalt.
+   * Drei Mailversände, alle nach demselben Muster: Adressen holen, Text aus
+   * `jugendmails.ts` bauen, **einzeln** verschicken.
    *
-   * Der Mailversand für Jugendtrainings ist Aufgabe 6 dieses Plans — bis
-   * dahin sollen die Endpunkte unten übersetzen und laufen, ohne dass eine
-   * Mail verschickt wird. Ohne diesen Kommentar läse sich das wie
-   * vergessener Code oder ein stiller Fehlschlag; beides ist es nicht.
+   * Einzeln und nicht als Sammel-Mail: Ein Verteiler im An-Feld gäbe jedem
+   * Guide die Adressen aller anderen Guides preis, jedem Elternteil die
+   * aller anderen Eltern — ein Datenleck durch Bequemlichkeit.
+   *
+   * `.catch` um jeden einzelnen Versand statt um die Schleife: Eine
+   * schlechte Adresse darf die Zustellung an alle anderen nicht abbrechen.
+   * Der Fehlschlag bleibt dabei nicht still — er geht laut ins Protokoll,
+   * bevor mit der nächsten Adresse weitergemacht wird.
    */
-  async function fragteGuides(_training: jugend.Training): Promise<void> {}
-  async function benachrichtigeAbonnenten(_training: jugend.Training): Promise<void> {}
-  async function meldeAbsage(_training: jugend.Training, _eltern: string[]): Promise<void> {}
+  async function fragteGuides(training: jugend.Training): Promise<void> {
+    const adressen = await jugend.holeGuideAdressen(pool);
+    const { betreff, text } = jugendmails.baueGuideAnfrage(training);
+    for (const adresse of adressen) {
+      await mailer.sende(adresse, betreff, text).catch((fehler) => {
+        log.error({ fehler: serialisiereFehler(fehler), adresse }, 'Guide-Anfrage nicht zugestellt');
+      });
+    }
+  }
+
+  async function benachrichtigeAbonnenten(training: jugend.Training): Promise<void> {
+    const adressen = await jugendmails.holeAbonnenten(pool);
+    const { betreff, text } = jugendmails.baueVeroeffentlichung(training);
+    for (const adresse of adressen) {
+      await mailer.sende(adresse, betreff, text).catch((fehler) => {
+        log.error(
+          { fehler: serialisiereFehler(fehler), adresse },
+          'Veröffentlichungs-Mail nicht zugestellt',
+        );
+      });
+    }
+  }
+
+  async function meldeAbsage(training: jugend.Training, eltern: string[]): Promise<void> {
+    const { betreff, text } = jugendmails.baueAbsage(training);
+    for (const adresse of eltern) {
+      await mailer.sende(adresse, betreff, text).catch((fehler) => {
+        log.error({ fehler: serialisiereFehler(fehler), adresse }, 'Absage-Mail nicht zugestellt');
+      });
+    }
+  }
 
   app.post('/jugendtraining', async (anfrage, antwort) => {
     const guide = await holeGuide(anfrage);

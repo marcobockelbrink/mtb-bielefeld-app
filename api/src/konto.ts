@@ -16,6 +16,8 @@ export interface KontoAuskunft {
   angelegtAm: Date;
   sitzungen: number;
   anmeldungen: number;
+  /** Ob Jugendtrainings-Mails abonniert sind — der Zustand des Schalters in der App. */
+  jugendBenachrichtigung: boolean;
 }
 
 export async function holeKontoAuskunft(
@@ -29,13 +31,14 @@ export async function holeKontoAuskunft(
     angelegt_am: Date;
     sitzungen: string;
     anmeldungen: string;
+    jugend_benachrichtigung: boolean;
   }>(
     // Nach Art. 15 zählt, was tatsächlich gilt: Eine ersetzte Zeile
     // (ersetzt_am gesetzt) ist nur noch für die Wiederverwendungserkennung
     // da, keine nutzbare Sitzung mehr. Eine mit abgelaufener
     // Erneuerungsfrist ebenso wenig — nur noch nicht aufgeräumt. Bei den
     // Anmeldungen zählt entsprechend nur, was nicht storniert ist.
-    `SELECT m.email, m.rolle, m.angelegt_am,
+    `SELECT m.email, m.rolle, m.angelegt_am, m.jugend_benachrichtigung,
             (SELECT count(*) FROM sitzung s
               WHERE s.mitglied_id = m.id
                 AND s.ersetzt_am IS NULL
@@ -55,6 +58,7 @@ export async function holeKontoAuskunft(
     angelegtAm: zeile.angelegt_am,
     sitzungen: Number(zeile.sitzungen),
     anmeldungen: Number(zeile.anmeldungen),
+    jugendBenachrichtigung: zeile.jugend_benachrichtigung,
   };
 }
 
