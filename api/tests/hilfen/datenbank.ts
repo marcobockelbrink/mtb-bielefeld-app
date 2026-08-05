@@ -86,8 +86,17 @@ export async function sichereEntwicklungsdatenbank(pool: pg.Pool): Promise<void>
 export async function frischeDatenbank(): Promise<pg.Pool> {
   await sichereEntwicklungsdatenbank(pool);
   await wendeMigrationenAn(pool);
+  // Alle Tabellen ausdrücklich benannt, obwohl `CASCADE` die meisten schon
+  // mitnähme: Es räumt sie nur, weil sie zufällig einen Fremdschlüssel auf
+  // `mitglied` haben. Eine künftige Tabelle ohne diesen Bezug fiele
+  // stillschweigend heraus — und Tests, die einander Zeilen stehen lassen,
+  // scheitern an Stellen, die mit der Ursache nichts zu tun haben.
+  // Nachgemessen: CASCADE räumt die Jugendtraining-Tabellen auch ohne diese
+  // Liste, aber eben aus dem falschen Grund.
   await pool.query(
-    'TRUNCATE tourenanmeldung, sitzung, magic_link, einladung, mitglied RESTART IDENTITY CASCADE',
+    `TRUNCATE jugendtraining_kind, jugendtraining_guide, jugendtraining,
+              tourenanmeldung, sitzung, magic_link, einladung, mitglied
+     RESTART IDENTITY CASCADE`,
   );
   return pool;
 }
