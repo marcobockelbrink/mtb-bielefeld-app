@@ -1,0 +1,139 @@
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+
+import { pool } from '../src/datenbank.ts';
+import {
+  aendereTraining,
+  holeTraining,
+  holeTrainings,
+  legeTrainingAn,
+  sageAb,
+  veroeffentliche,
+} from '../src/jugendtraining.ts';
+import { frischeDatenbank } from './hilfen/datenbank.ts';
+
+const jetzt = new Date('2026-08-05T12:00:00Z');
+const sonntag = new Date('2026-08-09T08:30:00Z'); // 10:30 Ortszeit
+
+let guideId: string;
+
+beforeEach(async () => {
+  await frischeDatenbank();
+  const { rows } = await pool.query<{ id: string }>(
+    "INSERT INTO mitglied (email, rolle) VALUES ('trainer@example.org', 'guide') RETURNING id",
+  );
+  guideId = rows[0]!.id;
+});
+
+afterAll(async () => {
+  await pool.end();
+});
+
+function eingabe() {
+  return { beginntAm: sonntag, ort: 'Wanderparkplatz Kalkofen' };
+}
+
+describe('legeTrainingAn', () => {
+  it('legt einen Entwurf an, nicht etwas Sichtbares', async () => {
+    // Der Entwurf ist der ganze Zweck der ersten Phase: Erst wenn genug
+    // Guides zugesagt haben, soll jemand davon erfahren.
+    const training = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    expect(training.zustand).toBe('entwurf');
+    expect(training.ort).toBe('Wanderparkplatz Kalkofen');
+    expect(training.guidesNoetig).toBe(2);
+  });
+});
+
+describe('holeTrainings', () => {
+  it('zeigt Entwürfe nur, wenn ausdrücklich danach gefragt wird', async () => {
+    await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+
+    expect(await holeTrainings(pool, false, jetzt)).toHaveLength(0);
+    expect(await holeTrainings(pool, true, jetzt)).toHaveLength(1);
+  });
+
+  it('lässt vergangene Trainings weg', async () => {
+    // Wer den Bereich öffnet, will wissen, was kommt. Was war, steht in
+    // niemandes Weg herum.
+    const vorbei = { ...eingabe(), beginntAm: new Date('2026-07-01T08:30:00Z') };
+    await legeTrainingAn(pool, vorbei, guideId, jetzt);
+    await veroeffentliche(pool, (await holeTrainings(pool, true, new Date('2026-06-01T00:00:00Z')))[0]!.id, jetzt);
+
+    expect(await holeTrainings(pool, true, jetzt)).toHaveLength(0);
+  });
+});
+
+describe('veroeffentliche', () => {
+  it('macht aus dem Entwurf ein sichtbares Training', async () => {
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+
+    const ergebnis = await veroeffentliche(pool, id, jetzt);
+    expect(ergebnis.ok).toBe(true);
+    expect((await holeTraining(pool, id))?.zustand).toBe('veroeffentlicht');
+    expect(await holeTrainings(pool, false, jetzt)).toHaveLength(1);
+  });
+
+  it('lehnt ein zweites Veröffentlichen ab, statt still nichts zu tun', async () => {
+    // Sonst ginge die Mail an die Abonnenten zweimal raus.
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    await veroeffentliche(pool, id, jetzt);
+
+    const nochmal = await veroeffentliche(pool, id, jetzt);
+    expect(nochmal).toEqual({ ok: false, grund: 'falscher-zustand' });
+  });
+
+  it('meldet ein unbekanntes Training als solches', async () => {
+    const ergebnis = await veroeffentliche(pool, '00000000-0000-0000-0000-000000000000', jetzt);
+    expect(ergebnis).toEqual({ ok: false, grund: 'unbekannt' });
+  });
+});
+
+describe('sageAb', () => {
+  it('sagt ein veröffentlichtes Training mit Grund ab', async () => {
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    await veroeffentliche(pool, id, jetzt);
+
+    const ergebnis = await sageAb(pool, id, 'Dauerregen', jetzt);
+    expect(ergebnis.ok).toBe(true);
+
+    const nachher = await holeTraining(pool, id);
+    expect(nachher?.zustand).toBe('abgesagt');
+    expect(nachher?.absagegrund).toBe('Dauerregen');
+  });
+
+  it('sagt auch einen Entwurf ab — dann hat sich die Guide-Suche erledigt', async () => {
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    expect((await sageAb(pool, id, 'zu wenig Guides', jetzt)).ok).toBe(true);
+  });
+
+  it('lehnt eine zweite Absage ab', async () => {
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    await sageAb(pool, id, 'Regen', jetzt);
+    expect(await sageAb(pool, id, 'immer noch Regen', jetzt)).toEqual({
+      ok: false,
+      grund: 'falscher-zustand',
+    });
+  });
+
+  it('bleibt in der Liste sichtbar, damit niemand umsonst hinfährt', async () => {
+    // Ein abgesagtes Training verschwinden zu lassen wäre das Gegenteil von
+    // hilfreich: Wer es gestern gesehen hat, hielte das Verschwinden für
+    // einen Fehler der App und führe hin.
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    await veroeffentliche(pool, id, jetzt);
+    await sageAb(pool, id, 'Regen', jetzt);
+
+    const sichtbar = await holeTrainings(pool, false, jetzt);
+    expect(sichtbar).toHaveLength(1);
+    expect(sichtbar[0]?.zustand).toBe('abgesagt');
+  });
+});
+
+describe('aendereTraining', () => {
+  it('ändert nur, was angegeben ist', async () => {
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+
+    const geaendert = await aendereTraining(pool, id, { ort: 'Eisgrund' });
+    expect(geaendert?.ort).toBe('Eisgrund');
+    expect(geaendert?.beginntAm.getTime()).toBe(sonntag.getTime());
+  });
+});
