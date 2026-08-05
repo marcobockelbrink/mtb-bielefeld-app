@@ -3,10 +3,13 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../src/datenbank.ts';
 import {
   aendereTraining,
+  holeGuideAdressen,
+  holeGuideAntworten,
   holeTraining,
   holeTrainings,
   legeTrainingAn,
   sageAb,
+  setzeGuideAntwort,
   veroeffentliche,
 } from '../src/jugendtraining.ts';
 import { frischeDatenbank } from './hilfen/datenbank.ts';
@@ -174,5 +177,47 @@ describe('aendereTraining', () => {
     const geaendert = await aendereTraining(pool, id, { ort: 'Eisgrund' });
     expect(geaendert?.ort).toBe('Eisgrund');
     expect(geaendert?.beginntAm.getTime()).toBe(sonntag.getTime());
+  });
+});
+
+describe('Guide-Antworten', () => {
+  it('merkt sich Zusage und Absage je Guide', async () => {
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+
+    expect(await setzeGuideAntwort(pool, id, guideId, true, jetzt)).toBe(true);
+
+    const antworten = await holeGuideAntworten(pool, id);
+    expect(antworten).toEqual([
+      { mitgliedId: guideId, email: 'trainer@example.org', zusage: true },
+    ]);
+  });
+
+  it('überschreibt eine frühere Antwort, statt eine zweite anzulegen', async () => {
+    // Wer erst zusagt und dann doch nicht kann, drückt auf denselben Knopf.
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    await setzeGuideAntwort(pool, id, guideId, true, jetzt);
+    await setzeGuideAntwort(pool, id, guideId, false, jetzt);
+
+    const antworten = await holeGuideAntworten(pool, id);
+    expect(antworten).toHaveLength(1);
+    expect(antworten[0]?.zusage).toBe(false);
+  });
+
+  it('meldet false für ein unbekanntes Training, statt einen Fremdschlüssel zu werfen', async () => {
+    expect(
+      await setzeGuideAntwort(pool, '00000000-0000-0000-0000-000000000000', guideId, true, jetzt),
+    ).toBe(false);
+  });
+
+  it('holeGuideAdressen findet nur Guides', async () => {
+    await pool.query(
+      "INSERT INTO mitglied (email, rolle) VALUES ('eltern@example.org', 'mitglied')",
+    );
+    await pool.query(
+      "INSERT INTO mitglied (email, rolle) VALUES ('zweiter@example.org', 'guide')",
+    );
+
+    const adressen = await holeGuideAdressen(pool);
+    expect(adressen.sort()).toEqual(['trainer@example.org', 'zweiter@example.org']);
   });
 });

@@ -243,3 +243,70 @@ export function sageAb(
     ['entwurf', 'veroeffentlicht'],
   );
 }
+
+/**
+ * Zusage oder Absage eines Guides — ein Datensatz je Guide und Training.
+ *
+ * `ON CONFLICT` statt Löschen und neu Einfügen: Wer erst zusagt und dann
+ * doch nicht kann, drückt auf denselben Knopf, und es soll eine Antwort
+ * bleiben, keine zwei.
+ *
+ * `false` heißt: Das Training gibt es nicht. Der Fremdschlüssel würde sonst
+ * eine Ausnahme werfen, die jeder Aufrufer fangen müsste.
+ */
+export async function setzeGuideAntwort(
+  ausfuehrer: pg.Pool | pg.PoolClient,
+  trainingId: string,
+  mitgliedId: string,
+  zusage: boolean,
+  jetzt: Date,
+): Promise<boolean> {
+  if (!/^[0-9a-f-]{36}$/i.test(trainingId)) return false;
+
+  const { rowCount } = await ausfuehrer.query(
+    `INSERT INTO jugendtraining_guide (training_id, mitglied_id, zusage, geantwortet_am)
+     SELECT $1, $2, $3, $4
+      WHERE EXISTS (SELECT 1 FROM jugendtraining WHERE id = $1)
+     ON CONFLICT (training_id, mitglied_id)
+     DO UPDATE SET zusage = EXCLUDED.zusage, geantwortet_am = EXCLUDED.geantwortet_am`,
+    [trainingId, mitgliedId, zusage, jetzt],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/**
+ * Wer geantwortet hat — mit Adresse, denn mehr als die Adresse speichert
+ * diese API über ein Mitglied nicht.
+ *
+ * Sichtbar nur für Guides; das entscheidet der Endpunkt.
+ */
+export async function holeGuideAntworten(
+  ausfuehrer: pg.Pool | pg.PoolClient,
+  trainingId: string,
+): Promise<Array<{ mitgliedId: string; email: string; zusage: boolean }>> {
+  if (!/^[0-9a-f-]{36}$/i.test(trainingId)) return [];
+
+  const { rows } = await ausfuehrer.query<{
+    mitglied_id: string;
+    email: string;
+    zusage: boolean;
+  }>(
+    `SELECT g.mitglied_id, m.email, g.zusage
+       FROM jugendtraining_guide g
+       JOIN mitglied m ON m.id = g.mitglied_id
+      WHERE g.training_id = $1
+      ORDER BY g.geantwortet_am`,
+    [trainingId],
+  );
+  return rows.map((z) => ({ mitgliedId: z.mitglied_id, email: z.email, zusage: z.zusage }));
+}
+
+/** Alle Adressen mit der Rolle `guide` — die Empfänger der Anfrage-Mail. */
+export async function holeGuideAdressen(
+  ausfuehrer: pg.Pool | pg.PoolClient,
+): Promise<string[]> {
+  const { rows } = await ausfuehrer.query<{ email: string }>(
+    "SELECT email FROM mitglied WHERE rolle = 'guide' ORDER BY email",
+  );
+  return rows.map((z) => z.email);
+}
