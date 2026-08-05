@@ -34,8 +34,8 @@
 
 		zone tourenanmeldung {
 			match {
-				path /termine/*
-				method POST DELETE
+				path /termine/* /jugendtraining*
+				method POST DELETE PATCH PUT
 			}
 			key {remote_host}
 			events 10

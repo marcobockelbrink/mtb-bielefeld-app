@@ -10,6 +10,7 @@ import type pg from 'pg';
 
 import { fordereMagicLinkAn } from './anmeldung.ts';
 import { IpBegrenzung } from './ipbegrenzung.ts';
+import * as jugend from './jugendtraining.ts';
 import { holeKontoAuskunft, loescheKonto } from './konto.ts';
 import type { Mailer } from './mailer.ts';
 import { serialisiereFehler, type Protokoll } from './protokoll.ts';
@@ -128,17 +129,25 @@ const HOECHSTENS_ANFRAGEN_JE_MINUTE = 20;
  * ohne Schrägstrich davor braucht, steht hier ein Präfix ohne Schrägstrich
  * dahinter; wo dort `/…/*` steht, endet der Präfix hier auf `/`.
  */
-const IP_GESCHUETZTE_PFAD_PRAEFIXE = ['/anmeldung/', '/sitzung', '/konto', '/termine/', '/gast/'];
+const IP_GESCHUETZTE_PFAD_PRAEFIXE = [
+  '/anmeldung/',
+  '/sitzung',
+  '/konto',
+  '/termine/',
+  '/gast/',
+  '/jugendtraining',
+];
 
 /**
- * Der Pfad, an dem nur die schreibenden Methoden mitgezählt werden.
+ * Pfade, an denen nur die schreibenden Methoden mitgezählt werden.
  *
- * `GET /termine/:schluessel` ist die Belegungsabfrage — die einzige Anfrage
- * dieser API, die eine App im gewöhnlichen Gebrauch **je Termin** stellt.
- * Wer eine Terminliste öffnet, feuert damit ein Dutzend GETs in wenigen
- * Sekunden und reißt die Grenze von zwanzig je Minute, ohne irgendetwas
- * falsch zu machen. Eine Notbremse, die den Normalfall bremst, ist keine
- * Notbremse mehr, sondern ein Fehler.
+ * `GET /termine/:schluessel` ist die Belegungsabfrage, `GET /jugendtraining`
+ * und `GET /jugendtraining/:id` sind die Listen- und Detailabfrage — die
+ * Anfragen dieser API, die eine App im gewöhnlichen Gebrauch **je Termin
+ * oder Training** stellt. Wer eine Liste öffnet, feuert damit ein Dutzend
+ * GETs in wenigen Sekunden und reißt die Grenze von zwanzig je Minute, ohne
+ * irgendetwas falsch zu machen. Eine Notbremse, die den Normalfall bremst,
+ * ist keine Notbremse mehr, sondern ein Fehler.
  *
  * Das ist eine Abwägung, keine Lücke: Ein `GET` hierher kann eine
  * `Authorization`-Kopfzeile tragen und prüft dann ein Token gegen die
@@ -146,15 +155,15 @@ const IP_GESCHUETZTE_PFAD_PRAEFIXE = ['/anmeldung/', '/sitzung', '/konto', '/ter
  * Token über diesen einen Weg von dieser Schicht nicht gebremst wird. Bei
  * einem 256-Bit-Token ist Erraten aussichtslos, und die Abwehr einer
  * schieren Anfrageflut ist ohnehin nicht die Aufgabe dieser Schicht,
- * sondern die von Caddy. `POST` (Anmelden) und `DELETE` (Abmelden) zählen
- * unverändert mit — beides sind Vorgänge, die ein Mensch je Termin einmal
- * auslöst, nie zwanzigmal je Minute.
+ * sondern die von Caddy. Jedes `POST`, `PATCH`, `PUT` und `DELETE` zählt
+ * unverändert mit — das sind Vorgänge, die ein Mensch je Termin oder
+ * Training einmal auslöst, nie zwanzigmal je Minute.
  */
-const NUR_SCHREIBEND_GEZAEHLT = '/termine/';
+const NUR_SCHREIBEND_GEZAEHLT = ['/termine/', '/jugendtraining'];
 
 function zaehltGegenIpGrenze(methode: string, pfad: string): boolean {
   if (!IP_GESCHUETZTE_PFAD_PRAEFIXE.some((praefix) => pfad.startsWith(praefix))) return false;
-  return !(methode === 'GET' && pfad.startsWith(NUR_SCHREIBEND_GEZAEHLT));
+  return !(methode === 'GET' && NUR_SCHREIBEND_GEZAEHLT.some((praefix) => pfad.startsWith(praefix)));
 }
 
 declare module 'fastify' {
@@ -490,6 +499,12 @@ export function baueApp({
     return pruefeZugang(pool, kopf.slice('Bearer '.length), jetzt());
   }
 
+  /** Wie `holeAusweis`, aber besteht auf der Guide-Rolle. */
+  async function holeGuide(anfrage: { headers: Record<string, unknown> }) {
+    const ausweis = await holeAusweis(anfrage);
+    return ausweis?.rolle === 'guide' ? ausweis : null;
+  }
+
   app.get('/konto', async (anfrage, antwort) => {
     const ausweis = await holeAusweis(anfrage);
     if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
@@ -750,6 +765,215 @@ export function baueApp({
     return antwort
       .type('text/html; charset=utf-8')
       .send('<p>Deine Anmeldung ist storniert. Danke fürs Bescheidsagen!</p>');
+  });
+
+  /**
+   * Drei leere Platzhalter, absichtlich ohne Inhalt.
+   *
+   * Der Mailversand für Jugendtrainings ist Aufgabe 6 dieses Plans — bis
+   * dahin sollen die Endpunkte unten übersetzen und laufen, ohne dass eine
+   * Mail verschickt wird. Ohne diesen Kommentar läse sich das wie
+   * vergessener Code oder ein stiller Fehlschlag; beides ist es nicht.
+   */
+  async function fragteGuides(_training: jugend.Training): Promise<void> {}
+  async function benachrichtigeAbonnenten(_training: jugend.Training): Promise<void> {}
+  async function meldeAbsage(_training: jugend.Training, _eltern: string[]): Promise<void> {}
+
+  app.post('/jugendtraining', async (anfrage, antwort) => {
+    const guide = await holeGuide(anfrage);
+    // 403 und nicht 404: Wer angemeldet ist, darf erfahren, dass es diesen
+    // Weg gibt — nur nicht, dass er ihn gehen darf. Ein 404 wäre hier
+    // Geheimniskrämerei ohne Gewinn.
+    if (!guide) return antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
+
+    const koerper = anfrage.body as Record<string, unknown>;
+    const beginntAm = new Date(String(koerper?.beginntAm ?? ''));
+    const ort = typeof koerper?.ort === 'string' ? koerper.ort.trim() : '';
+    if (Number.isNaN(beginntAm.getTime()) || ort === '') {
+      return antwort.code(400).send({ fehler: 'Beginn und Ort werden gebraucht.' });
+    }
+
+    const training = await jugend.legeTrainingAn(
+      pool,
+      {
+        beginntAm,
+        endetAm: koerper.endetAm ? new Date(String(koerper.endetAm)) : null,
+        ort,
+        hinweis: typeof koerper.hinweis === 'string' ? koerper.hinweis.trim() : null,
+        plaetze: typeof koerper.plaetze === 'number' ? koerper.plaetze : null,
+        guidesNoetig: typeof koerper.guidesNoetig === 'number' ? koerper.guidesNoetig : undefined,
+      },
+      guide.mitgliedId,
+      jetzt(),
+    );
+
+    // Erst antworten, dann fragen: Der Mailversand darf die Antwort nicht
+    // aufhalten — dieselbe Regel wie bei den Magic Links.
+    antwort.code(201).send(training);
+    imHintergrund(() => fragteGuides(training));
+    return antwort;
+  });
+
+  app.get('/jugendtraining', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const trainings = await jugend.holeTrainings(pool, ausweis.rolle === 'guide', jetzt());
+    const mitZahlen = await Promise.all(
+      trainings.map(async (t) => ({
+        ...t,
+        belegt: await jugend.holeBelegungTraining(pool, t.id),
+      })),
+    );
+    return antwort.send(mitZahlen);
+  });
+
+  app.get('/jugendtraining/:id', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    const training = await jugend.holeTraining(pool, id);
+    const istGuide = ausweis.rolle === 'guide';
+    // Ein Entwurf ist für alle anderen dasselbe wie ein Training, das es
+    // nicht gibt — sonst verriete der Statuscode seine Existenz.
+    if (!training || (training.zustand === 'entwurf' && !istGuide)) {
+      return antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' });
+    }
+
+    return antwort.send({
+      ...training,
+      belegt: await jugend.holeBelegungTraining(pool, id),
+      kinder: await jugend.holeKinder(pool, id, istGuide),
+      guides: istGuide ? await jugend.holeGuideAntworten(pool, id) : undefined,
+    });
+  });
+
+  app.patch('/jugendtraining/:id', async (anfrage, antwort) => {
+    const guide = await holeGuide(anfrage);
+    if (!guide) return antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
+
+    const { id } = anfrage.params as { id: string };
+    const koerper = anfrage.body as Record<string, unknown>;
+    const geaendert = await jugend.aendereTraining(pool, id, {
+      ...(koerper.beginntAm ? { beginntAm: new Date(String(koerper.beginntAm)) } : {}),
+      ...(typeof koerper.ort === 'string' ? { ort: koerper.ort.trim() } : {}),
+      ...('hinweis' in koerper ? { hinweis: koerper.hinweis === null ? null : String(koerper.hinweis) } : {}),
+      ...('plaetze' in koerper ? { plaetze: koerper.plaetze === null ? null : Number(koerper.plaetze) } : {}),
+    });
+    if (!geaendert) return antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' });
+    return antwort.send(geaendert);
+  });
+
+  app.post('/jugendtraining/:id/veroeffentlichen', async (anfrage, antwort) => {
+    const guide = await holeGuide(anfrage);
+    if (!guide) return antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
+
+    const { id } = anfrage.params as { id: string };
+    const ergebnis = await jugend.veroeffentliche(pool, id, jetzt());
+    if (!ergebnis.ok) {
+      return ergebnis.grund === 'unbekannt'
+        ? antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' })
+        : antwort.code(409).send({ fehler: 'Dieses Training ist nicht mehr im Entwurf.' });
+    }
+
+    antwort.send(ergebnis.training);
+    imHintergrund(() => benachrichtigeAbonnenten(ergebnis.training));
+    return antwort;
+  });
+
+  app.post('/jugendtraining/:id/absage', async (anfrage, antwort) => {
+    const guide = await holeGuide(anfrage);
+    if (!guide) return antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
+
+    const { id } = anfrage.params as { id: string };
+    const koerper = anfrage.body as Record<string, unknown>;
+    const grund = typeof koerper?.grund === 'string' ? koerper.grund.trim() : '';
+    // Ein Grund ist Pflicht: „abgesagt" ohne Warum lässt acht Familien
+    // rätseln, und jemand fährt trotzdem hin.
+    if (grund === '') return antwort.code(400).send({ fehler: 'Bitte einen Grund angeben.' });
+
+    // Die Adressen **vor** der Absage holen: Danach ändert sich zwar nichts
+    // an den Anmeldungen, aber die Reihenfolge macht es unabhängig davon,
+    // ob später einmal beim Absagen aufgeräumt wird.
+    const eltern = await jugend.holeElternAdressen(pool, id);
+    const ergebnis = await jugend.sageAb(pool, id, grund, jetzt());
+    if (!ergebnis.ok) {
+      return ergebnis.grund === 'unbekannt'
+        ? antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' })
+        : antwort.code(409).send({ fehler: 'Dieses Training ist schon abgesagt.' });
+    }
+
+    antwort.send(ergebnis.training);
+    imHintergrund(() => meldeAbsage(ergebnis.training, eltern));
+    return antwort;
+  });
+
+  app.put('/jugendtraining/:id/guide', async (anfrage, antwort) => {
+    const guide = await holeGuide(anfrage);
+    if (!guide) return antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
+
+    const { id } = anfrage.params as { id: string };
+    const koerper = anfrage.body as Record<string, unknown>;
+    if (typeof koerper?.zusage !== 'boolean') {
+      return antwort.code(400).send({ fehler: 'Zusage oder Absage angeben.' });
+    }
+
+    const gesetzt = await jugend.setzeGuideAntwort(pool, id, guide.mitgliedId, koerper.zusage, jetzt());
+    if (!gesetzt) return antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' });
+    return antwort.code(204).send();
+  });
+
+  app.post('/jugendtraining/:id/kinder', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    const koerper = anfrage.body as Record<string, unknown>;
+    const vorname = typeof koerper?.vorname === 'string' ? koerper.vorname.trim() : '';
+    const nachname = typeof koerper?.nachname === 'string' ? koerper.nachname.trim() : '';
+    if (vorname === '' || nachname === '') {
+      return antwort.code(400).send({ fehler: 'Vor- und Nachname werden gebraucht.' });
+    }
+
+    const ergebnis = await jugend.meldeKindAn(
+      pool,
+      id,
+      ausweis.mitgliedId,
+      {
+        vorname,
+        nachname,
+        zeigtVorname: koerper.zeigtVorname !== false,
+        zeigtNachname: koerper.zeigtNachname === true,
+      },
+      jetzt(),
+    );
+
+    if (!ergebnis.ok) {
+      const texte: Record<string, [number, string]> = {
+        unbekannt: [404, 'Dieses Training gibt es nicht.'],
+        'nicht-offen': [409, 'Für dieses Training kann man sich nicht anmelden.'],
+        vorbei: [409, 'Dieses Training ist vorbei.'],
+        voll: [409, 'Dieses Training ist voll.'],
+        'schon-zwei': [409, 'Mehr als zwei Kinder gehen über ein Konto nicht.'],
+      };
+      const [code, text] = texte[ergebnis.grund]!;
+      return antwort.code(code).send({ fehler: text });
+    }
+
+    return antwort.code(201).send({ kindId: ergebnis.kindId, belegt: ergebnis.belegt });
+  });
+
+  app.delete('/jugendtraining/:id/kinder/:kindId', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id, kindId } = anfrage.params as { id: string; kindId: string };
+    const weg = await jugend.meldeKindAb(pool, id, ausweis.mitgliedId, kindId, jetzt());
+    // 404 auch für ein fremdes Kind: „Gibt es nicht" und „gehört dir nicht"
+    // dürfen sich für den Anfragenden nicht unterscheiden.
+    if (!weg) return antwort.code(404).send({ fehler: 'Diese Anmeldung gibt es nicht.' });
+    return antwort.code(204).send();
   });
 
   return app;
