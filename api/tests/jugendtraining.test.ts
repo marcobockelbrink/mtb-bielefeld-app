@@ -81,6 +81,45 @@ describe('veroeffentliche', () => {
     expect(nochmal).toEqual({ ok: false, grund: 'falscher-zustand' });
   });
 
+  it('lässt bei erzwungener Verschränkung genau einen Versuch durch', async () => {
+    // **Die Verschränkung wird erzwungen, nicht erhofft.** Ein einfaches
+    // `Promise.all` beweist hier nichts: Die beiden Aufrufe laufen dann in
+    // der Praxis nacheinander durch, und der Test bliebe auch bei „erst
+    // lesen, dann prüfen, dann schreiben" grün — nachgemessen.
+    //
+    // Deterministisch wird es über zwei Verbindungen und eine offene
+    // Transaktion: A ändert, ohne festzuschreiben. B liest damit noch den
+    // alten Stand („entwurf"), läuft dann aber beim Schreiben in die
+    // Zeilensperre und wartet. Nach A's COMMIT sieht B's `WHERE zustand =
+    // ANY('entwurf')` den neuen Zustand und trifft keine Zeile mehr.
+    //
+    // Eine Umsetzung, die vorher liest und danach bedingungslos schreibt,
+    // fällt hier durch — genau dafür ist der Test da.
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+
+    const a = await pool.connect();
+    const b = await pool.connect();
+    try {
+      await a.query('BEGIN');
+      const ergebnisA = await veroeffentliche(a, id, jetzt);
+      expect(ergebnisA.ok).toBe(true);
+
+      await b.query('BEGIN');
+      // Läuft in die Sperre und kehrt erst nach dem COMMIT von A zurück.
+      const wartend = veroeffentliche(b, id, jetzt);
+      await new Promise((weiter) => setTimeout(weiter, 50));
+      await a.query('COMMIT');
+
+      const ergebnisB = await wartend;
+      await b.query('COMMIT');
+
+      expect(ergebnisB).toEqual({ ok: false, grund: 'falscher-zustand' });
+    } finally {
+      a.release();
+      b.release();
+    }
+  });
+
   it('meldet ein unbekanntes Training als solches', async () => {
     const ergebnis = await veroeffentliche(pool, '00000000-0000-0000-0000-000000000000', jetzt);
     expect(ergebnis).toEqual({ ok: false, grund: 'unbekannt' });
