@@ -12,6 +12,7 @@
     "migrieren": "node --experimental-strip-types src/migrationen/anwenden.ts",
     "aufraeumen": "node --experimental-strip-types src/aufraeumen-cli.ts",
     "einladung:erzeugen": "node --experimental-strip-types src/einladung-cli.ts",
+    "rolle:setzen": "node --experimental-strip-types src/rolle-cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
