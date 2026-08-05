@@ -55,6 +55,51 @@ Jugendtrainings". Wer ihn setzt, bekommt beim Veröffentlichen eine Mail. Kein
 Rundschreiben an den ganzen Verein — das wäre Spam für alle ohne Kinder — und
 genau die Liste, die später auch die Push-Nachrichten bekommt.
 
+## WhatsApp bleibt der Kanal — über einen Teilen-Knopf
+
+Der Abonnement-Schalter erreicht nur, wer die App schon hat und ihn gefunden
+hat. Die WhatsApp-Gruppe erreicht heute alle. Also beides.
+
+**Automatisch posten geht nicht.** Die WhatsApp Business API schickt
+Nachrichten an einzelne Nummern, die vorher zugestimmt haben; in normale
+Gruppenchats kann sie nicht schreiben. Das ist von Meta so gebaut, keine
+Einstellungssache, und bräuchte zudem ein Business-Konto, Nummern­verifizierung
+und Geld je Unterhaltung — dasselbe Muster wie bei Instagram, das aus
+denselben Gründen vertagt ist.
+
+**Stattdessen ein Teilen-Knopf.** Nach dem Veröffentlichen legt die App einen
+fertigen Text vor und öffnet das System-Teilen; der Guide wählt die Gruppe:
+
+```
+🚵 Jugendtraining am Sonntag, 10:30 Uhr
+Wanderparkplatz Kalkofen, Oerlinghausen
+
+Anmelden: https://<vereinsdomain>/t/k3f9
+```
+
+Ein Fingertipp mehr als vollautomatisch, dafür ohne Meta-Konto, ohne Kosten
+und ohne weiteren Auftragsverarbeiter. Dass ein Mensch vor dem Absenden noch
+einmal draufschaut, ist bei einem Termin für Kinder kein Nachteil.
+
+### Was daran hängt
+
+**Universal Links.** Der Link muss auch für jemanden funktionieren, der die
+App nicht hat — sonst tippt die halbe Gruppe ins Leere. `https://…` öffnet
+die App, wenn sie installiert ist, sonst eine kleine Seite mit
+Installationshinweis. In `app.json` ist das noch nicht eingerichtet (seit
+Plan 3 offen) und wird Teil von Plan 2. **Setzt die feststehende
+Vereinsdomain voraus.**
+
+**Die Seite hinter dem Link zeigt wenig:** „Jugendtraining am Sonntag — in
+der App anmelden", plus Installationshinweis. **Nicht** Ort, Uhrzeit,
+Teilnehmer. WhatsApp-Nachrichten werden weitergeleitet, und ein Link ist
+kein Zugangsschutz. Im Nachrichtentext selbst dürfen Ort und Zeit stehen:
+Die gehen heute ohnehin durch dieselbe Gruppe — das ist kein Rückschritt,
+sondern der Ist-Zustand.
+
+Der kurze Weg `/t/:id` statt `/jugendtraining/:id`: Ein Link, den jemand
+abtippt oder vorliest, soll kurz sein. Er zeigt auf dieselbe Sache.
+
 ## Datenmodell
 
 `mitglied.rolle` gibt es bereits mit `mitglied | guide | verwaltung` — daran
@@ -145,6 +190,7 @@ Protokoll.
 | `POST` | `/jugendtraining/:id/kinder` | Mitglied | ein Kind anmelden, mit Anzeige-Wahl |
 | `DELETE` | `/jugendtraining/:id/kinder/:kindId` | Mitglied | eigenes Kind abmelden |
 | `PUT` | `/konto/jugend-benachrichtigung` | Mitglied | Abonnement ein- oder ausschalten |
+| `GET` | `/t/:id` | **niemand angemeldet** | die kleine Seite hinter dem geteilten Link; liefert HTML, keine Einzelheiten |
 
 **Nicht vergessen — zwei Stellen außerhalb dieser Liste:**
 
@@ -153,6 +199,13 @@ Protokoll.
 - Und in die Zonen von `betrieb/Caddyfile` **und**
   `api/caddy/anmeldung.Caddyfile`. Wer nur eine der beiden ändert, hat eine
   Vorlage, die von der laufenden Fassung abweicht.
+
+`GET /t/:id` ist der **einzige Pfad ohne Token** in diesem Entwurf. Er gehört
+deshalb in Caddys Ratenbegrenzung, aber nicht in die token­prüfende Schicht
+der API — er prüft nichts gegen die Datenbank außer der Frage, ob es das
+Training gibt. Er antwortet für ein unbekanntes Kürzel genauso wie für ein
+abgesagtes Training: mit derselben Seite und demselben Statuscode. Sonst
+wäre er ein Auskunftsdienst darüber, welche Kürzel existieren.
 
 Die Belegungsabfrage `GET /jugendtraining` wird wie `GET /termine/…`
 **nicht** je Anfrage gezählt: Wer den Bereich öffnet, stellt sie einmal, aber
@@ -220,6 +273,9 @@ Zeitpunkt, es zu überdenken — nicht vorher.
 - **Die Vereinssoftware-API.** „Ich hoffe, wir bekommen die Daten" ist keine
   Grundlage. Falls sie kommt, ersetzt sie später das Anlegen von
   Mitgliedern — am Modell hier ändert das nichts.
+- **Automatisches Posten in WhatsApp.** Geht nicht (siehe oben); der
+  Teilen-Knopf ist die Antwort darauf, nicht ein Zwischenschritt zu etwas
+  Besserem.
 - **Wiederkehrende Trainings.** Sie entstehen spontan; eine Serienlogik löst
   ein Problem, das es nicht gibt.
 - **Wartelisten.** Erst bauen, wenn ein Training wirklich einmal voll war.
@@ -247,7 +303,8 @@ für sich funktioniert:
    CLI-Werkzeug für die Rolle. Prüfbar über `betrieb/pruefe-ablauf.sh` und
    die Rauchprobe, ohne dass die App etwas davon weiß.
 2. **Die App** — der Bereich Jugend, Anmeldeformular, Guide-Ansicht, der
-   Abonnement-Schalter in den Einstellungen.
+   Abonnement-Schalter in den Einstellungen, der Teilen-Knopf und Universal
+   Links samt der kleinen Seite hinter `/t/:id`.
 
 **Voraussetzung für beides:** Der SMTP-Zugang des Vereins muss stehen. Ohne
 Mailversand gibt es weder die Guide-Anfrage noch die Absage — und damit kein
