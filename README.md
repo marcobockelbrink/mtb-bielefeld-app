@@ -308,13 +308,53 @@ bekommt einen Link per Mail. Die App hält danach zwei Token — eines gilt 15
 Minuten und lebt nur im Arbeitsspeicher, das andere gilt 60 Tage und liegt im
 Schlüsselbund des Geräts. In der Datenbank stehen ausschließlich Hashes.
 
+### Jugendtrainings
+
+Die Trainings für die Jugend entstehen spontan — meist sonntags um 10:30, an
+wechselnden Orten — und liefen bisher über eine WhatsApp-Gruppe. Wer nicht
+drin war, erfuhr nichts; niemand wusste verlässlich, wie viele Kinder kommen.
+
+Seit August kann die API das. Zwei Phasen, und der Übergang ist eine
+menschliche Entscheidung:
+
+```
+Guide legt einen Entwurf an     nur für Guides sichtbar
+  → Mail an alle Guides         „Sonntag 10:30 Oerlinghausen — kannst du?"
+  → Guides sagen zu oder ab
+  → der Guide sieht, wer kann, und entscheidet selbst
+       ↓ veröffentlichen
+  sichtbar für alle Mitglieder  Eltern melden ein bis zwei Kinder an
+       ↓ Absage jederzeit
+  → Mail an alle Angemeldeten, mit Grund
+```
+
+Kein Schwellenwert im Code: Ob zwei Guides für acht Kinder reichen, hängt an
+Strecke, Alter und Wetter — das weiß nur ein Mensch.
+
+**Die heikelste Entscheidung betrifft Kinder.** Gespeichert wird immer der
+volle Name, aber die Eltern wählen **je Kind**, was andere Vereinsmitglieder
+davon sehen: Vorname, beides oder nichts. Guides sehen immer Vor- und
+Nachname, weil sie die Aufsicht haben — bei einem Sturz muss jemand wissen,
+wer da liegt. Dreißig Tage nach dem Training werden die Namen gelöscht.
+
+Guides ernennt man auf dem Server, nicht über eine Oberfläche:
+
+```bash
+docker compose -f betrieb/docker-compose.yml exec api \
+  npm run rolle:setzen -- vorname.nachname@example.org guide
+```
+
+> **In der App ist davon noch nichts zu sehen.** Die Endpunkte stehen und
+> sind geprüft, der Bereich „Jugend" kommt mit dem nächsten Plan. Bis dahin
+> lässt sich das Ganze nur mit `curl` bedienen.
+
 Warum das so gebaut ist und woran man sich beim Ändern die Finger verbrennt,
 steht in **[docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md)**.
 
 ## Über die Tests
 
 240 Tests, die ohne Gerät und ohne Netz laufen — in einem Bruchteil einer
-Sekunde. Dazu 171 Tests der API (`cd api && npm test`, gegen ein lokales
+Sekunde. Dazu 223 Tests der API (`cd api && npm test`, gegen ein lokales
 Postgres). Nennenswert:
 
 - **Echte Daten als Prüfstein.** `tests/fixtures/kalender-auszug.ics` ist ein
@@ -379,6 +419,10 @@ Sprache. Gefunden hat es erst der Simulator.
 
 ## Was noch offen ist
 
+- **Jugendtrainings in der App.** Die API kann sie vollständig, die App zeigt
+  sie noch nicht — Bereich „Jugend", Anmeldeformular, Guide-Ansicht, dazu ein
+  Teilen-Knopf für die WhatsApp-Gruppe und Universal Links. Der Plan dafür
+  liegt unter `docs/superpowers/plans/2026-08-05-jugendtrainings-app.md`.
 - **Der Vereinsserver läuft nur lokal.** Domain, Zertifikat, ein Mailanbieter
   mit Sitz in der EU samt SPF, DKIM und DMARC, SSH-Härtung, Firewall und
   Backups mit regelmäßiger Rücksicherungsprobe stehen noch aus. Die vier
