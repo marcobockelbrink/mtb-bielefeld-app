@@ -44,6 +44,23 @@ afterAll(async () => {
   await pool.end();
 });
 
+describe('Ohne Anmeldung', () => {
+  it('antwortet auf einen Guide-Weg mit 401, nicht mit 403', async () => {
+    // Beides mit „Das dürfen nur Guides" zu beantworten schickte Leute in
+    // die falsche Richtung: Wer nicht angemeldet ist, soll sich anmelden;
+    // wer angemeldet und kein Guide ist, braucht jemanden, der ihm die Rolle
+    // gibt. Anmelden hilft ihm nicht.
+    const app = bauen();
+    const antwort = await app.inject({
+      method: 'POST',
+      url: '/jugendtraining',
+      payload: { beginntAm: '2026-09-01T08:30:00Z', ort: 'X' },
+    });
+    expect(antwort.statusCode).toBe(401);
+    expect(antwort.json().fehler).toBe('Nicht angemeldet.');
+  });
+});
+
 describe('POST /jugendtraining', () => {
   it('weist einen Nicht-Guide beim Anlegen mit 403 ab — die Rolle entscheidet, nicht die Anmeldung', async () => {
     const app = bauen();

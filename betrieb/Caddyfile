@@ -71,11 +71,32 @@
 
 		zone tourenanmeldung {
 			match {
-				path /termine/* /jugendtraining*
-				method POST DELETE PATCH PUT
+				path /termine/*
+				method POST DELETE
 			}
 			key {remote_host}
 			events 10
+			window 1m
+		}
+
+		# Eigene Zone, nicht mit der Tourenanmeldung geteilt — aus demselben
+		# Grund, aus dem `anmeldung` und `tourenanmeldung` getrennt sind: Eine
+		# ausgeschöpfte Anmeldeflut soll nicht das Nächste mit abwürgen.
+		#
+		# Hier kommt dazu, dass die Schreibvorgänge in Schüben auftreten. Ein
+		# Guide legt an, veröffentlicht und sagt womöglich wieder ab; ein
+		# Elternteil trägt zwei Kinder ein und eines wieder aus. Das sind
+		# leicht ein halbes Dutzend Anfragen in wenigen Minuten, ohne dass
+		# jemand etwas Ungewöhnliches täte. Zusammen mit den Touren in einem
+		# Kontingent wäre die Grenze im Alltag zu erreichen — und eine
+		# Notbremse, die den Normalfall bremst, ist keine mehr.
+		zone jugendtraining {
+			match {
+				path /jugendtraining*
+				method POST DELETE PATCH PUT
+			}
+			key {remote_host}
+			events 15
 			window 1m
 		}
 	}
