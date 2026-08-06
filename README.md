@@ -212,6 +212,36 @@ kann.
 
 Für diese beiden Bereiche führt kein Weg an Variante 4 vorbei.
 
+### Knöpfe wirklich drücken: `idb`
+
+`xcrun simctl` kann Adressen öffnen und Fotos machen, aber **nicht tippen**.
+Damit lässt sich prüfen, ob ein Bildschirm richtig aussieht — nicht, ob seine
+Knöpfe tun, was sie versprechen. Genau diese Lücke hat in diesem Projekt
+schon zweimal etwas durchgelassen.
+
+[`idb`](https://fbidb.io) schließt sie. Einmalig einrichten:
+
+```bash
+brew install facebook/fb/idb-companion
+python3 -m pip install --user fb-idb
+export PATH="$HOME/Library/Python/3.9/bin:$PATH"
+```
+
+Dann, bei laufendem Simulator:
+
+```bash
+idb_companion --udid <UDID> &          # einmal je Sitzung
+idb ui describe-all --udid <UDID>      # alle Bedienelemente samt Koordinaten
+idb ui tap  --udid <UDID> <x> <y>
+idb ui text --udid <UDID> "Mika"
+```
+
+**Koordinaten vor jedem Tipp neu lesen.** Sobald die Tastatur erscheint,
+verschiebt sich das Layout — beim ersten Versuch landeten hier zwei Namen im
+selben Feld, weil die zweite Koordinate von vorher stammte. `describe-all`
+liefert zu jedem Element den zugänglichen Namen und den Rahmen; danach
+suchen, nicht nach Pixeln raten.
+
 ### Prüfliste für den Gerätetest
 
 Was Tests und Vorschau nicht abdecken können — abzuarbeiten vor der
