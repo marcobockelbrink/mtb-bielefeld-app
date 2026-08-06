@@ -1,20 +1,31 @@
 /**
  * Einstellungen — im Wesentlichen die Erinnerungen.
+ *
+ * Kein Reiter mehr, sondern ein Blatt hinter dem Zahnrad im Kopf. Der Grund
+ * ist gemessen, nicht gefühlt: Die Reiterleiste fasst vier Einträge, mit
+ * einem fünften steht dort „EINSTELLUN…" (siehe `(tabs)/_layout.tsx`). Von
+ * den vier Plätzen führten zwei an Orte, die man einmal besucht — und
+ * Einstellungen ist der, den man am seltensten braucht.
+ *
+ * Hier ist auch der Platz für Vereinsverwaltung, sobald es sie gibt: Guides
+ * ernennen und Einladungscodes ausgeben laufen heute über die Kommandozeile
+ * auf dem Server. In eine Reiterleiste, die jedes Mitglied sieht, gehören
+ * sie nicht.
  */
 
 import { Ionicons } from '@expo/vector-icons';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useAppData } from '../../src/data/AppDataContext';
-import type { EventCategory } from '../../src/domain/types';
-import { formatAge } from '../../src/features/events/format';
-import { AnmeldeKarte } from '../../src/features/konto/AnmeldeKarte';
-import { useNotifications } from '../../src/notifications/NotificationContext';
-import { LEAD_TIME_OPTIONS } from '../../src/notifications/settings';
-import { categoryDisplay, font, fontSize, spacing } from '../../src/theme';
-import { Banner, Card, Chip, LoadingState } from '../../src/ui/components';
-import { useTheme } from '../../src/ui/theme';
+import { useAppData } from '../src/data/AppDataContext';
+import type { EventCategory } from '../src/domain/types';
+import { formatAge } from '../src/features/events/format';
+import { AnmeldeKarte } from '../src/features/konto/AnmeldeKarte';
+import { useNotifications } from '../src/notifications/NotificationContext';
+import { LEAD_TIME_OPTIONS } from '../src/notifications/settings';
+import { categoryDisplay, font, fontSize, spacing } from '../src/theme';
+import { Banner, Card, Chip, LoadingState } from '../src/ui/components';
+import { useTheme } from '../src/ui/theme';
 
 const KATEGORIEN: EventCategory[] = [
   'tour',
@@ -36,7 +47,15 @@ export default function EinstellungenScreen() {
   if (loading) return <LoadingState />;
 
   return (
-    <ScrollView contentContainerStyle={[styles.inhalt, { paddingBottom: insets.bottom + spacing.xxl }]}>
+    <ScrollView
+      // `contentInsetAdjustmentBehavior` statt fester Abstände: Als Blatt
+      // liegt hier eine Titelleiste über dem Inhalt, als Vollbild nicht.
+      // Ohne das stand „Du bist angemeldet." halb hinter dem Titel — auf dem
+      // Gerät gesehen, in der Web-Vorschau unsichtbar, weil es dort gar kein
+      // Blatt gibt.
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={[styles.inhalt, { paddingBottom: insets.bottom + spacing.xxl }]}
+    >
       <AnmeldeKarte />
 
       <Card>

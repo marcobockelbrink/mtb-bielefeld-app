@@ -5,9 +5,13 @@
 Die App zum [MTB Bielefeld e.V.](https://mtb-bielefeld.de) für iOS und Android.
 Termine, Aktuelles und Vereinsinfos — aus den Daten, die der Verein ohnehin pflegt.
 
-| Termine | Aktuelles | Verein | Einstellungen |
-| --- | --- | --- | --- |
-| ![Terminliste mit Filterleiste und nach Tagen gruppierten Terminen](docs/screenshots/termine.png) | ![Beitragsliste mit Themenfiltern wie Racing und Jugend](docs/screenshots/aktuelles.png) | ![Vereinsseite mit Beschreibung und Angeboten](docs/screenshots/verein.png) | ![Einstellungen für Termin-Erinnerungen](docs/screenshots/einstellungen.png) |
+| Termine | Aktuelles | Verein | Jugend | Einstellungen |
+| --- | --- | --- | --- | --- |
+| ![Terminliste mit Filterleiste und nach Tagen gruppierten Terminen](docs/screenshots/termine.png) | ![Beitragsliste mit Themenfiltern wie Racing und Jugend](docs/screenshots/aktuelles.png) | ![Vereinsseite mit Beschreibung und Angeboten](docs/screenshots/verein.png) | ![Liste der Jugendtrainings mit Ort und Belegung](docs/screenshots/jugend.png) | ![Einstellungen für Termin-Erinnerungen und das Konto](docs/screenshots/einstellungen.png) |
+
+> Vier davon sind Reiter unten; **Einstellungen** liegt hinter dem Zahnrad
+> oben rechts. Die Reiterleiste fasst nur vier Einträge — mit einem fünften
+> steht dort „EINSTELLUN…", auf einem Gerät nachgemessen.
 
 > Die Aufnahmen entstehen aus der **Web-Fassung** der App mit echten Daten aus
 > dem Vereinskalender (`npm run vorschau`). Auf iOS und Android sehen Schriften,

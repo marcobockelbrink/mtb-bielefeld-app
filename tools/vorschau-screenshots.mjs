@@ -122,7 +122,7 @@ console.log('aufgenommen: termine.png');
 for (const [reiter, datei] of [
   ['Aktuelles', 'aktuelles.png'],
   ['Verein', 'verein.png'],
-  ['Einstellungen', 'einstellungen.png'],
+  ['Jugend', 'jugend.png'],
 ]) {
   // Gezielt die Reiterleiste, nicht irgendein Text mit demselben Wort.
   //
@@ -144,6 +144,24 @@ for (const [reiter, datei] of [
   await page.screenshot({ path: path.join(ausgabe, datei) });
   console.log('aufgenommen:', datei);
 }
+
+// Einstellungen sind seit dem 6. August kein Reiter mehr, sondern ein Blatt
+// hinter dem Zahnrad im Kopf (siehe `app/(tabs)/_layout.tsx`: Die
+// Reiterleiste fasst nur vier Einträge).
+//
+// Angesteuert wird die Adresse, nicht das Zahnrad. Über die Schaltfläche zu
+// gehen wäre näher an dem, was ein Mensch tut — Playwright findet sie im
+// Web-Export aber nicht zuverlässig über ihren zugänglichen Namen. Und
+// darum geht es hier nicht: Dieses Werkzeug prüft, ob ein Bildschirm etwas
+// darstellt, nicht ob man ihn erreicht. Dass das Zahnrad da ist und trägt,
+// gehört auf den Simulator.
+await page.goto(new URL('einstellungen', adresse).href, {
+  waitUntil: 'networkidle',
+  timeout: 60000,
+});
+await page.waitForTimeout(3000);
+await page.screenshot({ path: path.join(ausgabe, 'einstellungen.png') });
+console.log('aufgenommen: einstellungen.png');
 
 await browser.close();
 

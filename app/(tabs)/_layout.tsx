@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Link, Tabs } from 'expo-router';
+import { Pressable } from 'react-native';
 
-import { font, fontSize, labelType } from '../../src/theme';
+import { font, fontSize, labelType, spacing } from '../../src/theme';
 import { useTheme } from '../../src/ui/theme';
 
 export default function TabsLayout() {
@@ -38,6 +39,26 @@ export default function TabsLayout() {
         tabBarLabelStyle: { ...labelType, fontSize: 10 },
         tabBarActiveTintColor: palette.primary,
         tabBarInactiveTintColor: palette.textMuted,
+        // Auf jedem Reiter erreichbar: Wer etwas einstellen will, soll nicht
+        // erst einen bestimmten Bildschirm suchen müssen.
+        headerRight: () => (
+          <Link href="/einstellungen" asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Einstellungen"
+              hitSlop={12}
+              style={{ paddingHorizontal: spacing.md }}
+            >
+              {({ pressed }) => (
+                <Ionicons
+                  name="settings-outline"
+                  size={24}
+                  color={pressed ? palette.primary : palette.textMuted}
+                />
+              )}
+            </Pressable>
+          </Link>
+        ),
       }}
     >
       <Tabs.Screen
@@ -62,10 +83,10 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="einstellungen"
+        name="jugend"
         options={{
-          title: 'Einstellungen',
-          tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" color={color} size={size} />,
+          title: 'Jugend',
+          tabBarIcon: ({ color, size }) => <Ionicons name="bicycle-outline" color={color} size={size} />,
         }}
       />
     </Tabs>

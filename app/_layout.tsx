@@ -67,6 +67,22 @@ function AppStack() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="termin/[id]" options={{ title: 'Termin' }} />
         <Stack.Screen name="news/[id]" options={{ title: 'Beitrag' }} />
+        <Stack.Screen
+          name="einstellungen"
+          options={{
+            title: 'Einstellungen',
+            // Als Blatt von unten und nicht als weiterer Bildschirm: Wer
+            // etwas einstellt, will danach dorthin zurück, wo er war — nicht
+            // eine Ebene tiefer stehen. `formSheet` gibt es seit expo-router
+            // in SDK 54 auf beiden Plattformen; ein natives Kontextmenü
+            // hätte eine Abhängigkeit gekostet, die Expo mitsegnen muss.
+            presentation: 'formSheet',
+            sheetGrabberVisible: true,
+            // Zwei Rastpunkte: Wer nur den Anmeldezustand sehen will, zieht
+            // nicht das ganze Blatt auf.
+            sheetAllowedDetents: [0.6, 1],
+          }}
+        />
       </Stack>
     </>
   );
