@@ -27,6 +27,14 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: palette.surface, borderTopColor: palette.border },
         // 10 Punkt: "Einstellungen" in Versalien ist das längste Wort der
         // Reiterleiste und muss auf schmalen Geräten in eine Zeile passen.
+        //
+        // **Vier Reiter sind das Maximum.** Am 6. August 2026 auf einem
+        // iPhone 17 Pro nachgemessen: Mit einem fünften steht dort
+        // "EINSTELLUN…" — abgeschnitten. Kleiner setzen hilft nicht, das
+        // ist schon die Untergrenze für Lesbarkeit. Wer etwas hinzufügen
+        // will, muss also etwas anderes herausnehmen; der naheliegende
+        // Kandidat ist "Einstellungen" hinter einem Zahnrad im Kopf, weil
+        // man dort einmal hingeht und nicht täglich.
         tabBarLabelStyle: { ...labelType, fontSize: 10 },
         tabBarActiveTintColor: palette.primary,
         tabBarInactiveTintColor: palette.textMuted,
