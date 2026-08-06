@@ -17,24 +17,31 @@
 # denn jeder Versuch kostet trotzdem eine Datenbankabfrage, und es gibt
 # keinen Grund, das ungebremst zuzulassen.
 #
+# /t/* ist die einzige Ausnahme von dieser Regel: Die kleine Seite hinter
+# einem geteilten Link prüft gar kein Token, sie ist der einzige Pfad im
+# ganzen Vorhaben ohne eines. Sie steht trotzdem hier, weil sie ohne Token
+# erreichbar ist und dieselbe Bremse gegen eine Anfrageflut braucht — nicht,
+# weil sie eine Datenbankabfrage je Versuch kostet.
+#
 # Dieselbe Liste steht in `IP_GESCHUETZTE_PFAD_PRAEFIXE` (`api/src/app.ts`),
 # Zeile für Zeile daneben zu legen: dort `/anmeldung/`, `/sitzung`,
-# `/konto`, `/termine/`, `/gast/`, `/jugendtraining`. Wo hier ein Stern
-# ohne Schrägstrich davor steht, endet der Präfix dort ohne Schrägstrich
-# dahinter.
+# `/konto`, `/termine/`, `/gast/`, `/jugendtraining` — /t/* bewusst nicht
+# darunter, denn diese Liste zählt nur Pfade, die ein Token gegen die
+# Datenbank prüfen. Wo hier ein Stern ohne Schrägstrich davor steht, endet
+# der Präfix dort ohne Schrägstrich dahinter.
 #
 # /sitzung* und nicht /sitzung/*: Caddys `path`-Matcher verlangt bei einem
 # Stern nach dem Schrägstrich ein weiteres Segment. Das hätte das exakte
 # `DELETE /sitzung` (Abmelden, prüft ebenfalls ein Token) durchgelassen —
 # genau die Lücke, die `app.ts` mit `startsWith('/sitzung')` bewusst
 # schließt. `/sitzung*` fasst ohne Schrägstrich davor beides: das exakte
-# `/sitzung` und jedes `/sitzung/…`. Bei /termine/*, /gast/* und
+# `/sitzung` und jedes `/sitzung/…`. Bei /termine/*, /gast/*, /t/* und
 # /jugendtraining* ist der Schrägstrich bzw. dessen Fehlen dagegen richtig:
-# Bei /termine/* und /gast/* gibt es keinen Endpunkt ohne nachfolgendes
-# Segment, und `/termine*` würde zusätzlich auf erfundene Wege wie
-# `/termineXY` passen. `/jugendtraining*` dagegen — ohne Schrägstrich vor
-# dem Stern, wie bei /sitzung* — weil `POST /jugendtraining` selbst (ohne
-# folgendes Segment) ebenfalls ein Token prüft.
+# Bei /termine/*, /gast/* und /t/* gibt es keinen Endpunkt ohne nachfolgendes
+# Segment (`GET /t/:id` verlangt immer ein Kürzel), und `/termine*` würde
+# zusätzlich auf erfundene Wege wie `/termineXY` passen. `/jugendtraining*`
+# dagegen — ohne Schrägstrich vor dem Stern, wie bei /sitzung* — weil `POST
+# /jugendtraining` selbst (ohne folgendes Segment) ebenfalls ein Token prüft.
 #
 # Zwei Zonen und nicht eine: Ein `match`-Block ist **ein** Matcher-Satz und
 # verknüpft seine Bedingungen mit UND — "diese Pfade, egal welche Methode"
@@ -70,7 +77,7 @@ api.mtb-bielefeld.de {
 	rate_limit {
 		zone anmeldung {
 			match {
-				path /anmeldung/* /sitzung* /konto* /gast/*
+				path /anmeldung/* /sitzung* /konto* /gast/* /t/*
 			}
 			key {remote_host}
 			events 10

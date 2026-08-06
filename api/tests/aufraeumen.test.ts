@@ -8,9 +8,10 @@ import { frischeDatenbank } from './hilfen/datenbank.ts';
 const jetzt = new Date('2026-08-03T12:00:00Z');
 const gestern = new Date('2026-08-02T12:00:00Z');
 
-async function neuesMitglied(): Promise<string> {
+async function neuesMitglied(email = 'malte@example.org'): Promise<string> {
   const { rows } = await pool.query<{ id: string }>(
-    "INSERT INTO mitglied (email) VALUES ('malte@example.org') RETURNING id",
+    'INSERT INTO mitglied (email) VALUES ($1) RETURNING id',
+    [email],
   );
   return rows[0]!.id;
 }
@@ -76,6 +77,25 @@ async function mitgliedanmeldung(
        (terminschluessel, termin_start, mitglied_id, angelegt_am)
      VALUES ($1, $2, $3, $4)`,
     [schluessel, terminStart, mitgliedId, terminStart],
+  );
+}
+
+/** Legt ein Jugendtraining mit frei wählbarem Beginn an — für die Fristenprüfung beim Kind. */
+async function training(beginntAm: Date, guideId: string): Promise<string> {
+  const { rows } = await pool.query<{ id: string }>(
+    `INSERT INTO jugendtraining (beginnt_am, ort, angelegt_von)
+     VALUES ($1, 'Sportplatz', $2) RETURNING id`,
+    [beginntAm, guideId],
+  );
+  return rows[0]!.id;
+}
+
+/** Ein angemeldetes Kind zu einem Training. */
+async function kind(trainingId: string, mitgliedId: string): Promise<void> {
+  await pool.query(
+    `INSERT INTO jugendtraining_kind (training_id, mitglied_id, vorname, nachname, platz)
+     VALUES ($1, $2, 'Traute', 'Testkind', 1)`,
+    [trainingId, mitgliedId],
   );
 }
 
@@ -156,7 +176,41 @@ describe('raeumeAuf', () => {
       sitzungen: 0,
       magicLinks: 0,
       tourenanmeldungen: 0,
+      kinder: 0,
     });
+  });
+});
+
+describe('raeumeAuf — Kindernamen', () => {
+  it('löscht ein Kind zu einem Training, das über 30 Tage her ist, ganz', async () => {
+    const guideId = await neuesMitglied('trainer@example.org');
+    const elternId = await neuesMitglied('eltern@example.org');
+    const vor31Tagen = new Date(jetzt.getTime() - 31 * 24 * 60 * 60 * 1000);
+    const trainingId = await training(vor31Tagen, guideId);
+    await kind(trainingId, elternId);
+
+    const bilanz = await raeumeAuf(pool, jetzt);
+
+    expect(bilanz.kinder).toBe(1);
+    const { rows } = await pool.query('SELECT id FROM jugendtraining_kind');
+    expect(rows).toHaveLength(0);
+  });
+
+  it('lässt ein Kind zu einem kommenden Training stehen', async () => {
+    // Ohne diesen Gegenfall würde ein zu weit greifendes DELETE — etwa eines
+    // ohne die Bedingung auf `endet_am`/`beginnt_am` — nicht auffallen: Der
+    // erste Test wäre auch dann grün.
+    const guideId = await neuesMitglied('trainer@example.org');
+    const elternId = await neuesMitglied('eltern@example.org');
+    const in10Tagen = new Date(jetzt.getTime() + 10 * 24 * 60 * 60 * 1000);
+    const trainingId = await training(in10Tagen, guideId);
+    await kind(trainingId, elternId);
+
+    const bilanz = await raeumeAuf(pool, jetzt);
+
+    expect(bilanz.kinder).toBe(0);
+    const { rows } = await pool.query('SELECT id FROM jugendtraining_kind');
+    expect(rows).toHaveLength(1);
   });
 });
 

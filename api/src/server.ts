@@ -35,7 +35,12 @@ const AUFRAEUM_ABSTAND_MS = 15 * 60 * 1000;
 const zeitgeber = setInterval(() => {
   void raeumeAuf(pool, new Date())
     .then((bilanz) => {
-      if (bilanz.sitzungen > 0 || bilanz.magicLinks > 0 || bilanz.tourenanmeldungen > 0) {
+      if (
+        bilanz.sitzungen > 0 ||
+        bilanz.magicLinks > 0 ||
+        bilanz.tourenanmeldungen > 0 ||
+        bilanz.kinder > 0
+      ) {
         app.log.info(bilanz, 'aufgeräumt');
       }
     })

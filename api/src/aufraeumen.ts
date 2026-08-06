@@ -1,5 +1,5 @@
 /**
- * Aufräumen abgelaufener Zeilen — an einer Stelle, nicht in drei.
+ * Aufräumen abgelaufener Zeilen — an einer Stelle, nicht in vieren.
  *
  * `sitzung` und `magic_link` wachsen beide mit der Benutzung: Jede
  * Erneuerung legt eine Sitzungszeile an, jede Anforderung einen Magic Link.
@@ -24,6 +24,7 @@ export interface Aufraeumbilanz {
   sitzungen: number;
   magicLinks: number;
   tourenanmeldungen: number;
+  kinder: number;
 }
 
 /**
@@ -36,6 +37,19 @@ export interface Aufraeumbilanz {
  * Tabelle, und was nicht da ist, muss niemand schützen.
  */
 const ANMELDUNG_AUFBEWAHRUNG_TAGE = 30;
+
+/**
+ * Wie lange ein Kindername nach dem Training aufbewahrt bleibt.
+ *
+ * Kindernamen sind die empfindlichste Kategorie, die diese API speichert.
+ * Nach dem Training werden sie nicht mehr gebraucht; dreißig Tage sind lang
+ * genug für Rückfragen und kurz genug, um nicht zu horten. Eine eigene
+ * Konstante statt einer Wiederverwendung von `ANMELDUNG_AUFBEWAHRUNG_TAGE`:
+ * Die Zahl trifft hier zufällig dieselbe Frist, die Begründung ist aber
+ * eine andere — wer die Tourenfrist künftig ändert, soll damit nicht
+ * versehentlich auch diese hier mitändern.
+ */
+const KIND_AUFBEWAHRUNG_TAGE = 30;
 
 /**
  * Räumt weg, was seine Frist überschritten hat.
@@ -79,9 +93,23 @@ export async function raeumeAuf(pool: pg.Pool, jetzt: Date): Promise<Aufraeumbil
     [tourengrenze],
   );
 
+  // Gelöscht wird die Zeile ganz, nicht nur der Name: Ein Datensatz mit
+  // leeren Feldern wäre Buchhaltung über ein Kind, das niemand mehr braucht.
+  // `COALESCE(t.endet_am, t.beginnt_am)` — dieselbe Regel wie beim Lesen der
+  // Trainingsliste (`jugendtraining.ts`, `holeTrainings`): Ein Training ohne
+  // Ende gilt an seinem Beginn als vorbei.
+  const kindergrenze = new Date(jetzt.getTime() - KIND_AUFBEWAHRUNG_TAGE * 24 * 60 * 60 * 1000);
+  const kinder = await pool.query(
+    `DELETE FROM jugendtraining_kind k USING jugendtraining t
+      WHERE k.training_id = t.id
+        AND COALESCE(t.endet_am, t.beginnt_am) < $1`,
+    [kindergrenze],
+  );
+
   return {
     sitzungen: sitzungen.rowCount ?? 0,
     magicLinks: magicLinks.rowCount ?? 0,
     tourenanmeldungen: tourenanmeldungen.rowCount ?? 0,
+    kinder: kinder.rowCount ?? 0,
   };
 }

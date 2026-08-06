@@ -781,6 +781,39 @@ export function baueApp({
   });
 
   /**
+   * Das Ziel eines geteilten Links — der einzige Pfad im ganzen Vorhaben ohne
+   * Token.
+   *
+   * Er zeigt bewusst wenig: kein Datum, keine Uhrzeit, kein Ort, keine
+   * Teilnehmer. WhatsApp-Nachrichten werden weitergeleitet, und ein Link ist
+   * kein Zugangsschutz — Ort und Zeit dürfen im Nachrichtentext selbst
+   * stehen, der geht heute ohnehin durch dieselbe Gruppe.
+   *
+   * Für ein unbekanntes Kürzel antwortet er **genauso** wie für ein
+   * bekanntes: gleiche Seite, gleicher Statuscode. Sonst wäre er ein
+   * Auskunftsdienst darüber, welche Kennungen existieren — dieselbe
+   * Überlegung wie bei `/anmeldung/anfordern`. Deshalb liest die
+   * Handlerfunktion `:id` gar nicht erst aus.
+   *
+   * Erreichbar ohne Token, deshalb in Caddys Zone `anmeldung`
+   * (`betrieb/Caddyfile`, `caddy/anmeldung.Caddyfile`) — aber bewusst
+   * **nicht** in `IP_GESCHUETZTE_PFAD_PRAEFIXE`: Diese Liste zählt Pfade,
+   * die ein Token gegen die Datenbank prüfen, und das tut dieser Pfad nicht.
+   */
+  app.get('/t/:id', async (_anfrage, antwort) => {
+    return antwort.type('text/html; charset=utf-8').send(`<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MTB Bielefeld e.V.</title></head>
+<body style="font-family:system-ui;max-width:32rem;margin:4rem auto;padding:0 1rem">
+<h1>Jugendtraining</h1>
+<p>Die Einzelheiten stehen in der App des MTB Bielefeld e.V. — dort kannst du
+dein Kind auch anmelden.</p>
+<p><a href="mtbie://">App öffnen</a></p>
+</body></html>`);
+  });
+
+  /**
    * Drei Mailversände, alle nach demselben Muster: Adressen holen, Text aus
    * `jugendmails.ts` bauen, **einzeln** verschicken.
    *

@@ -25,7 +25,7 @@
 	rate_limit {
 		zone anmeldung {
 			match {
-				path /anmeldung/* /sitzung* /konto* /gast/*
+				path /anmeldung/* /sitzung* /konto* /gast/* /t/*
 			}
 			key {remote_host}
 			events 10
