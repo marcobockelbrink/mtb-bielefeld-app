@@ -378,6 +378,31 @@ pruefe(
   abgesagt.absagegrund,
 );
 
+// Aufgeräumt, nicht nur abgesagt.
+//
+// Ein abgesagtes Training bleibt sichtbar — das ist Absicht, denn wer es
+// gestern gesehen hat, hielte das Verschwinden für einen Fehler und führe
+// hin. Für einen Prüflauf gilt das aber nicht: Nach fünf Läufen standen im
+// Bereich „Jugend" fünf abgesagte „Rauchprobe-Trainingsgelände", und die
+// echten Trainings gingen darin unter. Auf dem Simulator gesehen.
+//
+// Gelöscht wird über die Datenbank, nicht über die API — die kennt kein
+// Löschen, und das soll sie auch nicht: Ein Guide soll ein Training absagen
+// können, nicht seine Spuren verwischen.
+try {
+  execFileSync(
+    'docker',
+    [...COMPOSE, 'exec', '-T', 'postgres', 'psql', '-U', 'mtbie', '-d', 'mtbie', '-q', '-c',
+     `DELETE FROM jugendtraining WHERE id = '${training.id}'`],
+    { encoding: 'utf8' },
+  );
+  pruefe('Das Prüf-Training ist wieder weg', true);
+} catch {
+  // Kein Abbruch: Der Prüflauf hat sein Ziel erreicht, das Aufräumen ist
+  // Kür. Aber sichtbar soll es sein, sonst wächst der Bestand still weiter.
+  pruefe('Das Prüf-Training ist wieder weg', false, 'Löschen fehlgeschlagen');
+}
+
 // Ein unbekanntes Training kostet kein Kontingent (GET zählt in der Zone
 // "tourenanmeldung" nicht mit) — hier lohnt sich der echte Fehlerweg.
 try {
