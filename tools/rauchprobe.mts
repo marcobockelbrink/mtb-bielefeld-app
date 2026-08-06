@@ -21,18 +21,22 @@
  *
  * **Wo die Grenze dieser Probe liegt.** Geprüft wird alles, was ohne React
  * Native läuft — `src/data/api.ts`, `src/konto/magicLink.ts`,
- * `src/domain/terminSchluessel.ts` und `src/features/events/teilnahmeFehler.ts`.
- * Der Kontext (`KontoContext.tsx`), die Bildschirme und das Antippen eines
- * echten Mail-Links brauchen ein Gerät oder den Simulator; dafür ist diese
- * Probe nicht gedacht und täuscht es auch nicht vor.
+ * `src/domain/terminSchluessel.ts`, `src/features/events/teilnahmeFehler.ts`
+ * sowie, seit Aufgabe 1 des Jugendtrainings-Plans, `src/data/jugend.ts` und
+ * `src/features/jugend/jugendFehler.ts`. Der Kontext (`KontoContext.tsx`),
+ * die Bildschirme und das Antippen eines echten Mail-Links brauchen ein Gerät
+ * oder den Simulator; dafür ist diese Probe nicht gedacht und täuscht es auch
+ * nicht vor.
  *
- * **Die Ratenbegrenzung ist scharf.** Ein Durchlauf verbraucht etwa fünf der
- * zehn Anfragen je Minute in der Caddy-Zone "anmeldung" (`/anmeldung/*`,
- * `/sitzung*`, `/konto*`) und etwa fünf der zehn in der eigenen Zone
- * "tourenanmeldung" (`POST`/`DELETE` auf `/termine/*`, `betrieb/Caddyfile`)
- * — zwei getrennte Kontingente. Zwei Läufe unmittelbar hintereinander laufen
- * deshalb in ein 429 — das ist die Bremse von vorhin, kein kaputter Ablauf.
- * Eine Minute warten.
+ * **Die Ratenbegrenzung ist scharf.** Ein Durchlauf verbraucht in der
+ * Caddy-Zone "anmeldung" (`/anmeldung/*`, `/sitzung*`, `/konto*`,
+ * `betrieb/Caddyfile`) Anfragen für zwei Konten — das ursprüngliche und, für
+ * den Sichtbarkeits-Prüfstein der Jugendtrainings, ein zweites ohne
+ * Guide-Rolle — und bleibt damit klar unter den zehn je Minute. Die eigene
+ * Zone "tourenanmeldung" (schreibend auf `/termine/*` **und** `/jugendtraining*`)
+ * ist enger: Der Lauf schöpft sie über weite Strecken aus. Zwei Läufe
+ * unmittelbar hintereinander laufen deshalb in ein 429 — das ist die Bremse
+ * von vorhin, kein kaputter Ablauf. Eine Minute warten.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -45,6 +49,16 @@ import { parseCalendar } from '../src/data/ical/parseCalendar.ts';
 import type { TokenSpeicher } from '../src/data/tokenSpeicher.ts';
 import { terminSchluessel } from '../src/domain/terminSchluessel.ts';
 import { beschreibeTeilnahmeFehler } from '../src/features/events/teilnahmeFehler.ts';
+import {
+  holeTrainings,
+  holeTraining,
+  legeTrainingAn,
+  meldeKindAb,
+  meldeKindAn,
+  sageAb,
+  veroeffentliche,
+} from '../src/data/jugend.ts';
+import { beschreibeJugendFehler } from '../src/features/jugend/jugendFehler.ts';
 import { extrahiereMagicToken } from '../src/konto/magicLink.ts';
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -231,6 +245,153 @@ pruefe('DELETE ohne Körper meldet ab', nachher.belegt === vorher.belegt, {
   nachher: nachher.belegt,
 });
 
+// --- Jugendtrainings: der Datenzugang aus Aufgabe 1 gegen die echte API ----
+abschnitt('Jugendtrainings: anlegen, veröffentlichen, anmelden, absagen');
+
+// Das schon angemeldete Testkonto zum Guide machen — derselbe Weg, den ein
+// Verein auf dem Server ginge: das CLI-Werkzeug im Container, nicht SQL von
+// außen, das die echte Rollenvergabe nicht nachbildete.
+imContainer(['npm', 'run', 'rolle:setzen', '--', email, 'guide']);
+pruefe('Rolle „guide" für das Testkonto gesetzt', true);
+
+const training = await legeTrainingAn(api, {
+  beginntAm: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  ort: 'Rauchprobe-Trainingsgelände',
+  hinweis: 'Nur für die Rauchprobe angelegt',
+  plaetze: 5,
+  guidesNoetig: 1,
+});
+pruefe('legeTrainingAn liefert ein Training im Entwurf', training.zustand === 'entwurf', training.zustand);
+
+const veroeffentlicht = await veroeffentliche(api, training.id);
+pruefe(
+  'veroeffentliche schaltet frei',
+  veroeffentlicht.zustand === 'veroeffentlicht',
+  veroeffentlicht.zustand,
+);
+
+const trainingsliste = await holeTrainings(api);
+pruefe('holeTrainings zeigt das veröffentlichte Training', trainingsliste.some((t) => t.id === training.id));
+
+// Ein Nachname, den es sonst nirgends in der Datenbank gibt — sonst bewiese
+// eine zufällige Übereinstimmung im Prüfstein weiter unten nichts.
+const kindNachname = `Rauchprobenkind-${Date.now()}`;
+const anmeldung = await meldeKindAn(api, training.id, {
+  vorname: 'Nele',
+  nachname: kindNachname,
+  zeigtVorname: true,
+  zeigtNachname: false,
+});
+pruefe('meldeKindAn zählt die Belegung hoch', anmeldung.belegt === 1, anmeldung.belegt);
+
+const alsGuideGesehen = await holeTraining(api, training.id);
+pruefe(
+  'Als Guide steht der volle Name in kinder',
+  alsGuideGesehen.kinder.some((k) => k.anzeige.includes(kindNachname)),
+  alsGuideGesehen.kinder,
+);
+pruefe(
+  'guideZusagen ist eine Zahl, auch ganz ohne Zusage (Abweichung vom Auftrag, Aufgabe 1)',
+  typeof alsGuideGesehen.guideZusagen === 'number',
+  alsGuideGesehen.guideZusagen,
+);
+
+// --- Der Prüfstein: ein zweites, gewöhnliches Mitgliedskonto ---------------
+abschnitt('Prüfstein: Sichtbarkeit der Kindernamen — Guide gegen gewöhnliches Mitglied');
+
+// Ein zweites, frisches Konto — bewusst ohne Rolle „guide": genau der
+// Unterschied, den `holeKinder` (`api/src/jugendtraining.ts`) zwischen dem
+// vollen Namen und der von den Eltern erlaubten Anzeige entscheiden lässt.
+const email2 = `rauchprobe-mitglied-${Date.now()}@example.org`;
+const codeAusgabe2 = imContainer(['npm', 'run', 'einladung:erzeugen', '--', email2]);
+const codeZeile2 = codeAusgabe2.split('\n').find((zeile) => zeile.startsWith(`${email2}: `));
+if (!codeZeile2) {
+  console.error('FEHLGESCHLAGEN: Kein Einladungscode für das zweite Konto.');
+  console.error(codeAusgabe2);
+  process.exit(1);
+}
+const einladungscode2 = codeZeile2.slice(email2.length + 2).trim();
+
+let abgelegt2: string | null = null;
+const speicher2: TokenSpeicher = {
+  lies: async () => abgelegt2,
+  schreib: async (token) => {
+    abgelegt2 = token;
+  },
+  loesche: async () => {
+    abgelegt2 = null;
+  },
+};
+const api2 = new ApiZugang({ basisUrl: BASIS, speicher: speicher2 });
+await api2.fordereAnmeldungAn(email2, einladungscode2);
+
+let nachrichtId2: string | null = null;
+for (let versuch = 0; versuch < 10; versuch += 1) {
+  const suche = await fetch(`${MAILPIT}/api/v1/search?query=to%3A${email2}`).then((r) => r.json());
+  if (suche.messages?.length) {
+    nachrichtId2 = suche.messages[0].ID;
+    break;
+  }
+  await new Promise((weiter) => setTimeout(weiter, 1000));
+}
+if (!nachrichtId2) {
+  console.error(`FEHLGESCHLAGEN: Nach zehn Sekunden keine Mail an ${email2} in Mailpit.`);
+  process.exit(1);
+}
+const mail2 = await fetch(`${MAILPIT}/api/v1/message/${nachrichtId2}`).then((r) => r.json());
+const token2 = extrahiereMagicToken(mail2.Text);
+if (!token2) {
+  console.error('FEHLGESCHLAGEN: kein Magic Link im Mailtext des zweiten Kontos.');
+  process.exit(1);
+}
+await api2.loeseEin(token2);
+pruefe('Das zweite Konto ist angemeldet — ohne Guide-Rolle', await api2.istAngemeldet());
+
+const alsMitgliedGesehen = await holeTraining(api2, training.id);
+// Nicht nur `anzeige` vergleichen: die **ganze** Antwort durchsuchen. Der
+// Prüfstein soll auch einen Nachnamen fangen, der sich woanders einschliche.
+const rohantwort = JSON.stringify(alsMitgliedGesehen);
+pruefe(
+  'Der Nachname taucht in der Antwort an ein gewöhnliches Mitglied nirgends auf',
+  !rohantwort.includes(kindNachname),
+  alsMitgliedGesehen,
+);
+pruefe('Ein gewöhnliches Mitglied bekommt gar kein guides-Feld', alsMitgliedGesehen.guides === undefined);
+pruefe(
+  'guideZusagen bleibt trotzdem sichtbar — die Zahl, nicht die Namen',
+  typeof alsMitgliedGesehen.guideZusagen === 'number',
+  alsMitgliedGesehen.guideZusagen,
+);
+
+// --- Aufräumen: abmelden und absagen ----------------------------------------
+abschnitt('Jugendtrainings: abmelden und absagen');
+
+await meldeKindAb(api, training.id, anmeldung.kindId);
+const nachAbmeldung = await holeTraining(api, training.id);
+pruefe('meldeKindAb zählt die Belegung wieder herunter', nachAbmeldung.belegt === 0, nachAbmeldung.belegt);
+
+const abgesagt = await sageAb(api, training.id, 'Rauchprobe: aufgeräumt');
+pruefe('sageAb sagt ab', abgesagt.zustand === 'abgesagt', abgesagt.zustand);
+pruefe(
+  'mit dem übergebenen Grund',
+  abgesagt.absagegrund === 'Rauchprobe: aufgeräumt',
+  abgesagt.absagegrund,
+);
+
+// Ein unbekanntes Training kostet kein Kontingent (GET zählt in der Zone
+// "tourenanmeldung" nicht mit) — hier lohnt sich der echte Fehlerweg.
+try {
+  await holeTraining(api, 'gibtsnichtaufkeinenfall');
+  pruefe('Ein unbekanntes Training wirft', false);
+} catch (fehler) {
+  pruefe('Es ist ein ApiFehler mit Status 404', fehler instanceof ApiFehler && fehler.status === 404);
+  pruefe(
+    'beschreibeJugendFehler reicht „Dieses Training gibt es nicht." durch',
+    beschreibeJugendFehler(fehler) === 'Dieses Training gibt es nicht.',
+    fehler,
+  );
+}
+
 // --- Terminschlüssel: App und API einig? -----------------------------------
 abschnitt('Terminschlüssel: App-seitig berechnet, von der API angenommen (Aufgabe 4)');
 
@@ -280,7 +441,14 @@ try {
 // Aufräumen: der Termin soll wieder im Ausgangszustand stehen.
 await api.sende(`${pfad}/ich`, 'DELETE');
 
-// Abmelden ohne gültige Sitzung — ein frischer, nie eingeloggter Zugang.
+// Eine schreibende Anfrage ohne gültige Sitzung — ein frischer, nie
+// eingeloggter Zugang. Bewusst nicht mehr gegen `/termine/*`: Seit die
+// Jugendtrainings dieselbe Caddy-Zone "tourenanmeldung" mitbenutzen
+// (`betrieb/Caddyfile`), schöpft dieser Lauf sie über weite Strecken aus —
+// ein elfter Schreibzugriff dort träfe nicht die Sitzungsprüfung, sondern
+// Caddys Bremse (429), und das Ergebnis wäre reiner Zufall der Reihenfolge.
+// `/konto/jugend-benachrichtigung` prüft `holeAusweis` genauso, liegt aber
+// in der Zone "anmeldung", die hier noch reichlich Luft hat.
 let ohneToken: string | null = null;
 const anonymerSpeicher: TokenSpeicher = {
   lies: async () => ohneToken,
@@ -293,8 +461,8 @@ const anonymerSpeicher: TokenSpeicher = {
 };
 const anonymerZugang = new ApiZugang({ basisUrl: BASIS, speicher: anonymerSpeicher });
 try {
-  await anonymerZugang.sende(`${pfad}/ich`, 'DELETE');
-  pruefe('Abmelden ohne Sitzung wird abgelehnt', false);
+  await anonymerZugang.sende('/konto/jugend-benachrichtigung', 'PUT', { an: true });
+  pruefe('Eine schreibende Anfrage ohne Sitzung wird abgelehnt', false);
 } catch (fehler) {
   pruefe(
     'Sie wirft einen ApiFehler mit Status 401',

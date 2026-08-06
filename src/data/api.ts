@@ -350,7 +350,7 @@ export class ApiZugang {
     return this.#mitToken<T>(pfad, { method: 'GET' });
   }
 
-  sende<T>(pfad: string, methode: 'POST' | 'DELETE', koerper?: unknown): Promise<T> {
+  sende<T>(pfad: string, methode: 'POST' | 'PUT' | 'DELETE', koerper?: unknown): Promise<T> {
     return this.#mitToken<T>(pfad, {
       method: methode,
       body: koerper === undefined ? undefined : JSON.stringify(koerper),
