@@ -11,14 +11,15 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { holeTrainings, type Training } from '../../src/data/jugend';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
+import { TrainingKarte } from '../../src/features/jugend/TrainingKarte';
 import { useKonto } from '../../src/konto/KontoContext';
-import { font, fontSize, spacing } from '../../src/theme';
-import { Badge, Banner, Card, EmptyState, Label, LoadingState } from '../../src/ui/components';
+import { spacing } from '../../src/theme';
+import { EmptyState, LoadingState } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
 export default function JugendScreen() {
@@ -83,37 +84,7 @@ export default function JugendScreen() {
       }
     >
       {trainings.map((training) => (
-        <Card key={training.id}>
-          <View style={styles.kopf}>
-            <Label>{training.zustand === 'entwurf' ? 'Entwurf' : 'Training'}</Label>
-            {training.zustand === 'abgesagt' ? <Badge label="Abgesagt" tone="danger" /> : null}
-          </View>
-
-          <Text style={[styles.zeit, { color: palette.text }]}>
-            {training.beginntAm.toLocaleString('de-DE', {
-              timeZone: 'Europe/Berlin',
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}{' '}
-            Uhr
-          </Text>
-          <Text style={[styles.ort, { color: palette.textMuted }]}>{training.ort}</Text>
-
-          {training.zustand === 'abgesagt' && training.absagegrund ? (
-            <View style={styles.banner}>
-              <Banner tone="danger" text={training.absagegrund} />
-            </View>
-          ) : (
-            <Text style={[styles.ort, { color: palette.textMuted }]}>
-              {training.plaetze === null
-                ? `${training.belegt} angemeldet`
-                : `${training.belegt} von ${training.plaetze} Plätzen belegt`}
-            </Text>
-          )}
-        </Card>
+        <TrainingKarte key={training.id} training={training} />
       ))}
     </ScrollView>
   );
@@ -123,25 +94,5 @@ const styles = StyleSheet.create({
   inhalt: {
     gap: spacing.md,
     padding: spacing.md,
-  },
-  kopf: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
-  },
-  zeit: {
-    fontFamily: font.display,
-    fontSize: fontSize.lg,
-    marginTop: spacing.sm,
-  },
-  ort: {
-    fontFamily: font.regular,
-    fontSize: fontSize.sm,
-    lineHeight: 20,
-    marginTop: spacing.xs,
-  },
-  banner: {
-    marginTop: spacing.md,
   },
 });
