@@ -30,6 +30,18 @@ export interface KontoZustand {
   /** Erster Blick in den Schlüsselbund läuft noch. */
   laedt: boolean;
   api: ApiZugang;
+  /**
+   * `'mitglied' | 'guide' | 'verwaltung'` aus `GET /konto` — `null`, solange
+   * niemand angemeldet ist oder die Abfrage noch nicht zurück ist.
+   *
+   * **Reine Anzeigehilfe, keine Absicherung.** Sie blendet Guide-Knöpfe ein,
+   * die sonst in ein 403 liefen — die API prüft die Rolle bei jedem eigenen
+   * Aufruf selbst, unabhängig davon, was hier steht. Wer diese Rolle als
+   * Schutz behandelt (etwa eine Aktion freischaltet, die die API nicht auch
+   * selbst prüft), baut eine Prüfung, die nur in der App steht und sich mit
+   * einem manipulierten Client umgehen lässt.
+   */
+  rolle: string | null;
   anmeldungAnfordern(email: string, code?: string): Promise<void>;
   abmelden(): Promise<void>;
   /** Zuletzt eingelöster Link — die Oberfläche zeigt danach eine Bestätigung. */
@@ -65,6 +77,7 @@ export function KontoProvider({
     [basisUrl, speicher],
   );
   const [laedt, setLaedt] = useState(true);
+  const [rolle, setRolle] = useState<string | null>(null);
   const [zuletztEingeloest, setZuletztEingeloest] = useState<number | null>(null);
   const [einloesenFehlgeschlagen, setEinloesenFehlgeschlagen] = useState<string | null>(null);
   // `Linking.getInitialURL()` und das `url`-Ereignis liefern je nach
@@ -90,6 +103,35 @@ export function KontoProvider({
       abgebrochen = true;
     };
   }, [api]);
+
+  // Die Rolle hängt an der Sitzung, nicht an einer eigenen Aktion — sie folgt
+  // deshalb `angemeldet`, statt dass jeder Aufrufer sie selbst holen muss.
+  // Das deckt beide Wege ab, auf denen `angemeldet` `true` wird (Schlüsselbund
+  // beim Start, Magic Link in `loeseEin`), und räumt beim Abmelden wieder auf
+  // — sonst zeigte ein zweites, gerade neu angemeldetes Mitglied auf
+  // demselben Gerät kurzzeitig noch die Guide-Knöpfe des vorigen.
+  useEffect(() => {
+    if (!angemeldet) {
+      setRolle(null);
+      return;
+    }
+    let abgebrochen = false;
+    void api
+      .hole<{ rolle: string }>('/konto')
+      .then((auskunft) => {
+        if (!abgebrochen) setRolle(auskunft.rolle);
+      })
+      .catch((fehler) => {
+        // Reine Anzeigehilfe (siehe Kommentar bei `rolle` oben): Ein
+        // Fehlschlag hier blendet nur die Guide-Knöpfe aus, mehr nicht — kein
+        // Bannergrund für ein Detail, das niemand angefordert hat.
+        // `console.warn` bleibt für den Betreiber.
+        if (!abgebrochen) console.warn('Rolle ließ sich nicht laden:', fehler);
+      });
+    return () => {
+      abgebrochen = true;
+    };
+  }, [angemeldet, api]);
 
   const loeseEin = useCallback(
     async (url: string) => {
@@ -131,6 +173,7 @@ export function KontoProvider({
       angemeldet,
       laedt,
       api,
+      rolle,
       zuletztEingeloest,
       einloesenFehlgeschlagen,
       anmeldungAnfordern: async (email, code) => {
@@ -145,7 +188,7 @@ export function KontoProvider({
         setAngemeldet(false);
       },
     }),
-    [angemeldet, laedt, api, zuletztEingeloest, einloesenFehlgeschlagen],
+    [angemeldet, laedt, api, rolle, zuletztEingeloest, einloesenFehlgeschlagen],
   );
 
   return <Kontext.Provider value={wert}>{children}</Kontext.Provider>;

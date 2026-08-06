@@ -15,6 +15,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { holeTraining, type TrainingDetails } from '../../src/data/jugend';
 import { formatiereTrainingszeit } from '../../src/features/jugend/format';
+import { GuideKarte } from '../../src/features/jugend/GuideKarte';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { KindAnmelden } from '../../src/features/jugend/KindAnmelden';
 import { useKonto } from '../../src/konto/KontoContext';
@@ -25,7 +26,7 @@ import { useTheme } from '../../src/ui/theme';
 export default function TrainingDetailScreen() {
   const { palette } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { angemeldet, laedt: kontoLaedt, api } = useKonto();
+  const { angemeldet, laedt: kontoLaedt, api, rolle } = useKonto();
 
   const [training, setTraining] = useState<TrainingDetails | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -96,6 +97,14 @@ export default function TrainingDetailScreen() {
           value={`${training.guideZusagen} zugesagt`}
         />
       </Card>
+
+      {/*
+        Reine Anzeigehilfe (`KontoContext.rolle`, siehe dort): Die API prüft
+        bei jedem Aufruf innerhalb von `GuideKarte` selbst, ob wirklich ein
+        Guide antwortet. Diese Prüfung hier blendet den Abschnitt nur ein,
+        sie ersetzt keine.
+      */}
+      {rolle === 'guide' ? <GuideKarte training={training} onGeaendert={() => void laden(false)} /> : null}
 
       <Card>
         <Label>Angemeldete Kinder</Label>

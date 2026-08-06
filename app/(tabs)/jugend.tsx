@@ -7,13 +7,15 @@
  * sagt der Bildschirm auch, statt eine leere Liste zu zeigen.
  *
  * Die Karten verlinken auf die Einzelansicht (`app/jugend/[id].tsx`), in der
- * ein Kind angemeldet wird. Die Guide-Ansicht kommt in einer folgenden
- * Aufgabe.
+ * ein Kind angemeldet wird. Der Knopf „Training anlegen" führt zum
+ * Entwurf-Bildschirm (`app/jugend/neu.tsx`) — beide nur sichtbar, wenn
+ * `KontoContext.rolle` `'guide'` meldet. Reine Anzeigehilfe (siehe dort):
+ * Wer die Adresse trotzdem aufruft, bekommt von der API ein 403.
  */
 
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { holeTrainings, type Training } from '../../src/data/jugend';
@@ -22,13 +24,13 @@ import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { TrainingKarte } from '../../src/features/jugend/TrainingKarte';
 import { useKonto } from '../../src/konto/KontoContext';
 import { spacing } from '../../src/theme';
-import { EmptyState, LoadingState } from '../../src/ui/components';
+import { ActionButton, EmptyState, LoadingState } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
 export default function JugendScreen() {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
-  const { angemeldet, laedt: kontoLaedt, api } = useKonto();
+  const { angemeldet, laedt: kontoLaedt, api, rolle } = useKonto();
 
   const [trainings, setTrainings] = useState<Training[] | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -46,6 +48,8 @@ export default function JugendScreen() {
   useEffect(() => {
     if (angemeldet) void laden();
   }, [angemeldet, laden]);
+
+  const istGuide = rolle === 'guide';
 
   // Vier Zustände, und alle vier müssen sichtbar sein. „Leer" ist der, den
   // man am leichtesten mit einem Fehler verwechselt.
@@ -65,10 +69,17 @@ export default function JugendScreen() {
 
   if (trainings.length === 0) {
     return (
-      <EmptyState
-        title="Keine Trainings geplant"
-        hint="Sobald ein Guide eines anlegt, steht es hier."
-      />
+      <ScrollView contentContainerStyle={[styles.leerInhalt, { paddingBottom: insets.bottom + spacing.xxl }]}>
+        <EmptyState
+          title="Keine Trainings geplant"
+          hint={istGuide ? 'Leg den ersten Entwurf an.' : 'Sobald ein Guide eines anlegt, steht es hier.'}
+        />
+        {istGuide ? (
+          <View style={styles.anlegenKnopf}>
+            <ActionButton label="Training anlegen" onPress={() => router.push('/jugend/neu')} />
+          </View>
+        ) : null}
+      </ScrollView>
     );
   }
 
@@ -86,6 +97,8 @@ export default function JugendScreen() {
         />
       }
     >
+      {istGuide ? <ActionButton label="Training anlegen" onPress={() => router.push('/jugend/neu')} /> : null}
+
       {trainings.map((training) => (
         // `Link asChild` ersetzt das äußere Element und dessen Stil ginge
         // verloren — deshalb sitzt die Gestaltung auf `TrainingKarte` selbst
@@ -105,5 +118,13 @@ const styles = StyleSheet.create({
   inhalt: {
     gap: spacing.md,
     padding: spacing.md,
+  },
+  leerInhalt: {
+    flexGrow: 1,
+    padding: spacing.md,
+  },
+  anlegenKnopf: {
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
 });
