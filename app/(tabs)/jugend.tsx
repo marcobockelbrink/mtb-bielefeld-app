@@ -13,8 +13,8 @@
  * Wer die Adresse trotzdem aufruft, bekommt von der API ein 403.
  */
 
-import { Link, router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { Link, router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -45,9 +45,15 @@ export default function JugendScreen() {
     }
   }, [api]);
 
-  useEffect(() => {
-    if (angemeldet) void laden();
-  }, [angemeldet, laden]);
+  // `useFocusEffect` statt `useEffect`: Die Reiter bleiben eingehängt, wenn
+  // man wegblättert. Ein reines `useEffect` liefe deshalb genau einmal — wer
+  // ein Training anlegt, zurückgeht und den alten Stand sieht, hält die App
+  // für kaputt. Auf dem Gerät gesehen, nicht vermutet.
+  useFocusEffect(
+    useCallback(() => {
+      if (angemeldet) void laden();
+    }, [angemeldet, laden]),
+  );
 
   const istGuide = rolle === 'guide';
 

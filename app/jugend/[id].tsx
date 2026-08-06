@@ -9,8 +9,8 @@
  * gefiltert, sonst gäbe es zwei Wahrheiten über dieselbe Anmeldung.
  */
 
-import { useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { holeTraining, type TrainingDetails } from '../../src/data/jugend';
@@ -52,9 +52,15 @@ export default function TrainingDetailScreen() {
     [api, id],
   );
 
-  useEffect(() => {
-    if (angemeldet) void laden();
-  }, [angemeldet, laden]);
+  // `useFocusEffect` statt `useEffect`: Der Bildschirm bleibt eingehängt,
+  // wenn man zurückblättert und wieder herkommt. Ein reines `useEffect`
+  // zeigte dann den Stand von vorhin — etwa eine Belegung, die sich
+  // inzwischen geändert hat.
+  useFocusEffect(
+    useCallback(() => {
+        if (angemeldet) void laden();
+    }, [angemeldet, laden]),
+  );
 
   // Dieselben vier Zustände wie in der Liste (`app/(tabs)/jugend.tsx`).
   if (kontoLaedt) return <LoadingState />;
