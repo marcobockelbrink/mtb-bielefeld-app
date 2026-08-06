@@ -23,9 +23,9 @@ Termine, Aktuelles und Vereinsinfos — aus den Daten, die der Verein ohnehin pf
 Die Anmeldung als Mitglied und die Tourenanmeldung sind auf einem echten
 iOS-System aufgenommen (iPhone 17 Pro, iOS 26.5):
 
-| Nach dem Anmeldelink | Angemeldet | Zu einer Tour eintragen | Jugendtrainings |
-| --- | --- | --- | --- |
-| ![Terminliste, auf der der angetippte Anmeldelink landet](docs/screenshots/simulator-nach-magiclink.png) | ![Einstellungen mit der Karte „Mein Konto" und dem Zustand „Du bist angemeldet"](docs/screenshots/simulator-angemeldet.png) | ![Terminansicht mit der Belegung und dem Knopf „Ich bin dabei", darunter der Mail-Knopf](docs/screenshots/simulator-teilnahme.png) | ![Liste der Jugendtrainings mit Belegung, einem Entwurf und einem abgesagten Training samt Grund](docs/screenshots/simulator-jugend.png) |
+| Nach dem Anmeldelink | Angemeldet | Zu einer Tour eintragen | Jugendtrainings | Kind anmelden |
+| --- | --- | --- | --- | --- |
+| ![Terminliste, auf der der angetippte Anmeldelink landet](docs/screenshots/simulator-nach-magiclink.png) | ![Einstellungen mit der Karte „Mein Konto" und dem Zustand „Du bist angemeldet"](docs/screenshots/simulator-angemeldet.png) | ![Terminansicht mit der Belegung und dem Knopf „Ich bin dabei", darunter der Mail-Knopf](docs/screenshots/simulator-teilnahme.png) | ![Liste der Jugendtrainings mit Belegung, einem Entwurf und einem abgesagten Training samt Grund](docs/screenshots/simulator-jugend.png)  ![Anmeldeformular für ein Kind mit zwei Schaltern für die Namensfreigabe](docs/screenshots/simulator-jugend-anmelden.png) |
 
 ## Worum es geht
 
