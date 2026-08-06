@@ -66,6 +66,7 @@ function AppStack() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="termin/[id]" options={{ title: 'Termin' }} />
+        <Stack.Screen name="jugend/[id]" options={{ title: 'Jugendtraining' }} />
         <Stack.Screen name="news/[id]" options={{ title: 'Beitrag' }} />
         <Stack.Screen
           name="einstellungen"

@@ -9,7 +9,7 @@
  * führe trotzdem hin. Der Grund steht stattdessen in einem `Banner`.
  */
 
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import type { Training } from '../../data/jugend';
 import { font, fontSize, spacing } from '../../theme';
@@ -17,12 +17,17 @@ import { Badge, Banner, Card, Label } from '../../ui/components';
 import { useTheme } from '../../ui/theme';
 import { formatiereTrainingszeit } from './format';
 
-export function TrainingKarte({ training }: { training: Training }) {
+/**
+ * `style` reicht bis zu `Card` durch — allein dafür da, dass die Liste beim
+ * Antippen eine Druckrückmeldung zeigen kann (`opacity`), ohne dass die Karte
+ * ihre eigene Gestaltung dafür aufgeben muss.
+ */
+export function TrainingKarte({ training, style }: { training: Training; style?: ViewStyle }) {
   const { palette } = useTheme();
   const abgesagt = training.zustand === 'abgesagt';
 
   return (
-    <Card>
+    <Card style={style}>
       <View style={styles.kopf}>
         <Label>{training.zustand === 'entwurf' ? 'Entwurf' : 'Training'}</Label>
         {abgesagt ? <Badge label="Abgesagt" tone="danger" /> : null}

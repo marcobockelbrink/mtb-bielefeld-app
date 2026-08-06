@@ -6,15 +6,18 @@
  * des Vereins — wer ohne Netz unterwegs ist, sieht hier nichts, und das
  * sagt der Bildschirm auch, statt eine leere Liste zu zeigen.
  *
- * Erste Fassung: die Liste. Einzelansicht, Anmeldeformular und die
- * Guide-Ansicht kommen in den folgenden Aufgaben.
+ * Die Karten verlinken auf die Einzelansicht (`app/jugend/[id].tsx`), in der
+ * ein Kind angemeldet wird. Die Guide-Ansicht kommt in einer folgenden
+ * Aufgabe.
  */
 
+import { Link } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { holeTrainings, type Training } from '../../src/data/jugend';
+import { formatiereTrainingszeit } from '../../src/features/jugend/format';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { TrainingKarte } from '../../src/features/jugend/TrainingKarte';
 import { useKonto } from '../../src/konto/KontoContext';
@@ -84,7 +87,15 @@ export default function JugendScreen() {
       }
     >
       {trainings.map((training) => (
-        <TrainingKarte key={training.id} training={training} />
+        // `Link asChild` ersetzt das äußere Element und dessen Stil ginge
+        // verloren — deshalb sitzt die Gestaltung auf `TrainingKarte` selbst
+        // (über `style`) und nicht auf diesem `Pressable`. Siehe `EventCard`,
+        // wo das schon einmal schiefging.
+        <Link key={training.id} href={{ pathname: '/jugend/[id]', params: { id: training.id } }} asChild>
+          <Pressable accessibilityRole="button" accessibilityLabel={formatiereTrainingszeit(training)}>
+            {({ pressed }) => <TrainingKarte training={training} style={{ opacity: pressed ? 0.8 : 1 }} />}
+          </Pressable>
+        </Link>
       ))}
     </ScrollView>
   );
