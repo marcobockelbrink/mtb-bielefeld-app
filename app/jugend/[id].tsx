@@ -11,16 +11,18 @@
 
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
+import { TEILEN_BASIS_URL } from '../../src/config';
 import { holeTraining, type TrainingDetails } from '../../src/data/jugend';
 import { formatiereTrainingszeit } from '../../src/features/jugend/format';
 import { GuideKarte } from '../../src/features/jugend/GuideKarte';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { KindAnmelden } from '../../src/features/jugend/KindAnmelden';
+import { baueTeilenText } from '../../src/features/jugend/teilen';
 import { useKonto } from '../../src/konto/KontoContext';
 import { font, fontSize, spacing } from '../../src/theme';
-import { Banner, Card, DetailRow, EmptyState, Label, LoadingState } from '../../src/ui/components';
+import { ActionButton, Banner, Card, DetailRow, EmptyState, Label, LoadingState } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
 export default function TrainingDetailScreen() {
@@ -30,6 +32,7 @@ export default function TrainingDetailScreen() {
 
   const [training, setTraining] = useState<TrainingDetails | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
+  const [teilenFehler, setTeilenFehler] = useState<string | null>(null);
 
   /**
    * `darfVerbergen` unterscheidet den ersten Aufruf vom Nachladen nach einer
@@ -83,6 +86,33 @@ export default function TrainingDetailScreen() {
       ? `${training.belegt} angemeldet`
       : `${training.belegt} von ${training.plaetze} Plätzen belegt`;
 
+  /**
+   * Öffnet das System-Teilen, aus dem der Guide WhatsApp wählt.
+   *
+   * `baueTeilenText` wirft bei allem außer einem veröffentlichten Training —
+   * der Knopf unten erscheint deshalb nur dann. Der `catch` bleibt trotzdem
+   * nötig: Ein Guide kann das Training absagen, während dieser Bildschirm
+   * offen ist, und in der Sekunde zwischen Antippen und Auswertung liegt ein
+   * Wettlauf, den keine Anzeigebedingung ausschließen kann. `Share.share`
+   * selbst kann auf dem Gerät ebenfalls scheitern — beides darf nicht
+   * spurlos verpuffen.
+   */
+  async function teilen() {
+    // Erneute, engere Prüfung als die schon bestandene `if (!training)`
+    // weiter oben: TypeScript engt eine geschlossene Funktion nicht anhand
+    // einer Prüfung aus ihrem umgebenden Gültigkeitsbereich ein — das gilt
+    // erst innerhalb der Funktion selbst.
+    if (!training) return;
+    setTeilenFehler(null);
+    try {
+      const text = baueTeilenText(training, TEILEN_BASIS_URL);
+      await Share.share({ message: text });
+    } catch (ursache) {
+      console.warn('Teilen ist fehlgeschlagen:', ursache);
+      setTeilenFehler('Teilen hat nicht geklappt. Versuch es noch einmal.');
+    }
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.inhalt}>
       {abgesagt ? (
@@ -93,6 +123,21 @@ export default function TrainingDetailScreen() {
         <Text style={[styles.zeit, { color: palette.primary }]}>{formatiereTrainingszeit(training)}</Text>
         <Text style={[styles.ort, { color: palette.text }]}>{training.ort}</Text>
       </View>
+
+      {/*
+        Nur veröffentlicht und nur für Guides: Eine Einladung zu einem
+        Entwurf oder zu etwas Abgesagtem wäre schlimmer als keine — siehe
+        `baueTeilenText` in `src/features/jugend/teilen.ts`. `rolle` ist wie
+        bei `GuideKarte` reine Anzeigehilfe; die API prüft bei jedem eigenen
+        Aufruf selbst, hier gibt es aber ohnehin keinen Aufruf, der geprüft
+        werden müsste — nur ein Text und das System-Teilen.
+      */}
+      {rolle === 'guide' && training.zustand === 'veroeffentlicht' ? (
+        <View style={styles.teilen}>
+          <ActionButton label="Für die WhatsApp-Gruppe teilen" tone="secondary" onPress={() => void teilen()} />
+          {teilenFehler ? <Banner tone="danger" text={teilenFehler} /> : null}
+        </View>
+      ) : null}
 
       <Card>
         <Label>Training</Label>
@@ -143,6 +188,9 @@ const styles = StyleSheet.create({
   },
   kopf: {
     gap: spacing.xs,
+  },
+  teilen: {
+    gap: spacing.sm,
   },
   zeit: {
     fontFamily: font.display,

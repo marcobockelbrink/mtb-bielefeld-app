@@ -138,3 +138,18 @@ export const API_BASE_URL =
   ((globalThis as { __DEV__?: boolean }).__DEV__ === true
     ? 'http://localhost'
     : 'https://api.mtb-bielefeld.de');
+
+/**
+ * Basis-Adresse für den Teilen-Link eines Jugendtrainings (`/t/:id`).
+ *
+ * Bewusst dieselbe Adresse wie `API_BASE_URL` und keine eigene: `/t/:id` ist
+ * ein Pfad der Vereins-API (`api/src/app.ts`), kein eigener Dienst. Eine
+ * zweite Konstante wäre eine zweite Stelle, die bei einem Domainwechsel
+ * vergessen werden könnte — und genau die feststehende Vereinsdomain steht
+ * noch aus (siehe `betrieb/SERVER.md`). Bis dahin zeigt `API_BASE_URL` auf
+ * die Testdomain `api.bockelbrink.net`; `applinks`/`intentFilters` in
+ * `app.json` müssen beim Umzug denselben Schritt mitgehen — sie werden vom
+ * nativen Betriebssystem gelesen, nicht von dieser Datei, und lassen sich
+ * deshalb nicht von hier aus ableiten.
+ */
+export const TEILEN_BASIS_URL = API_BASE_URL;
