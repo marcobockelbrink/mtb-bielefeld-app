@@ -500,6 +500,30 @@ export function baueApp({
     return pruefeZugang(pool, kopf.slice('Bearer '.length), jetzt());
   }
 
+  /**
+   * Liest einen Zeitpunkt aus dem Anfragekörper.
+   *
+   * `undefined` heißt „nicht angegeben", `null` heißt „angegeben, aber
+   * unbrauchbar". Ohne diese Unterscheidung liefe ein Tippfehler als
+   * `Invalid Date` in die Datenbank, Postgres bräche mit 22007 ab, und die
+   * Person läse „invalid input syntax for type timestamp with time zone" —
+   * auf Englisch, mit Fehlercode, aus einer Schicht, von der sie nichts weiß.
+   */
+  function lieszeitpunkt(wert: unknown): Date | null | undefined {
+    if (wert === undefined) return undefined;
+    if (wert === null) return null;
+    const zeit = new Date(String(wert));
+    return Number.isNaN(zeit.getTime()) ? null : zeit;
+  }
+
+  /** Wie `lieszeitpunkt`, aber für eine Anzahl. Null und negativ sind keine. */
+  function liesAnzahl(wert: unknown): number | null | undefined {
+    if (wert === undefined) return undefined;
+    if (wert === null) return null;
+    const zahl = Number(wert);
+    return Number.isInteger(zahl) && zahl > 0 ? zahl : null;
+  }
+
   /** Wie `holeAusweis`, aber besteht auf der Guide-Rolle. */
   async function holeGuide(anfrage: { headers: Record<string, unknown> }) {
     const ausweis = await holeAusweis(anfrage);
@@ -866,21 +890,34 @@ dein Kind auch anmelden.</p>
     if (!guide) return antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
 
     const koerper = anfrage.body as Record<string, unknown>;
-    const beginntAm = new Date(String(koerper?.beginntAm ?? ''));
+    const beginntAm = lieszeitpunkt(koerper?.beginntAm);
+    const endetAm = lieszeitpunkt(koerper?.endetAm);
+    const plaetze = liesAnzahl(koerper?.plaetze);
+    const guidesNoetig = liesAnzahl(koerper?.guidesNoetig);
     const ort = typeof koerper?.ort === 'string' ? koerper.ort.trim() : '';
-    if (Number.isNaN(beginntAm.getTime()) || ort === '') {
+
+    if (!beginntAm || ort === '') {
       return antwort.code(400).send({ fehler: 'Beginn und Ort werden gebraucht.' });
+    }
+    if (endetAm === null && koerper?.endetAm !== null && koerper?.endetAm !== undefined) {
+      return antwort.code(400).send({ fehler: 'Das Ende ist kein gültiger Zeitpunkt.' });
+    }
+    if (plaetze === null && koerper?.plaetze !== null && koerper?.plaetze !== undefined) {
+      return antwort.code(400).send({ fehler: 'Die Platzzahl muss eine ganze Zahl über null sein.' });
+    }
+    if (guidesNoetig === null && koerper?.guidesNoetig !== undefined) {
+      return antwort.code(400).send({ fehler: 'Die Zahl der Guides muss eine ganze Zahl über null sein.' });
     }
 
     const training = await jugend.legeTrainingAn(
       pool,
       {
         beginntAm,
-        endetAm: koerper.endetAm ? new Date(String(koerper.endetAm)) : null,
+        endetAm: endetAm ?? null,
         ort,
         hinweis: typeof koerper.hinweis === 'string' ? koerper.hinweis.trim() : null,
-        plaetze: typeof koerper.plaetze === 'number' ? koerper.plaetze : null,
-        guidesNoetig: typeof koerper.guidesNoetig === 'number' ? koerper.guidesNoetig : undefined,
+        plaetze: plaetze ?? null,
+        guidesNoetig: guidesNoetig ?? undefined,
       },
       guide.mitgliedId,
       jetzt(),
@@ -920,11 +957,17 @@ dein Kind auch anmelden.</p>
       return antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' });
     }
 
+    const guideAntworten = await jugend.holeGuideAntworten(pool, id);
     return antwort.send({
       ...training,
       belegt: await jugend.holeBelegungTraining(pool, id),
       kinder: await jugend.holeKinder(pool, id, istGuide),
-      guides: istGuide ? await jugend.holeGuideAntworten(pool, id) : undefined,
+      // Guides bekommen die Namen, alle anderen nur die Zahl der Zusagen —
+      // die Spec verspricht ihnen genau das. Ohne die Zahl bliebe „reichen
+      // die Guides?" für Eltern unsichtbar, mit den Namen wüssten sie mehr
+      // über andere Mitglieder, als sie müssen.
+      guides: istGuide ? guideAntworten : undefined,
+      guideZusagen: guideAntworten.filter((g) => g.zusage).length,
     });
   });
 
@@ -934,11 +977,26 @@ dein Kind auch anmelden.</p>
 
     const { id } = anfrage.params as { id: string };
     const koerper = anfrage.body as Record<string, unknown>;
+
+    const beginntAm = lieszeitpunkt(koerper.beginntAm);
+    const endetAm = lieszeitpunkt(koerper.endetAm);
+    const plaetze = liesAnzahl(koerper.plaetze);
+    if ('beginntAm' in koerper && !beginntAm) {
+      return antwort.code(400).send({ fehler: 'Der Beginn ist kein gültiger Zeitpunkt.' });
+    }
+    if ('endetAm' in koerper && endetAm === null && koerper.endetAm !== null) {
+      return antwort.code(400).send({ fehler: 'Das Ende ist kein gültiger Zeitpunkt.' });
+    }
+    if ('plaetze' in koerper && plaetze === null && koerper.plaetze !== null) {
+      return antwort.code(400).send({ fehler: 'Die Platzzahl muss eine ganze Zahl über null sein.' });
+    }
+
     const geaendert = await jugend.aendereTraining(pool, id, {
-      ...(koerper.beginntAm ? { beginntAm: new Date(String(koerper.beginntAm)) } : {}),
+      ...(beginntAm ? { beginntAm } : {}),
       ...(typeof koerper.ort === 'string' ? { ort: koerper.ort.trim() } : {}),
+      ...('endetAm' in koerper ? { endetAm } : {}),
       ...('hinweis' in koerper ? { hinweis: koerper.hinweis === null ? null : String(koerper.hinweis) } : {}),
-      ...('plaetze' in koerper ? { plaetze: koerper.plaetze === null ? null : Number(koerper.plaetze) } : {}),
+      ...('plaetze' in koerper ? { plaetze } : {}),
     });
     if (!geaendert) return antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' });
     return antwort.send(geaendert);

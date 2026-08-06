@@ -185,6 +185,23 @@ describe('aendereTraining', () => {
   });
 });
 
+describe('istKennung', () => {
+  it('weist eine Zeichenkette ab, die nur aus Bindestrichen besteht', async () => {
+    // Das frühere Muster `/^[0-9a-f-]{36}$/i` ließ genau das durch — also
+    // das, wovor es schützen sollte. Postgres bricht dann mit 22P02 ab, und
+    // aus einem 404 wird ein 500 mit englischer Datenbankmeldung.
+    expect(await holeTraining(pool, '-'.repeat(36))).toBeNull();
+  });
+
+  it('weist 36 Hexziffern ohne Bindestriche ab', async () => {
+    expect(await holeTraining(pool, 'a'.repeat(36))).toBeNull();
+  });
+
+  it('weist eine zu kurze Kennung ab', async () => {
+    expect(await holeTraining(pool, 'abc')).toBeNull();
+  });
+});
+
 describe('Guide-Antworten', () => {
   it('merkt sich Zusage und Absage je Guide', async () => {
     const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
@@ -224,6 +241,25 @@ describe('Guide-Antworten', () => {
 
     const adressen = await holeGuideAdressen(pool);
     expect(adressen.sort()).toEqual(['trainer@example.org', 'zweiter@example.org']);
+  });
+});
+
+describe('aendereTraining nach der Absage', () => {
+  it('lässt ein abgesagtes Training unangetastet', async () => {
+    // Die Eltern haben die Absage mit Ort und Zeit in der Hand. Wanderten
+    // beide danach noch, stünde in ihrer Mail etwas anderes als in der App.
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    await sageAb(pool, id, 'Regen', jetzt);
+
+    expect(await aendereTraining(pool, id, { ort: 'Woanders' })).toBeNull();
+    expect((await holeTraining(pool, id))?.ort).toBe('Wanderparkplatz Kalkofen');
+  });
+
+  it('lässt einen Entwurf und ein veröffentlichtes Training weiter ändern', async () => {
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    expect((await aendereTraining(pool, id, { ort: 'Eisgrund' }))?.ort).toBe('Eisgrund');
+    await veroeffentliche(pool, id, jetzt);
+    expect((await aendereTraining(pool, id, { ort: 'Kalkofen' }))?.ort).toBe('Kalkofen');
   });
 });
 

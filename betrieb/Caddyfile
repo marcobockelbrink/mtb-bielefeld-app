@@ -1,27 +1,64 @@
-# Der Betriebsaufbau, lokal.
+# Der Proxy vor der API — **die einzige Caddyfile des Projekts.**
 #
-# Unterschiede zum Server, alle absichtlich und hier benannt:
-#   - `:80` statt eines Domainnamens: Lokal gibt es kein DNS und kein
-#     Let's-Encrypt-Zertifikat. Auf dem Server steht hier
-#     `api.mtb-bielefeld.de`, und Caddy holt das Zertifikat von selbst.
-#   - `reverse_proxy api:3000` statt `localhost:3000`: Im Compose-Netz
-#     heißen die Dienste wie ihre Einträge.
-# Alles andere — Zonen, Pfade, Kontingente — ist identisch mit dem, was
-# später auf dem Server läuft. Genau deshalb ist dieser Aufbau mehr als
-# eine Attrappe: Was hier greift, greift dort.
+# Bis zum 6. August gab es drei: diese, eine `Caddyfile.server` und eine
+# Vorlage unter `api/caddy/`. Sie mussten übereinstimmen, taten es aber
+# nicht: Die Jugendtraining-Pfade landeten in zweien davon, und ausgerechnet
+# die dritte war die, die auf dem Server lief. `GET /t/:id` — der einzige
+# Pfad ohne Token — hatte dadurch im Betrieb gar keine Ratenbegrenzung.
 #
-# Hier steht mit Absicht **kein** `trusted_proxies`. Ohne diese Zeile
-# ersetzt Caddy ein mitgeschicktes `X-Forwarded-For` durch die echte
-# Adresse des Anfragenden, statt sie anzuhängen — und nur deshalb kann
-# niemand der API von außen eine erfundene IP unterschieben. Die API
-# vertraut nämlich dem ganzen Docker-Bereich `172.16.0.0/12`
-# (`VERTRAUTER_PROXY`, siehe `api/src/app.ts`), weil Compose die
-# Container-Adressen dynamisch vergibt. Wer `trusted_proxies` einträgt —
-# der naheliegende Handgriff, sobald ein CDN oder Lastverteiler davorsteht
-# — muss `VERTRAUTER_PROXY` mit anpassen, sonst ist die Begrenzung je IP
-# wertlos, ohne dass irgendein Test rot wird.
+# Drei Dateien, die von Hand gleich gehalten werden müssen, laufen
+# auseinander. Nicht vielleicht, sondern beim nächsten Mal. Deshalb jetzt
+# eine, und der einzige Unterschied zwischen lokal und Server kommt aus der
+# Umgebung:
+#
+#   lokal:  API_DOMAIN=:80                      (Vorgabe in docker-compose.yml)
+#   Server: API_DOMAIN=api.mtb-bielefeld.de     (in betrieb/.env)
+#
+# Mit einem Domainnamen holt Caddy das Zertifikat von Let's Encrypt selbst;
+# mit `:80` bleibt es bei Klartext, was lokal richtig ist.
+#
+# **Kein `trusted_proxies`.** Ohne diese Zeile ersetzt Caddy ein
+# mitgeschicktes `X-Forwarded-For` durch die echte Adresse, statt sie
+# anzuhängen — und nur deshalb kann niemand der API von außen eine erfundene
+# IP unterschieben. Wer sie einträgt, weil ein CDN davorkommt, muss
+# `VERTRAUTER_PROXY` mit anpassen (`api/src/app.ts`), sonst ist die
+# Begrenzung je IP wertlos, ohne dass ein Test rot wird.
+#
+# ## Die zwei Zonen
+#
+# Diese Schicht und die Begrenzung in der API tun Verschiedenes: Caddy sieht
+# den Anfragekörper nicht und kann deshalb nicht je Adresse begrenzen — er
+# schützt den Server vor einer Flut. Die Begrenzung in der API schützt
+# einzelne Mitglieder davor, dass ihr Postfach geflutet wird. Keine ersetzt
+# die andere.
+#
+# Zone `anmeldung`: jeder Pfad, der ein Token gegen die Datenbank prüft —
+# plus `/t/*`, das **ohne** Token erreichbar ist und gerade deshalb hierher
+# gehört. In `IP_GESCHUETZTE_PFAD_PRAEFIXE` (`api/src/app.ts`) steht `/t/`
+# bewusst nicht: Dort prüft nichts gegen die Datenbank.
+#
+# `/sitzung*` und nicht `/sitzung/*`: Caddys `path`-Matcher verlangt bei
+# einem Stern nach dem Schrägstrich ein weiteres Segment. Das ließe das
+# exakte `DELETE /sitzung` durch. Bei `/termine/*` und `/gast/*` ist der
+# Schrägstrich dagegen richtig — dort gibt es keinen Endpunkt ohne folgendes
+# Segment, und `/termine*` passte zusätzlich auf erfundene Wege wie
+# `/termineXY`.
+#
+# Zone `tourenanmeldung`: zwei Zonen und nicht eine, weil ein `match`-Block
+# seine Bedingungen mit UND verknüpft — „diese Pfade, egal welche Methode"
+# und „jene Pfade, aber nur schreibend" passen nicht in denselben Block. Zwei
+# getrennte Kontingente je IP sind hier auch richtig herum: Eine
+# ausgeschöpfte Anmeldeflut soll das Eintragen zu einer Tour nicht abwürgen.
+#
+# Die lesenden Abfragen `GET /termine/…` und `GET /jugendtraining…` fehlen
+# mit Absicht in beiden Zonen — dieselbe Abwägung wie in `app.ts` (siehe
+# `NUR_SCHREIBEND_GEZAEHLT`): Eine App, die eine Liste öffnet, stellt sie im
+# Normalbetrieb reihenweise und würde jede sinnvolle Grenze reißen.
+#
+# Braucht das Modul caddy-ratelimit — `betrieb/caddy/Dockerfile` baut es ein.
+# Geprüft wird das alles von `betrieb/pruefe-begrenzung.sh`.
 
-:80 {
+{$API_DOMAIN} {
 	rate_limit {
 		zone anmeldung {
 			match {

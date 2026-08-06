@@ -123,6 +123,11 @@ Anfragen je Minute auf die Anmeldewege zu. Zwei Läufe kurz hintereinander
 enden im 429 — das ist die Bremse von vorhin, kein kaputter Ablauf. Die
 Skripte sagen das auch selbst, wenn es passiert.
 
+> **Was die Skripte noch nicht abdecken:** Jugendtrainings. Der Ablauf dorthin
+> ist bisher nur von Hand geprüft. Genau diese Lücke hat gekostet: Die
+> Ratenbegrenzung für `/t/*` fehlte in der Caddyfile, die auf dem Server
+> läuft, und keines der Skripte hätte es gemerkt.
+
 ## Was das prüft
 
 - Caddys Pfad- und Methoden-Muster gegen echte Anfragen

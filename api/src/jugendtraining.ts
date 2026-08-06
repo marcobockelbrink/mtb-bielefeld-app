@@ -19,6 +19,24 @@ import type pg from 'pg';
 
 export type Zustand = 'entwurf' | 'veroeffentlicht' | 'abgesagt';
 
+/**
+ * Ist das überhaupt eine Kennung?
+ *
+ * Postgres bricht bei einem Wert, der keine UUID ist, mit 22P02 ab — die
+ * Anfrage endete dann in einem 500 mit englischer Datenbankmeldung statt in
+ * einem 404. Diese Prüfung fängt das ab, und zwar **vollständig**: Das
+ * frühere `/^[0-9a-f-]{36}$/i` ließ sechsunddreißig Bindestriche durch,
+ * also genau das, wovor es schützen sollte.
+ *
+ * An einer Stelle statt neunmal wiederholt: Ein Muster, das an neun Orten
+ * steht, wird an acht davon vergessen, wenn es sich einmal ändert.
+ */
+const KENNUNG = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function istKennung(wert: string): boolean {
+  return KENNUNG.test(wert);
+}
+
 export interface Training {
   id: string;
   beginntAm: Date;
@@ -106,7 +124,7 @@ export async function holeTraining(
   // abbrechen lassen. Das hier abzufangen ist billiger, als jeden Aufrufer
   // eine Ausnahme fangen zu lassen — und die Antwort ist dieselbe wie bei
   // einer gültigen, aber unbekannten Kennung: kein Orakel über Kennungen.
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  if (!istKennung(id)) return null;
 
   const { rows } = await ausfuehrer.query<Zeile>(
     `SELECT ${SPALTEN} FROM jugendtraining WHERE id = $1`,
@@ -145,8 +163,14 @@ export async function aendereTraining(
   id: string,
   eingabe: Partial<TrainingEingabe>,
 ): Promise<Training | null> {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  if (!istKennung(id)) return null;
 
+  // Ein abgesagtes Training bleibt, wie es war. Die Eltern haben die Absage
+  // mit Ort und Zeit in der Hand; würde beides danach noch wandern, stünde
+  // in ihrer Mail etwas anderes als in der App, und niemand wüsste, was gilt.
+  // Wer es doch braucht, legt ein neues an — das kostet zwei Fingertipps und
+  // verschickt eine Ankündigung, die auch ankommt.
+  //
   // `COALESCE` je Spalte statt eines zusammengebauten SET: So bleibt die
   // Abfrage eine feste Zeichenkette, und „nicht angegeben" heißt zuverlässig
   // „unverändert" — auch für Felder, die absichtlich NULL sein dürfen, denn
@@ -159,7 +183,7 @@ export async function aendereTraining(
        hinweis       = CASE WHEN $6::boolean THEN $7 ELSE hinweis END,
        plaetze       = CASE WHEN $8::boolean THEN $9 ELSE plaetze END,
        guides_noetig = COALESCE($10, guides_noetig)
-     WHERE id = $1
+     WHERE id = $1 AND zustand <> 'abgesagt'
      RETURNING ${SPALTEN}`,
     [
       id,
@@ -196,7 +220,7 @@ async function wechsle(
   werte: unknown[],
   erlaubteZustaende: Zustand[],
 ): Promise<Uebergang> {
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, grund: 'unbekannt' };
+  if (!istKennung(id)) return { ok: false, grund: 'unbekannt' };
 
   const { rows } = await ausfuehrer.query<Zeile>(anweisung, [id, ...werte, erlaubteZustaende]);
   if (rows[0]) return { ok: true, training: zuTraining(rows[0]) };
@@ -261,7 +285,7 @@ export async function setzeGuideAntwort(
   zusage: boolean,
   jetzt: Date,
 ): Promise<boolean> {
-  if (!/^[0-9a-f-]{36}$/i.test(trainingId)) return false;
+  if (!istKennung(trainingId)) return false;
 
   const { rowCount } = await ausfuehrer.query(
     `INSERT INTO jugendtraining_guide (training_id, mitglied_id, zusage, geantwortet_am)
@@ -284,7 +308,7 @@ export async function holeGuideAntworten(
   ausfuehrer: pg.Pool | pg.PoolClient,
   trainingId: string,
 ): Promise<Array<{ mitgliedId: string; email: string; zusage: boolean }>> {
-  if (!/^[0-9a-f-]{36}$/i.test(trainingId)) return [];
+  if (!istKennung(trainingId)) return [];
 
   const { rows } = await ausfuehrer.query<{
     mitglied_id: string;
@@ -329,7 +353,7 @@ export async function holeBelegungTraining(
   ausfuehrer: pg.Pool | pg.PoolClient,
   trainingId: string,
 ): Promise<number> {
-  if (!/^[0-9a-f-]{36}$/i.test(trainingId)) return 0;
+  if (!istKennung(trainingId)) return 0;
   const { rows } = await ausfuehrer.query<{ belegt: string }>(
     `SELECT count(*) AS belegt FROM jugendtraining_kind
       WHERE training_id = $1 AND storniert_am IS NULL`,
@@ -440,7 +464,10 @@ export async function meldeKindAb(
   kindId: string,
   jetzt: Date,
 ): Promise<boolean> {
-  if (!/^[0-9a-f-]{36}$/i.test(kindId)) return false;
+  // Beide Kennungen prüfen, nicht nur die des Kindes: Steht in der Adresse
+  // ein unbrauchbarer Trainingswert, bricht Postgres mit 22P02 ab und aus
+  // dem 404 wird ein 500 mit englischer Datenbankmeldung.
+  if (!istKennung(kindId) || !istKennung(trainingId)) return false;
   const { rowCount } = await ausfuehrer.query(
     `UPDATE jugendtraining_kind SET storniert_am = $4
       WHERE id = $3 AND training_id = $1 AND mitglied_id = $2
@@ -466,7 +493,7 @@ export async function holeKinder(
   trainingId: string,
   alsGuide: boolean,
 ): Promise<Array<{ id: string; anzeige: string }>> {
-  if (!/^[0-9a-f-]{36}$/i.test(trainingId)) return [];
+  if (!istKennung(trainingId)) return [];
 
   const { rows } = await ausfuehrer.query<{
     id: string;
@@ -495,7 +522,7 @@ export async function holeElternAdressen(
   ausfuehrer: pg.Pool | pg.PoolClient,
   trainingId: string,
 ): Promise<string[]> {
-  if (!/^[0-9a-f-]{36}$/i.test(trainingId)) return [];
+  if (!istKennung(trainingId)) return [];
   const { rows } = await ausfuehrer.query<{ email: string }>(
     `SELECT DISTINCT m.email
        FROM jugendtraining_kind k JOIN mitglied m ON m.id = k.mitglied_id

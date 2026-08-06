@@ -53,10 +53,6 @@ services:
       # Zertifikatsnachweis.
       - '80:80'
       - '443:443'
-    volumes:
-      # Dieselbe Caddyfile wie im Endzustand — der Domainname kommt aus der
-      # Umgebung, es gibt also keine eigene Testfassung, die veralten könnte.
-      - ./Caddyfile.server:/etc/caddy/Caddyfile:ro
 
   mailpit:
     restart: unless-stopped

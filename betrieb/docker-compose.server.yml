@@ -45,7 +45,8 @@ services:
   caddy:
     restart: unless-stopped
     environment:
-      # Der Domainname steht in der `.env`, nicht in der Caddyfile: Zum
+      # Der Domainname steht in der `.env`, nicht in der Caddyfile — es
+      # gibt nur eine, und sie gilt lokal wie auf dem Server. Zum
       # Prüfen läuft der Aufbau unter einer anderen Domain als beim Verein.
       # `:?` statt Vorgabe — ein falscher oder fehlender Name kostet
       # Zertifikatsversuche bei Let's Encrypt, und die sind kontingentiert.
@@ -68,9 +69,6 @@ services:
       # abgelaufen ist.
       - '80:80'
       - '443:443'
-    volumes:
-      # Dieselben Zonen wie lokal, nur mit dem Domainnamen statt `:80`.
-      - ./Caddyfile.server:/etc/caddy/Caddyfile:ro
 
   # Mailpit fängt Mail ab, statt sie zuzustellen. Auf einem Server wäre das
   # die stille Variante von „es geht keine Mail raus" — der Anmeldeablauf

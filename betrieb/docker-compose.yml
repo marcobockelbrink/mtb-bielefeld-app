@@ -81,6 +81,11 @@ services:
 
   caddy:
     build: ./caddy
+    environment:
+      # Lokal reicht `:80` — ohne Domainnamen versucht Caddy gar nicht erst,
+      # ein Zertifikat zu holen. Auf dem Server steht in der `.env` die
+      # Domain, und derselbe Caddyfile holt dann eines. Ein Wert, eine Datei.
+      API_DOMAIN: ${API_DOMAIN:-:80}
     ports:
       - '127.0.0.1:80:80'
     volumes:
