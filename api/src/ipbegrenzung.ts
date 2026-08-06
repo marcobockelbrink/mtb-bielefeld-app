@@ -1,7 +1,7 @@
 /**
  * Ratenbegrenzung je IP, im Arbeitsspeicher — die Notbremse hinter Caddy.
  *
- * `api/caddy/anmeldung.Caddyfile` ist die eigentliche IP-Schicht, aber sie
+ * `betrieb/Caddyfile` ist die eigentliche IP-Schicht, aber sie
  * hängt an der Reihenfolge der Inbetriebnahme: Wer die API testweise
  * exponiert, bevor Caddy davor steht, oder Caddy bei einem Umbau falsch
  * konfiguriert, steht ohne sie da. Diese Klasse ersetzt Caddy nicht — sie

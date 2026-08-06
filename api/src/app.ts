@@ -116,7 +116,7 @@ const EINE_MINUTE_MS = 60_000;
 const HOECHSTENS_ANFRAGEN_JE_MINUTE = 20;
 
 /**
- * Dieselbe Pfadliste wie in der Caddy-Vorlage (`caddy/anmeldung.Caddyfile`):
+ * Dieselbe Pfadliste wie in `betrieb/Caddyfile`:
  * jeder Pfad, der ein Token gegen die Datenbank prüft. Mit `startsWith`
  * geprüft, nicht mit exaktem Vergleich — `/sitzung` erfasst so sowohl
  * `/sitzung/erneuern` als auch das exakte `DELETE /sitzung` (Abmelden), und
@@ -311,7 +311,7 @@ export function baueApp({
    * Notbremse je IP für die tokenprüfenden Pfade (siehe
    * `IP_GESCHUETZTE_PFAD_PRAEFIXE`), ohne die Belegungsabfrage `GET
    * /termine/…` (siehe `NUR_SCHREIBEND_GEZAEHLT`) — `ipbegrenzung.ts`
-   * begründet das Warum dieser Schicht, `caddy/anmeldung.Caddyfile` ist die
+   * begründet das Warum dieser Schicht, `betrieb/Caddyfile` ist die
    * Schicht, die das eigentlich übernehmen soll — angewandt und gegen einen
    * laufenden Caddy geprüft in `betrieb/Caddyfile`.
    *
@@ -820,7 +820,7 @@ export function baueApp({
    * Handlerfunktion `:id` gar nicht erst aus.
    *
    * Erreichbar ohne Token, deshalb in Caddys Zone `anmeldung`
-   * (`betrieb/Caddyfile`, `caddy/anmeldung.Caddyfile`) — aber bewusst
+   * (`betrieb/Caddyfile`) — aber bewusst
    * **nicht** in `IP_GESCHUETZTE_PFAD_PRAEFIXE`: Diese Liste zählt Pfade,
    * die ein Token gegen die Datenbank prüfen, und das tut dieser Pfad nicht.
    */

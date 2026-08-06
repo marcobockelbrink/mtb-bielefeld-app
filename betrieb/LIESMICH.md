@@ -131,8 +131,8 @@ Skripte sagen das auch selbst, wenn es passiert.
 ## Was das prüft
 
 - Caddys Pfad- und Methoden-Muster gegen echte Anfragen
-- die zwei Ratenbegrenzungs-Zonen aus `api/caddy/anmeldung.Caddyfile`, hier
-  zum ersten Mal wörtlich angewandt statt nur als Vorlage
+- die zwei Ratenbegrenzungs-Zonen aus `betrieb/Caddyfile` — seit dem
+  6. August die einzige des Projekts, lokal wie auf dem Server dieselbe
 - `trustProxy`: dass die API hinter Caddy die Adresse des Anfragenden sieht
   und nicht die des Proxys — sonst zählte die Begrenzung alle auf einen Eimer
 - Migrationen beim Start eines frischen Datenbank-Volumes
