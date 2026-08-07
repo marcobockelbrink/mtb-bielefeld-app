@@ -86,6 +86,12 @@ services:
       # ein Zertifikat zu holen. Auf dem Server steht in der `.env` die
       # Domain, und derselbe Caddyfile holt dann eines. Ein Wert, eine Datei.
       API_DOMAIN: ${API_DOMAIN:-:80}
+      # Die App-Kennung für Universal Links. Caddy löst `{$AASA_APP_ID}` aus
+      # **seiner eigenen** Umgebung auf, nicht aus der `.env` — ohne diese
+      # Zeile liefert es die Datei mit leerer `appID` aus, iOS verwirft sie
+      # stumm, und der geteilte Link öffnet nur den Browser. Nachgemessen,
+      # nicht vermutet: Genau so ist es beim ersten Versuch passiert.
+      AASA_APP_ID: ${AASA_APP_ID:-}
     ports:
       - '127.0.0.1:80:80'
     volumes:

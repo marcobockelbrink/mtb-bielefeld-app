@@ -130,6 +130,7 @@ npm start          # QR-Code mit Expo Go scannen
 Weitere Befehle:
 
 ```bash
+npm run start:dev  # gegen den Prüfserver statt gegen localhost
 npm test           # Tests (ohne Gerät, reines Node)
 npm run typecheck  # TypeScript prüfen
 npm run android    # auf Android-Gerät/Emulator starten
@@ -463,7 +464,7 @@ Deshalb wird der geteilte Link eines Jugendtrainings **auf dem Simulator**
 nachgemessen, nicht nur gebaut: `xcrun simctl openurl booted
 "https://<domain>/t/<id>"` muss die App beim Training öffnen. Geht Safari
 auf, fehlt eine von drei Stellen, die alle stimmen müssen —
-`associatedDomains` in `app.json`, die ausgelieferte
+`associatedDomains` in `app.config.js`, die ausgelieferte
 `apple-app-site-association` in `betrieb/Caddyfile` und die Route
 `app/t/[id].tsx`. Die Rauchprobe prüft die mittlere mit; die beiden anderen
 bleiben Sache des Simulators. Einzelheiten in `docs/ARCHITEKTUR.md`.

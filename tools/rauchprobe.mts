@@ -581,16 +581,20 @@ try {
 // grün. Auffallen würde er erst einem Elternteil, das in der WhatsApp-Gruppe
 // auf den Link tippt und in Safari landet.
 //
-// Der Abgleich der `appID` gegen `app.json` ist der eigentliche Punkt. Die
+// Der Abgleich der `appID` gegen `app.config.js` ist der eigentliche Punkt. Die
 // Kennung steht an zwei Stellen — hier in der ausgelieferten Datei und dort im
 // Bündel —, und iOS verlangt, dass beide übereinstimmen. Wer die eine ändert,
 // merkt vom Auseinanderlaufen sonst nichts.
 abschnitt('Universal Links: liefert der Server apple-app-site-association aus?');
 {
-  const appJson = JSON.parse(
-    await import('node:fs/promises').then((fs) => fs.readFile(path.join(WURZEL, 'app.json'), 'utf8')),
-  ) as { expo: { ios: { bundleIdentifier: string } } };
-  const buendel = appJson.expo.ios.bundleIdentifier;
+  // Die Kennung aus **derselben** Quelle wie der Bau, nicht ein zweites Mal
+  // hingeschrieben: Zwei Stellen mit derselben Wahrheit laufen auseinander,
+  // und dieser Prüfstein existiert gerade, um Auseinanderlaufen zu bemerken.
+  // Läuft die Probe mit `EXPO_PUBLIC_APP_UMGEBUNG=prod`, erwartet sie damit
+  // von selbst die prod-Kennung.
+  const { baueKonfiguration } = await import('../app.config.js');
+  const buendel = baueKonfiguration(process.env.EXPO_PUBLIC_APP_UMGEBUNG).expo.ios
+    .bundleIdentifier as string;
 
   const antwort = await fetch(`${BASIS}/.well-known/apple-app-site-association`);
   pruefe('Sie wird ausgeliefert (200)', antwort.status === 200, antwort.status);
@@ -609,7 +613,7 @@ abschnitt('Universal Links: liefert der Server apple-app-site-association aus?')
   const eintrag = aasa.applinks?.details?.[0];
   pruefe('Sie nennt genau einen App-Eintrag', aasa.applinks?.details?.length === 1, aasa.applinks?.details?.length);
   pruefe(
-    `Dessen appID endet auf die Bündelkennung aus app.json (${buendel})`,
+    `Dessen appID endet auf die Bündelkennung aus app.config.js (${buendel})`,
     eintrag?.appID?.endsWith(`.${buendel}`) === true,
     eintrag?.appID,
   );

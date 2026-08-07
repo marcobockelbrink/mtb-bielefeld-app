@@ -110,6 +110,30 @@ Sinnvolle Aufteilung, wenn zwei parallel arbeiten:
 
 Gemeinsam ist dann nur `src/brand.ts`.
 
+## Claudes Notizen liegen im Repository
+
+Unter `.claude/memory/` — was in den Gesprächen an Entscheidungen und
+Stolperstellen angefallen ist, mit `MEMORY.md` als Inhaltsverzeichnis. Dort
+steht Wissen, das sich weder aus dem Quelltext noch aus der Historie ergibt:
+warum Instagram vertagt ist, was dem Server noch fehlt, welcher Schlüssel wo
+liegt.
+
+Normalerweise legt Claude Code das unter `~/.claude/projects/…/memory/` ab,
+also außerhalb des Projekts und auf genau einem Rechner. Deshalb steht dort
+eine Verknüpfung hierher. **Auf einem neuen Rechner einmal nach dem Klonen:**
+
+```bash
+./tools/gedaechtnis-verknuepfen.sh
+```
+
+Ohne das schreibt Claude in einen leeren Ordner daneben und fängt bei null an —
+die Dateien hier bleiben trotzdem lesbar.
+
+**Was der Klon nicht mitbringt** und von Hand mitmuss: `~/.ssh/mtb-verein`
+(Zugang zum Server), `~/.ssh/mtb-sicherung.age-key` (ohne ihn ist **jede**
+Sicherung wertlos) und die zugehörigen `~/.ssh/config`-Einträge. Absichtlich —
+das Repository ist öffentlich.
+
 ## Sprache
 
 Code, Kommentare und Commit-Nachrichten auf Deutsch — der Verein soll das Projekt

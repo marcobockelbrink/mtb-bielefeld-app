@@ -331,17 +331,53 @@ prüfe sie gegen die Gegenseite.
 Ein geteilter Link `https://<domain>/t/<id>` öffnet die App nur, wenn drei
 Dinge gleichzeitig stimmen — und keine zwei davon liegen an derselben Stelle:
 
-1. **`app.json`** meldet die Domain an (`associatedDomains`, `intentFilters`).
-   Das Betriebssystem liest sie aus dem fertigen Bündel, nicht aus dem
-   Quelltext.
+1. **`app.config.js`** meldet die Domain an (`associatedDomains`,
+   `intentFilters`). Das Betriebssystem liest sie aus dem fertigen Bündel,
+   nicht aus dem Quelltext.
 2. **`betrieb/Caddyfile`** liefert `/.well-known/apple-app-site-association`
    aus, mit `application/json` und der passenden `appID`.
 3. **`app/t/[id].tsx`** fängt den Pfad in expo-router ab.
 
 Fehlt eines, öffnet sich Safari — und alle Prüfungen bleiben grün, weil keine
 von ihnen einen Link antippt. Die Rauchprobe deckt seit dem 07.08.2026
-Punkt 2 ab und gleicht die `appID` gegen `app.json` ab; Punkt 1 und 3 bleiben
-Sache des Simulators.
+Punkt 2 ab und gleicht die `appID` gegen `app.config.js` ab; Punkt 1 und 3
+bleiben Sache des Simulators.
+
+### Drei Ziele, und die Voreinstellung ist die harmlose
+
+Seit dem 07.08.2026 gibt es **dev und prod getrennt**: ein Prüfserver
+(`api-dev.bockelbrink.net`) und der Vereinsserver, mit eigener Datenbank
+je Seite. Solange beide dieselbe benutzten, war jeder Versuch ein Eingriff
+in Vereinsdaten — und ab dem Tag, an dem echte Mitglieder darin stehen,
+wäre das nicht mehr einzufangen.
+
+| Ziel | API | Bündelkennung | Name auf dem Telefon |
+| --- | --- | --- | --- |
+| lokal (`npm start`) | `http://localhost` | `de.mtbbielefeld.app.dev` | MTB Bielefeld (dev) |
+| dev (`npm run start:dev`) | `https://api-dev.bockelbrink.net` | `de.mtbbielefeld.app.dev` | MTB Bielefeld (dev) |
+| prod (`npm run bau:prod`) | `https://api.mtb-bielefeld.de` | `de.mtbbielefeld.app` | MTB Bielefeld |
+
+Zwei Entscheidungen dahinter, beide bewusst:
+
+- **Beim Bauen festgelegt, nicht zur Laufzeit umschaltbar.** Ein Umschalter
+  in den Einstellungen stünde im ausgelieferten Programm; wer ihn findet,
+  richtet die App eines Mitglieds auf einen fremden Server.
+- **Die Voreinstellung ist `dev`.** Wer für den Verein baut, sagt es
+  ausdrücklich (`EXPO_PUBLIC_APP_UMGEBUNG=prod`). Andersherum wäre ein
+  vergessener Schalter eine App, die auf echte Mitgliederdaten zeigt — und
+  die fiele niemandem auf, weil sie ja funktioniert. Ein dev-Bau dagegen
+  fällt sofort auf: Er heißt „MTB Bielefeld (dev)" und liegt als eigenes
+  Symbol neben der echten Fassung.
+
+Eine Falle, die dabei zweimal zuschlug und beide Male stumm war: Expo
+ersetzt beim Bündeln **nur** Variablen mit dem Präfix `EXPO_PUBLIC_`.
+Deshalb heißt die Variable `EXPO_PUBLIC_APP_UMGEBUNG` und nicht
+`APP_UMGEBUNG` — sonst stünde in der App zur Laufzeit `undefined`, und sie
+fiele auf dev zurück, während die Bündelkennung „prod" sagt. Und die
+`appID` in der `apple-app-site-association` kommt aus `AASA_APP_ID`, das
+**die Compose-Datei an Caddy durchreichen muss**: Ohne diese Zeile liefert
+Caddy die Datei mit leerer `appID` aus, iOS verwirft sie wortlos, und der
+geteilte Link öffnet nur den Browser.
 
 **Am 07.08.2026 auf dem Simulator nachgemessen:**
 `xcrun simctl openurl booted "https://api.bockelbrink.net/t/<id>"` öffnet die
