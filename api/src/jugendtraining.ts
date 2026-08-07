@@ -275,8 +275,21 @@ export function sageAb(
  * doch nicht kann, drückt auf denselben Knopf, und es soll eine Antwort
  * bleiben, keine zwei.
  *
- * `false` heißt: Das Training gibt es nicht. Der Fremdschlüssel würde sonst
- * eine Ausnahme werfen, die jeder Aufrufer fangen müsste.
+ * Der Rückgabewert unterscheidet drei Fälle statt zweier. `'unbekannt'`
+ * heißt: Das Training gibt es nicht — der Fremdschlüssel würde sonst eine
+ * Ausnahme werfen, die jeder Aufrufer fangen müsste.
+ *
+ * `'abgesagt'` ist der Fall, der lange fehlte. Der erlaubte Ausgangszustand
+ * steht **in der Bedingung der Anweisung**, nicht in einer Prüfung davor —
+ * genau wie bei `veroeffentliche`, `sageAb` und `aendereTraining`. Sonst
+ * kommt zwischen Lesen und Schreiben eine Absage durch: Guide A öffnet den
+ * Bildschirm, Guide B sagt ab, Guide A tippt „Ich kann" — und ein
+ * abgesagtes Training hätte eine Zusage. Dass die Oberfläche den Knopf
+ * ausblendet, hilft nicht; sie kennt nur den Stand vom letzten Laden.
+ *
+ * Eine **frühere** Zusage bleibt nach der Absage unangetastet. Sie zu
+ * löschen wäre eine zweite Entscheidung, die niemand getroffen hat, und
+ * die Absage-Mail braucht die Adressen noch.
  */
 export async function setzeGuideAntwort(
   ausfuehrer: pg.Pool | pg.PoolClient,
@@ -284,18 +297,27 @@ export async function setzeGuideAntwort(
   mitgliedId: string,
   zusage: boolean,
   jetzt: Date,
-): Promise<boolean> {
-  if (!istKennung(trainingId)) return false;
+): Promise<'ok' | 'unbekannt' | 'abgesagt'> {
+  if (!istKennung(trainingId)) return 'unbekannt';
 
   const { rowCount } = await ausfuehrer.query(
     `INSERT INTO jugendtraining_guide (training_id, mitglied_id, zusage, geantwortet_am)
      SELECT $1, $2, $3, $4
-      WHERE EXISTS (SELECT 1 FROM jugendtraining WHERE id = $1)
+      WHERE EXISTS (SELECT 1 FROM jugendtraining WHERE id = $1 AND zustand <> 'abgesagt')
      ON CONFLICT (training_id, mitglied_id)
      DO UPDATE SET zusage = EXCLUDED.zusage, geantwortet_am = EXCLUDED.geantwortet_am`,
     [trainingId, mitgliedId, zusage, jetzt],
   );
-  return (rowCount ?? 0) > 0;
+  if ((rowCount ?? 0) > 0) return 'ok';
+
+  // Nichts geschrieben — es gibt zwei Gründe, und der Aufrufer muss sie
+  // auseinanderhalten können: „gibt es nicht" ist ein 404, „ist abgesagt"
+  // ein 409 mit einem Satz, der erklärt, was inzwischen passiert ist.
+  const { rows } = await ausfuehrer.query<{ zustand: string }>(
+    'SELECT zustand FROM jugendtraining WHERE id = $1',
+    [trainingId],
+  );
+  return rows.length === 0 ? 'unbekannt' : 'abgesagt';
 }
 
 /**
@@ -492,7 +514,8 @@ export async function holeKinder(
   ausfuehrer: pg.Pool | pg.PoolClient,
   trainingId: string,
   alsGuide: boolean,
-): Promise<Array<{ id: string; anzeige: string }>> {
+  fragenderId: string,
+): Promise<Array<{ id: string; anzeige: string; eigene: boolean }>> {
   if (!istKennung(trainingId)) return [];
 
   const { rows } = await ausfuehrer.query<{
@@ -501,19 +524,34 @@ export async function holeKinder(
     nachname: string;
     zeigt_vorname: boolean;
     zeigt_nachname: boolean;
+    eigene: boolean;
   }>(
-    `SELECT id, vorname, nachname, zeigt_vorname, zeigt_nachname
+    `SELECT id, vorname, nachname, zeigt_vorname, zeigt_nachname,
+            mitglied_id = $2 AS eigene
        FROM jugendtraining_kind
       WHERE training_id = $1 AND storniert_am IS NULL
-      ORDER BY angelegt_am`,
-    [trainingId],
+      ORDER BY angelegt_am, id`,
+    [trainingId, fragenderId],
   );
 
   return rows.map((z) => {
-    if (alsGuide) return { id: z.id, anzeige: `${z.vorname} ${z.nachname}` };
+    // `eigene` und die Namenssichtbarkeit sind zwei verschiedene Fragen und
+    // dürfen nicht zusammenfallen: Die Guide-Rolle gibt Sichtbarkeit, nicht
+    // Besitz. Ein Guide sieht deshalb bei fremden Kindern den vollen Namen
+    // **und** `eigene: false` — abmelden darf er sie trotzdem nicht, das
+    // steht in `meldeKindAb` in der `WHERE`-Bedingung.
+    const eigene = z.eigene;
+
+    // **Dem Anfragenden das eigene Kind ungefiltert zeigen.** Die Freigabe
+    // regelt, was *andere* sehen — sich selbst gegenüber verbirgt niemand
+    // einen Namen, den er eben eingetippt hat. Ohne diese Zeile stünden bei
+    // zwei datensparsam angemeldeten Kindern zwei Knöpfe „ein Kind abmelden"
+    // nebeneinander, und ein Elternteil hätte beim Austragen die Wahl
+    // zwischen zwei nicht unterscheidbaren Möglichkeiten.
+    if (alsGuide || eigene) return { id: z.id, anzeige: `${z.vorname} ${z.nachname}`, eigene };
     const teile = [z.zeigt_vorname ? z.vorname : null, z.zeigt_nachname ? z.nachname : null];
     const anzeige = teile.filter(Boolean).join(' ');
-    return { id: z.id, anzeige: anzeige || 'ein Kind' };
+    return { id: z.id, anzeige: anzeige || 'ein Kind', eigene };
   });
 }
 

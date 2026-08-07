@@ -5,9 +5,13 @@
 Die App zum [MTB Bielefeld e.V.](https://mtb-bielefeld.de) für iOS und Android.
 Termine, Aktuelles und Vereinsinfos — aus den Daten, die der Verein ohnehin pflegt.
 
-| Termine | Aktuelles | Verein | Einstellungen |
-| --- | --- | --- | --- |
-| ![Terminliste mit Filterleiste und nach Tagen gruppierten Terminen](docs/screenshots/termine.png) | ![Beitragsliste mit Themenfiltern wie Racing und Jugend](docs/screenshots/aktuelles.png) | ![Vereinsseite mit Beschreibung und Angeboten](docs/screenshots/verein.png) | ![Einstellungen für Termin-Erinnerungen](docs/screenshots/einstellungen.png) |
+| Termine | Aktuelles | Verein | Jugend | Einstellungen |
+| --- | --- | --- | --- | --- |
+| ![Terminliste mit Filterleiste und nach Tagen gruppierten Terminen](docs/screenshots/termine.png) | ![Beitragsliste mit Themenfiltern wie Racing und Jugend](docs/screenshots/aktuelles.png) | ![Vereinsseite mit Beschreibung und Angeboten](docs/screenshots/verein.png) | ![Jugendbereich im abgemeldeten Zustand mit dem Hinweis, sich anzumelden](docs/screenshots/jugend.png) | ![Einstellungen für Termin-Erinnerungen und das Konto](docs/screenshots/einstellungen.png) |
+
+> Vier davon sind Reiter unten; **Einstellungen** liegt hinter dem Zahnrad
+> oben rechts. Die Reiterleiste fasst nur vier Einträge — mit einem fünften
+> steht dort „EINSTELLUN…", auf einem Gerät nachgemessen.
 
 > Die Aufnahmen entstehen aus der **Web-Fassung** der App mit echten Daten aus
 > dem Vereinskalender (`npm run vorschau`). Auf iOS und Android sehen Schriften,
@@ -19,9 +23,9 @@ Termine, Aktuelles und Vereinsinfos — aus den Daten, die der Verein ohnehin pf
 Die Anmeldung als Mitglied und die Tourenanmeldung sind auf einem echten
 iOS-System aufgenommen (iPhone 17 Pro, iOS 26.5):
 
-| Nach dem Anmeldelink | Angemeldet | Zu einer Tour eintragen |
-| --- | --- | --- |
-| ![Terminliste, auf der der angetippte Anmeldelink landet](docs/screenshots/simulator-nach-magiclink.png) | ![Einstellungen mit der Karte „Mein Konto" und dem Zustand „Du bist angemeldet"](docs/screenshots/simulator-angemeldet.png) | ![Terminansicht mit der Belegung und dem Knopf „Ich bin dabei", darunter der Mail-Knopf](docs/screenshots/simulator-teilnahme.png) |
+| Nach dem Anmeldelink | Angemeldet | Zu einer Tour eintragen | Jugendtrainings | Kind anmelden |
+| --- | --- | --- | --- | --- |
+| ![Terminliste, auf der der angetippte Anmeldelink landet](docs/screenshots/simulator-nach-magiclink.png) | ![Einstellungen mit der Karte „Mein Konto" und dem Zustand „Du bist angemeldet"](docs/screenshots/simulator-angemeldet.png) | ![Terminansicht mit der Belegung und dem Knopf „Ich bin dabei", darunter der Mail-Knopf](docs/screenshots/simulator-teilnahme.png) | ![Liste der Jugendtrainings mit Belegung, einem Entwurf und einem abgesagten Training samt Grund](docs/screenshots/simulator-jugend.png) | ![Anmeldeformular für ein Kind mit zwei Schaltern für die Namensfreigabe](docs/screenshots/simulator-jugend-anmelden.png) |
 
 ## Worum es geht
 
@@ -208,6 +212,36 @@ kann.
 
 Für diese beiden Bereiche führt kein Weg an Variante 4 vorbei.
 
+### Knöpfe wirklich drücken: `idb`
+
+`xcrun simctl` kann Adressen öffnen und Fotos machen, aber **nicht tippen**.
+Damit lässt sich prüfen, ob ein Bildschirm richtig aussieht — nicht, ob seine
+Knöpfe tun, was sie versprechen. Genau diese Lücke hat in diesem Projekt
+schon zweimal etwas durchgelassen.
+
+[`idb`](https://fbidb.io) schließt sie. Einmalig einrichten:
+
+```bash
+brew install facebook/fb/idb-companion
+python3 -m pip install --user fb-idb
+export PATH="$HOME/Library/Python/3.9/bin:$PATH"
+```
+
+Dann, bei laufendem Simulator:
+
+```bash
+idb_companion --udid <UDID> &          # einmal je Sitzung
+idb ui describe-all --udid <UDID>      # alle Bedienelemente samt Koordinaten
+idb ui tap  --udid <UDID> <x> <y>
+idb ui text --udid <UDID> "Mika"
+```
+
+**Koordinaten vor jedem Tipp neu lesen.** Sobald die Tastatur erscheint,
+verschiebt sich das Layout — beim ersten Versuch landeten hier zwei Namen im
+selben Feld, weil die zweite Koordinate von vorher stammte. `describe-all`
+liefert zu jedem Element den zugänglichen Namen und den Rahmen; danach
+suchen, nicht nach Pixeln raten.
+
 ### Prüfliste für den Gerätetest
 
 Was Tests und Vorschau nicht abdecken können — abzuarbeiten vor der
@@ -262,9 +296,14 @@ app/                     Bildschirme (expo-router: Dateiname = Adresse)
   (tabs)/index.tsx         Termine — Hauptbildschirm
   (tabs)/news.tsx          Aktuelles
   (tabs)/verein.tsx        Verein & Mitmachen
-  (tabs)/einstellungen.tsx Erinnerungen
+  (tabs)/jugend.tsx        Jugendtrainings
+  einstellungen.tsx        Erinnerungen und Konto — über das Zahnrad oben
   termin/[id].tsx          Termin-Detailansicht
   news/[id].tsx            Beitrag-Detailansicht
+  jugend/[id].tsx          ein Training: Belegung, Guides, Kind anmelden
+  jugend/neu.tsx           Entwurf anlegen (nur Guides)
+  t/[id].tsx               Ziel eines geteilten Links
+  anmeldung/[token].tsx    Ziel des Links aus der Anmeldemail
 
 src/
   config.ts              Adressen der Datenquellen — hier wird getauscht
@@ -274,7 +313,10 @@ src/
     rss/                 News-Feed einlesen
     parse/               Beschreibungen auswerten und einordnen
     repository.ts        Abruf + Zwischenspeicher (Umstiegspunkt für ein Backend)
+    jugend.ts            Jugendtrainings von der API holen und ändern
   features/events/       Filter, Aufbereitung, Terminkarte
+  features/jugend/       Trainingskarte, Anmeldeformular, Guide-Ansicht
+  konto/                 wer angemeldet ist, und der Magic Link
   notifications/         Erinnerungen (Planung getrennt von der System-Anbindung)
   content/club.ts        Vereinstexte — von Hand gepflegt
   ui/                    Farbschema und wiederverwendete Bausteine
@@ -416,6 +458,15 @@ letzte Fehler: Der Anmeldelink landete auf expo-routers englischem
 Notbildschirm „Unmatched Route", weil die Route dafür fehlte. Die Anmeldung
 gelang im Hintergrund — sichtbar war eine Fehlerseite in einer fremden
 Sprache. Gefunden hat es erst der Simulator.
+
+Deshalb wird der geteilte Link eines Jugendtrainings **auf dem Simulator**
+nachgemessen, nicht nur gebaut: `xcrun simctl openurl booted
+"https://<domain>/t/<id>"` muss die App beim Training öffnen. Geht Safari
+auf, fehlt eine von drei Stellen, die alle stimmen müssen —
+`associatedDomains` in `app.json`, die ausgelieferte
+`apple-app-site-association` in `betrieb/Caddyfile` und die Route
+`app/t/[id].tsx`. Die Rauchprobe prüft die mittlere mit; die beiden anderen
+bleiben Sache des Simulators. Einzelheiten in `docs/ARCHITEKTUR.md`.
 
 ## Was noch offen ist
 

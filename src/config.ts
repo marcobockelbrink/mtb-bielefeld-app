@@ -138,3 +138,28 @@ export const API_BASE_URL =
   ((globalThis as { __DEV__?: boolean }).__DEV__ === true
     ? 'http://localhost'
     : 'https://api.mtb-bielefeld.de');
+
+/**
+ * Basis-Adresse für den Teilen-Link eines Jugendtrainings (`/t/:id`).
+ *
+ * Bewusst dieselbe Adresse wie `API_BASE_URL` und keine eigene: `/t/:id` ist
+ * ein Pfad der Vereins-API (`api/src/app.ts`), kein eigener Dienst. Eine
+ * zweite Konstante wäre eine zweite Stelle, die bei einem Domainwechsel
+ * vergessen werden könnte — und genau die feststehende Vereinsdomain steht
+ * noch aus (siehe `betrieb/SERVER.md`).
+ *
+ * **Diese Datei allein genügt nicht.** Damit ein geteilter Link die App
+ * öffnet statt den Browser, muss dieselbe Domain zusätzlich in `app.json`
+ * unter `associatedDomains` (iOS) und `intentFilters` (Android) stehen. Die
+ * liest das Betriebssystem aus dem fertigen Bündel, nicht diese Datei — sie
+ * lassen sich von hier aus weder ableiten noch nachziehen, und ein
+ * Auseinanderlaufen fällt in keiner Prüfung auf, sondern erst auf einem
+ * Gerät, wenn statt der App Safari aufgeht.
+ *
+ * Deshalb meldet `app.json` **beide** Domains an: `api.bockelbrink.net` zum
+ * Prüfen und `api.mtb-bielefeld.de` für die Veröffentlichungsfassung, auf
+ * die diese Konstante dort zeigt. Eine angemeldete Domain, die es noch nicht
+ * gibt, schadet nicht — iOS prüft jede für sich und lässt die andere in
+ * Ruhe.
+ */
+export const TEILEN_BASIS_URL = API_BASE_URL;

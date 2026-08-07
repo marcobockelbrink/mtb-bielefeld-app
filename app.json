@@ -11,7 +11,8 @@
       "bundleIdentifier": "de.mtbbielefeld.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": ["applinks:api.mtb-bielefeld.de", "applinks:api.bockelbrink.net"]
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +21,18 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "de.mtbbielefeld.app"
+      "package": "de.mtbbielefeld.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "api.mtb-bielefeld.de", "pathPrefix": "/t" },
+            { "scheme": "https", "host": "api.bockelbrink.net", "pathPrefix": "/t" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -219,7 +219,15 @@ ist nicht geplant.
   `.env`. Erst danach bekommt ein Mensch je einen Anmeldelink, und erst
   danach tritt `docker-compose.server.yml` an die Stelle der vorläufigen
   Fassung.
-- **Die Vereinsdomain** — `API_DOMAIN` in der `.env` umstellen, mehr nicht.
+- **Die Vereinsdomain** — `API_DOMAIN` in der `.env` umstellen ist der
+  Server-seitige Teil. Dazu kommt jetzt ein App-seitiger: Die Universal
+  Links für den Teilen-Knopf der Jugendtrainings (Plan 6, Aufgabe 6) tragen
+  `api.bockelbrink.net` fest in `app.json` (`ios.associatedDomains`,
+  `android.intentFilters`) — JSON kennt keine Kommentare, die den
+  Umzugshinweis dorthin tragen könnten, deshalb steht er hier. Nach dem
+  Umstellen dort **und** hier braucht es einen Neubau der nativen Apps
+  (`npx expo prebuild --clean` bzw. `run:ios`/`run:android`): Die Domain
+  landet in den nativen Entitlements, ein Metro-Neustart reicht nicht.
 - **Backups** — Plan 4b, Aufgabe 5. **Nichts wird gesichert, solange das
   fehlt.** Solange nur Testkonten in der Datenbank liegen, ist das
   verschmerzbar; ab dem ersten echten Mitglied nicht mehr.

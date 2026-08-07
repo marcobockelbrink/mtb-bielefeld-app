@@ -20,6 +20,7 @@ import {
 
 import { API_BASE_URL } from '../config';
 import { ApiZugang } from '../data/api';
+import { setzeAbonnement } from '../data/jugend';
 import { secureTokenSpeicher } from '../data/secureTokenSpeicher';
 import type { TokenSpeicher } from '../data/tokenSpeicher';
 import { beschreibeEinloesenFehler } from './einloesenFehler';
@@ -30,6 +31,31 @@ export interface KontoZustand {
   /** Erster Blick in den Schlüsselbund läuft noch. */
   laedt: boolean;
   api: ApiZugang;
+  /**
+   * `'mitglied' | 'guide' | 'verwaltung'` aus `GET /konto` — `null`, solange
+   * niemand angemeldet ist oder die Abfrage noch nicht zurück ist.
+   *
+   * **Reine Anzeigehilfe, keine Absicherung.** Sie blendet Guide-Knöpfe ein,
+   * die sonst in ein 403 liefen — die API prüft die Rolle bei jedem eigenen
+   * Aufruf selbst, unabhängig davon, was hier steht. Wer diese Rolle als
+   * Schutz behandelt (etwa eine Aktion freischaltet, die die API nicht auch
+   * selbst prüft), baut eine Prüfung, die nur in der App steht und sich mit
+   * einem manipulierten Client umgehen lässt.
+   */
+  rolle: string | null;
+  /**
+   * Abonnement für „neues Jugendtraining veröffentlicht" — `null`, solange
+   * niemand angemeldet ist oder `GET /konto` noch nicht zurück ist. Kommt aus
+   * demselben Aufruf wie `rolle`, siehe dort.
+   */
+  jugendBenachrichtigung: boolean | null;
+  /**
+   * Ändert das Abonnement optimistisch: Die Anzeige springt sofort um, ein
+   * Fehlschlag nimmt sie zurück. Der Schalter, der `an` auslöst, bliebe sonst
+   * eine Sekunde ohne Reaktion stehen — und würde ein zweites Mal angetippt,
+   * bevor die erste Antwort da ist.
+   */
+  setzeJugendBenachrichtigung(an: boolean): Promise<void>;
   anmeldungAnfordern(email: string, code?: string): Promise<void>;
   abmelden(): Promise<void>;
   /** Zuletzt eingelöster Link — die Oberfläche zeigt danach eine Bestätigung. */
@@ -65,6 +91,8 @@ export function KontoProvider({
     [basisUrl, speicher],
   );
   const [laedt, setLaedt] = useState(true);
+  const [rolle, setRolle] = useState<string | null>(null);
+  const [jugendBenachrichtigung, setJugendBenachrichtigung] = useState<boolean | null>(null);
   const [zuletztEingeloest, setZuletztEingeloest] = useState<number | null>(null);
   const [einloesenFehlgeschlagen, setEinloesenFehlgeschlagen] = useState<string | null>(null);
   // `Linking.getInitialURL()` und das `url`-Ereignis liefern je nach
@@ -90,6 +118,59 @@ export function KontoProvider({
       abgebrochen = true;
     };
   }, [api]);
+
+  // Rolle und Abonnement hängen an der Sitzung, nicht an einer eigenen
+  // Aktion — sie folgen deshalb `angemeldet`, statt dass jeder Aufrufer sie
+  // selbst holen muss. Das deckt beide Wege ab, auf denen `angemeldet` `true`
+  // wird (Schlüsselbund beim Start, Magic Link in `loeseEin`), und räumt
+  // beim Abmelden wieder auf — sonst zeigte ein zweites, gerade neu
+  // angemeldetes Mitglied auf demselben Gerät kurzzeitig noch die
+  // Guide-Knöpfe oder den Schalterstand des vorigen.
+  useEffect(() => {
+    if (!angemeldet) {
+      setRolle(null);
+      setJugendBenachrichtigung(null);
+      return;
+    }
+    let abgebrochen = false;
+    void api
+      .hole<{ rolle: string; jugendBenachrichtigung: boolean }>('/konto')
+      .then((auskunft) => {
+        if (!abgebrochen) {
+          setRolle(auskunft.rolle);
+          setJugendBenachrichtigung(auskunft.jugendBenachrichtigung);
+        }
+      })
+      .catch((fehler) => {
+        // Reine Anzeigehilfe (siehe Kommentar bei `rolle` oben): Ein
+        // Fehlschlag hier blendet nur die Guide-Knöpfe und den
+        // Abonnement-Schalter aus, mehr nicht — kein Bannergrund für ein
+        // Detail, das niemand angefordert hat. `console.warn` bleibt für den
+        // Betreiber.
+        if (!abgebrochen) console.warn('Rolle ließ sich nicht laden:', fehler);
+      });
+    return () => {
+      abgebrochen = true;
+    };
+  }, [angemeldet, api]);
+
+  const setzeJugendBenachrichtigungAn = useCallback(
+    async (an: boolean) => {
+      // Optimistisch: Erst die Anzeige, dann die Anfrage. Wer den Schalter
+      // antippt und eine Sekunde nichts sieht, tippt ihn ein zweites Mal —
+      // und der Zustand steht danach auf dem Gegenteil dessen, was die
+      // Person wollte.
+      const vorher = jugendBenachrichtigung;
+      setJugendBenachrichtigung(an);
+      try {
+        await setzeAbonnement(api, an);
+      } catch (fehler) {
+        setJugendBenachrichtigung(vorher);
+        throw fehler;
+      }
+    },
+    [api, jugendBenachrichtigung],
+  );
 
   const loeseEin = useCallback(
     async (url: string) => {
@@ -131,6 +212,9 @@ export function KontoProvider({
       angemeldet,
       laedt,
       api,
+      rolle,
+      jugendBenachrichtigung,
+      setzeJugendBenachrichtigung: setzeJugendBenachrichtigungAn,
       zuletztEingeloest,
       einloesenFehlgeschlagen,
       anmeldungAnfordern: async (email, code) => {
@@ -145,7 +229,16 @@ export function KontoProvider({
         setAngemeldet(false);
       },
     }),
-    [angemeldet, laedt, api, zuletztEingeloest, einloesenFehlgeschlagen],
+    [
+      angemeldet,
+      laedt,
+      api,
+      rolle,
+      jugendBenachrichtigung,
+      setzeJugendBenachrichtigungAn,
+      zuletztEingeloest,
+      einloesenFehlgeschlagen,
+    ],
   );
 
   return <Kontext.Provider value={wert}>{children}</Kontext.Provider>;

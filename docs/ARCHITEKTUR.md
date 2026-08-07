@@ -73,9 +73,13 @@ app/                       Bildschirme (expo-router: Dateiname = Adresse)
   (tabs)/index.tsx           Termine
   (tabs)/news.tsx            Aktuelles
   (tabs)/verein.tsx          Verein & Mitmachen
-  (tabs)/einstellungen.tsx   Erinnerungen und Konto
+  (tabs)/jugend.tsx          Jugendtrainings
+  einstellungen.tsx          Erinnerungen und Konto — bewusst kein Reiter
   termin/[id].tsx            Termin-Detailansicht
   news/[id].tsx              Beitrag-Detailansicht
+  jugend/[id].tsx            ein Training: Belegung, Guides, Kind anmelden
+  jugend/neu.tsx             Entwurf anlegen (nur Guides)
+  t/[id].tsx                 Ziel eines geteilten Links (Universal Link)
   anmeldung/[token].tsx      Ziel des Links aus der Anmeldemail
 
 src/
@@ -91,12 +95,15 @@ src/
     api.ts                   Zugang zur Vereins-API
     tokenSpeicher.ts         Schnittstelle + Fassung für Tests
     secureTokenSpeicher.ts   Anbindung an den Schlüsselbund
+    jugend.ts                Jugendtrainings holen, anlegen, anmelden
   konto/
     KontoContext.tsx         wer angemeldet ist, und der Magic Link
     magicLink.ts             Token aus der angetippten Adresse ziehen
     einloesenFehler.ts       Fehler → deutscher Satz
     anfordernFehler.ts       Fehler → deutscher Satz
   features/events/         Filter, Aufbereitung, Terminkarte, Teilnahmekarte
+  features/jugend/         Trainingskarte, Anmeldeformular, Guide-Ansicht,
+                           Teilen-Text, Fehler → deutscher Satz
   notifications/           Erinnerungen
   content/club.ts          Vereinstexte, von Hand gepflegt
   ui/                      wiederverwendete Bausteine
@@ -318,6 +325,41 @@ Für jede Stufe gibt es einen Fehler, den nur sie gefunden hat:
 Daraus die Lehre, die dieses Projekt am teuersten bezahlt hat: **Ein grüner
 Test beweist nur, was er misst.** Wer eine Annahme über die Gegenseite trifft,
 prüfe sie gegen die Gegenseite.
+
+### Universal Links, und warum die Prüfung dafür halb im Server liegt
+
+Ein geteilter Link `https://<domain>/t/<id>` öffnet die App nur, wenn drei
+Dinge gleichzeitig stimmen — und keine zwei davon liegen an derselben Stelle:
+
+1. **`app.json`** meldet die Domain an (`associatedDomains`, `intentFilters`).
+   Das Betriebssystem liest sie aus dem fertigen Bündel, nicht aus dem
+   Quelltext.
+2. **`betrieb/Caddyfile`** liefert `/.well-known/apple-app-site-association`
+   aus, mit `application/json` und der passenden `appID`.
+3. **`app/t/[id].tsx`** fängt den Pfad in expo-router ab.
+
+Fehlt eines, öffnet sich Safari — und alle Prüfungen bleiben grün, weil keine
+von ihnen einen Link antippt. Die Rauchprobe deckt seit dem 07.08.2026
+Punkt 2 ab und gleicht die `appID` gegen `app.json` ab; Punkt 1 und 3 bleiben
+Sache des Simulators.
+
+**Am 07.08.2026 auf dem Simulator nachgemessen:**
+`xcrun simctl openurl booted "https://api.bockelbrink.net/t/<id>"` öffnet die
+App beim Training, nicht Safari.
+
+Zwei Fallen dabei, beide teuer bezahlt:
+
+- **`codesign -d --entitlements` lügt bei Simulator-Programmen.** Es meldet
+  einen leeren `[Dict]`, obwohl die Berechtigungen im Programm stehen — dort
+  liegen sie im Abschnitt `__TEXT,__entitlements`, den man mit `otool -X -s
+  __TEXT __entitlements` liest (die Wörter stehen umgedreht). Wer dem
+  `codesign` glaubt, signiert von Hand nach und zerstört dabei die App:
+  Nachsignieren nur der äußeren Hülle bricht das Siegel der eingebetteten
+  Bibliotheken, und danach startet gar nichts mehr.
+- **Auf einem echten iPhone ist das ungeprüft.**
+  `com.apple.developer.associated-domains` ist wie `aps-environment` eine
+  Berechtigung, die ein kostenloses Apple Personal Team nicht ausstellt.
+  Behoben ist das erst mit einem bezahlten Entwicklerkonto.
 
 ## Was bewusst nicht gebaut wurde
 

@@ -24,7 +24,7 @@
 # `VERTRAUTER_PROXY` mit anpassen (`api/src/app.ts`), sonst ist die
 # Begrenzung je IP wertlos, ohne dass ein Test rot wird.
 #
-# ## Die zwei Zonen
+# ## Die drei Zonen
 #
 # Diese Schicht und die Begrenzung in der API tun Verschiedenes: Caddy sieht
 # den Anfragekörper nicht und kann deshalb nicht je Adresse begrenzen — er
@@ -44,14 +44,17 @@
 # Segment, und `/termine*` passte zusätzlich auf erfundene Wege wie
 # `/termineXY`.
 #
-# Zone `tourenanmeldung`: zwei Zonen und nicht eine, weil ein `match`-Block
+# Zone `tourenanmeldung`: getrennt von `anmeldung`, weil ein `match`-Block
 # seine Bedingungen mit UND verknüpft — „diese Pfade, egal welche Methode"
-# und „jene Pfade, aber nur schreibend" passen nicht in denselben Block. Zwei
-# getrennte Kontingente je IP sind hier auch richtig herum: Eine
+# und „jene Pfade, aber nur schreibend" passen nicht in denselben Block.
+# Getrennte Kontingente je IP sind hier auch richtig herum: Eine
 # ausgeschöpfte Anmeldeflut soll das Eintragen zu einer Tour nicht abwürgen.
 #
+# Zone `jugendtraining`: seit dem 06.08.2026 eine eigene, nicht mit der
+# Tourenanmeldung geteilt. Die Begründung steht unten am Block selbst.
+#
 # Die lesenden Abfragen `GET /termine/…` und `GET /jugendtraining…` fehlen
-# mit Absicht in beiden Zonen — dieselbe Abwägung wie in `app.ts` (siehe
+# mit Absicht in allen dreien — dieselbe Abwägung wie in `app.ts` (siehe
 # `NUR_SCHREIBEND_GEZAEHLT`): Eine App, die eine Liste öffnet, stellt sie im
 # Normalbetrieb reihenweise und würde jede sinnvolle Grenze reißen.
 #
@@ -71,14 +74,68 @@
 
 		zone tourenanmeldung {
 			match {
-				path /termine/* /jugendtraining*
-				method POST DELETE PATCH PUT
+				path /termine/*
+				method POST DELETE
 			}
 			key {remote_host}
 			events 10
 			window 1m
 		}
+
+		# Eigene Zone, nicht mit der Tourenanmeldung geteilt — aus demselben
+		# Grund, aus dem `anmeldung` und `tourenanmeldung` getrennt sind: Eine
+		# ausgeschöpfte Anmeldeflut soll nicht das Nächste mit abwürgen.
+		#
+		# Hier kommt dazu, dass die Schreibvorgänge in Schüben auftreten. Ein
+		# Guide legt an, veröffentlicht und sagt womöglich wieder ab; ein
+		# Elternteil trägt zwei Kinder ein und eines wieder aus. Das sind
+		# leicht ein halbes Dutzend Anfragen in wenigen Minuten, ohne dass
+		# jemand etwas Ungewöhnliches täte. Zusammen mit den Touren in einem
+		# Kontingent wäre die Grenze im Alltag zu erreichen — und eine
+		# Notbremse, die den Normalfall bremst, ist keine mehr.
+		zone jugendtraining {
+			match {
+				path /jugendtraining*
+				method POST DELETE PATCH PUT
+			}
+			key {remote_host}
+			events 15
+			window 1m
+		}
 	}
 
-	reverse_proxy api:3000
+	# --- Universal Links -------------------------------------------------
+	#
+	# Ohne diese Datei öffnet ein geteilter `/t/<id>`-Link nur den Browser,
+	# nicht die App — und das fällt erst auf einem Gerät auf, nie in Tests
+	# und nie im Bündel. iOS holt sie beim Installieren und danach
+	# gelegentlich; sie muss über HTTPS erreichbar sein und `application/json`
+	# tragen, aber ausdrücklich **ohne** Dateiendung im Pfad.
+	#
+	# `appID` ist `<Team-ID>.<Bundle-ID>`. DH3N3RBQX3 steht in
+	# `ios/MTBBielefeld.xcodeproj/project.pbxproj` als `DEVELOPMENT_TEAM` —
+	# das ist Marcos persönliches Apple-Team. **Für den App Store gehört hier
+	# die Team-ID des Vereinskontos**, sobald es eines gibt; bis dahin trägt
+	# diese Angabe nur die Prüfung auf dem eigenen Gerät.
+	#
+	# `handle` und nicht lose im Block: Caddy sortiert Direktiven nach einer
+	# eigenen, unsichtbaren Reihenfolge — `handle`-Blöcke dagegen schließen
+	# einander aus und greifen in Quelltextreihenfolge. So steht sicher, dass
+	# diese Antwort vor dem `reverse_proxy` kommt.
+	handle /.well-known/apple-app-site-association {
+		header Content-Type application/json
+		respond `{"applinks":{"apps":[],"details":[{"appID":"DH3N3RBQX3.de.mtbbielefeld.app","paths":["/t/*"]}]}}` 200
+	}
+
+	# **`assetlinks.json` fehlt mit Absicht.** Android verlangt darin den
+	# SHA-256-Fingerabdruck des Signierschlüssels, und den gibt es in diesem
+	# Projekt noch nicht: kein `android/`-Ordner, kein Keystore, kein
+	# `eas.json`. Eine Datei mit erfundenem Fingerabdruck wäre schlechter als
+	# keine — Android holte sie, verwürfe sie stumm, und niemand käme darauf,
+	# dass der Fingerabdruck schuld ist. Sobald ein Schlüssel existiert,
+	# gehört sie hierher, gebaut wie die Datei darüber.
+
+	handle {
+		reverse_proxy api:3000
+	}
 }

@@ -524,10 +524,30 @@ export function baueApp({
     return Number.isInteger(zahl) && zahl > 0 ? zahl : null;
   }
 
-  /** Wie `holeAusweis`, aber besteht auf der Guide-Rolle. */
-  async function holeGuide(anfrage: { headers: Record<string, unknown> }) {
+  /**
+   * Wie `holeAusweis`, aber besteht auf der Guide-Rolle.
+   *
+   * Unterscheidet die beiden Fälle, statt beide als „darfst du nicht" zu
+   * beantworten: Wer gar nicht angemeldet ist, bekommt 401 und weiß, dass
+   * er sich anmelden soll. Wer angemeldet ist, aber kein Guide, bekommt 403
+   * — dann hilft kein Anmelden, sondern nur jemand, der ihm die Rolle gibt.
+   * Beides mit „Das dürfen nur Guides" zu beantworten schickte Leute in die
+   * falsche Richtung.
+   */
+  async function holeGuide(
+    anfrage: { headers: Record<string, unknown> },
+  ): Promise<{ ausweis: Ausweis } | { fehler: 401 | 403 }> {
     const ausweis = await holeAusweis(anfrage);
-    return ausweis?.rolle === 'guide' ? ausweis : null;
+    if (!ausweis) return { fehler: 401 };
+    if (ausweis.rolle !== 'guide') return { fehler: 403 };
+    return { ausweis };
+  }
+
+  /** Die passende Antwort zu einem Ergebnis von `holeGuide`. */
+  function weiseAb(antwort: { code(n: number): { send(k: unknown): unknown } }, code: 401 | 403) {
+    return code === 401
+      ? antwort.code(401).send({ fehler: 'Nicht angemeldet.' })
+      : antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
   }
 
   app.get('/konto', async (anfrage, antwort) => {
@@ -883,11 +903,12 @@ dein Kind auch anmelden.</p>
   }
 
   app.post('/jugendtraining', async (anfrage, antwort) => {
-    const guide = await holeGuide(anfrage);
     // 403 und nicht 404: Wer angemeldet ist, darf erfahren, dass es diesen
     // Weg gibt — nur nicht, dass er ihn gehen darf. Ein 404 wäre hier
     // Geheimniskrämerei ohne Gewinn.
-    if (!guide) return antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
+    const erlaubnis = await holeGuide(anfrage);
+    if ('fehler' in erlaubnis) return weiseAb(antwort, erlaubnis.fehler);
+    const guide = erlaubnis.ausweis;
 
     const koerper = anfrage.body as Record<string, unknown>;
     const beginntAm = lieszeitpunkt(koerper?.beginntAm);
@@ -961,7 +982,7 @@ dein Kind auch anmelden.</p>
     return antwort.send({
       ...training,
       belegt: await jugend.holeBelegungTraining(pool, id),
-      kinder: await jugend.holeKinder(pool, id, istGuide),
+      kinder: await jugend.holeKinder(pool, id, istGuide, ausweis.mitgliedId),
       // Guides bekommen die Namen, alle anderen nur die Zahl der Zusagen —
       // die Spec verspricht ihnen genau das. Ohne die Zahl bliebe „reichen
       // die Guides?" für Eltern unsichtbar, mit den Namen wüssten sie mehr
@@ -972,8 +993,9 @@ dein Kind auch anmelden.</p>
   });
 
   app.patch('/jugendtraining/:id', async (anfrage, antwort) => {
-    const guide = await holeGuide(anfrage);
-    if (!guide) return antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
+    const erlaubnis = await holeGuide(anfrage);
+    if ('fehler' in erlaubnis) return weiseAb(antwort, erlaubnis.fehler);
+    const guide = erlaubnis.ausweis;
 
     const { id } = anfrage.params as { id: string };
     const koerper = anfrage.body as Record<string, unknown>;
@@ -1003,8 +1025,9 @@ dein Kind auch anmelden.</p>
   });
 
   app.post('/jugendtraining/:id/veroeffentlichen', async (anfrage, antwort) => {
-    const guide = await holeGuide(anfrage);
-    if (!guide) return antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
+    const erlaubnis = await holeGuide(anfrage);
+    if ('fehler' in erlaubnis) return weiseAb(antwort, erlaubnis.fehler);
+    const guide = erlaubnis.ausweis;
 
     const { id } = anfrage.params as { id: string };
     const ergebnis = await jugend.veroeffentliche(pool, id, jetzt());
@@ -1020,8 +1043,9 @@ dein Kind auch anmelden.</p>
   });
 
   app.post('/jugendtraining/:id/absage', async (anfrage, antwort) => {
-    const guide = await holeGuide(anfrage);
-    if (!guide) return antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
+    const erlaubnis = await holeGuide(anfrage);
+    if ('fehler' in erlaubnis) return weiseAb(antwort, erlaubnis.fehler);
+    const guide = erlaubnis.ausweis;
 
     const { id } = anfrage.params as { id: string };
     const koerper = anfrage.body as Record<string, unknown>;
@@ -1047,8 +1071,9 @@ dein Kind auch anmelden.</p>
   });
 
   app.put('/jugendtraining/:id/guide', async (anfrage, antwort) => {
-    const guide = await holeGuide(anfrage);
-    if (!guide) return antwort.code(403).send({ fehler: 'Das dürfen nur Guides.' });
+    const erlaubnis = await holeGuide(anfrage);
+    if ('fehler' in erlaubnis) return weiseAb(antwort, erlaubnis.fehler);
+    const guide = erlaubnis.ausweis;
 
     const { id } = anfrage.params as { id: string };
     const koerper = anfrage.body as Record<string, unknown>;
@@ -1056,8 +1081,16 @@ dein Kind auch anmelden.</p>
       return antwort.code(400).send({ fehler: 'Zusage oder Absage angeben.' });
     }
 
-    const gesetzt = await jugend.setzeGuideAntwort(pool, id, guide.mitgliedId, koerper.zusage, jetzt());
-    if (!gesetzt) return antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' });
+    const ergebnis = await jugend.setzeGuideAntwort(pool, id, guide.mitgliedId, koerper.zusage, jetzt());
+    // 409 und nicht 404: Das Training gibt es ja, es ist nur nicht mehr das,
+    // was der Bildschirm zeigte. Der Satz muss das sagen — „gibt es nicht"
+    // schickte einen Guide auf die Suche nach einem Fehler, der keiner ist.
+    if (ergebnis === 'abgesagt') {
+      return antwort.code(409).send({ fehler: 'Dieses Training wurde inzwischen abgesagt.' });
+    }
+    if (ergebnis === 'unbekannt') {
+      return antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' });
+    }
     return antwort.code(204).send();
   });
 

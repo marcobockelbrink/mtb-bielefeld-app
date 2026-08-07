@@ -15,27 +15,45 @@
  * ließ sich nicht einlösen). Ohne Letzteres passierte nach dem Antippen
  * eines abgelaufenen Links schlicht gar nichts — die Karte blieb einfach
  * bei „Schau in dein Postfach" stehen.
+ *
+ * Der Abonnement-Schalter für Jugendtrainings sitzt bewusst hier und nicht
+ * im Jugendbereich selbst: Der Zustand hängt am Konto, nicht am Bildschirm,
+ * und gehört deshalb neben den Abmelden-Knopf, nicht in eine Liste, die man
+ * beim Blättern verlässt.
  */
 
 import { useRef, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { beschreibeAnfordernFehler } from '../../konto/anfordernFehler';
 import { useKonto } from '../../konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../../theme';
 import { ActionButton, Banner, Card, Label } from '../../ui/components';
 import { useTheme } from '../../ui/theme';
+import { beschreibeJugendFehler } from '../jugend/jugendFehler';
 
 export function AnmeldeKarte() {
   const { palette } = useTheme();
-  const { angemeldet, laedt, anmeldungAnfordern, abmelden, zuletztEingeloest, einloesenFehlgeschlagen } =
-    useKonto();
+  const {
+    angemeldet,
+    laedt,
+    anmeldungAnfordern,
+    abmelden,
+    zuletztEingeloest,
+    einloesenFehlgeschlagen,
+    jugendBenachrichtigung,
+    setzeJugendBenachrichtigung,
+  } = useKonto();
 
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [laeuft, setLaeuft] = useState(false);
   const [angefordert, setAngefordert] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
+  // Eigene Fehlerzeile für den Abonnement-Schalter: Er lebt in derselben
+  // Karte wie das Anmeldeformular, aber unabhängig davon — ein Fehlschlag
+  // beim Umschalten hat nichts mit einem gescheiterten Anmeldeversuch zu tun.
+  const [jugendFehler, setJugendFehler] = useState<string | null>(null);
 
   // Der Stand von `zuletztEingeloest` beim ersten Einhängen der Karte.
   // `useRef` merkt sich nur den allerersten Aufrufwert — ändert sich
@@ -48,6 +66,17 @@ export function AnmeldeKarte() {
 
   if (laedt) return null;
 
+  async function schalteJugendBenachrichtigung(an: boolean) {
+    setJugendFehler(null);
+    try {
+      await setzeJugendBenachrichtigung(an);
+    } catch (ursache) {
+      // `setzeJugendBenachrichtigung` hat die Anzeige schon zurückgenommen —
+      // hier fehlt nur noch der Satz, warum.
+      setJugendFehler(beschreibeJugendFehler(ursache));
+    }
+  }
+
   if (angemeldet) {
     return (
       <Card>
@@ -58,6 +87,31 @@ export function AnmeldeKarte() {
         <Text style={[styles.hinweis, { color: palette.textMuted }]}>
           Damit kannst du dich in der Terminansicht zu Touren an- und abmelden.
         </Text>
+
+        {jugendBenachrichtigung !== null ? (
+          <View style={styles.schalterZeile}>
+            <View style={styles.schalterText}>
+              <Text style={[styles.titel, { color: palette.text }]}>Neue Jugendtrainings</Text>
+              <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+                Jugendtrainings entstehen oft kurzfristig. Wenn du das einschaltest, bekommst du
+                eine Mail, sobald ein neues veröffentlicht wird.
+              </Text>
+            </View>
+            <Switch
+              value={jugendBenachrichtigung}
+              onValueChange={(an) => void schalteJugendBenachrichtigung(an)}
+              trackColor={{ true: palette.primary }}
+              accessibilityLabel="Benachrichtigung über neue Jugendtrainings"
+            />
+          </View>
+        ) : null}
+
+        {jugendFehler ? (
+          <View style={styles.banner}>
+            <Banner tone="danger" text={jugendFehler} />
+          </View>
+        ) : null}
+
         <View style={styles.knopf}>
           <ActionButton label="Abmelden" tone="secondary" onPress={() => void abmelden()} />
         </View>
@@ -169,6 +223,20 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     lineHeight: 20,
     marginTop: spacing.xs,
+  },
+  schalterZeile: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.lg,
+    justifyContent: 'space-between',
+    marginTop: spacing.lg,
+  },
+  schalterText: {
+    flex: 1,
+  },
+  titel: {
+    fontFamily: font.semibold,
+    fontSize: fontSize.md,
   },
   feld: {
     borderRadius: radius.md,
