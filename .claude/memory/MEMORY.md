@@ -1,5 +1,6 @@
 - [Instagram erst mit Backend](instagram-erst-mit-backend.md) — vertagt; Meta verlangt Token, das nirgends sicher liegen kann
 - [iOS-Gerätebau: Push-Berechtigung](ios-geraetebau-push-berechtigung.md) — kostenloses Apple-Team scheitert an `aps-environment`, das die App gar nicht braucht
 - [Server: offene Punkte](mtb-server-offene-punkte.md) — Contabo läuft unter api.bockelbrink.net; Hetzner-Ersatz (api-dev) ist grundinstalliert, aber ohne Aufbau; wartet auf SMTP, SFTP-Ziel und einen zweiten Zugang
+- [Simulator mit idb](simulator-mit-idb.md) — tippt und liest die Oberfläche; vier Fallen, die alle stumm falsche Ergebnisse liefern
 - [age-Schlüssel für Sicherungen](age-schluessel-fuer-sicherungen.md) — privater Teil nur lokal in ~/.ssh, bewusst nirgends im Repository
 - [Lokal grün ist nicht CI grün](lokal-gruen-ist-nicht-ci-gruen.md) — mehrfach „alles grün" gemeldet, während die CI seit Tagen rot war

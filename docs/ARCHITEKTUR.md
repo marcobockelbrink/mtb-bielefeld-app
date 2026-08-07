@@ -385,9 +385,29 @@ Vorgängerserver öffnete `xcrun simctl openurl booted
 nicht Safari. Gegen den Prüfserver `api-dev.bockelbrink.net` fragte iOS
 stattdessen „In ‚MTB Bielefeld (dev)' öffnen?" — auch das ist der
 Nachweis, denn diesen Dialog gibt es nur bei zugeordneter Domain; ohne
-Zuordnung ginge wortlos Safari auf. **Der Knopf selbst wurde nicht
-gedrückt** — dafür fehlte `idb` auf dem Rechner. Wer das nachholt, hat den
-Weg dann lückenlos.
+Zuordnung ginge wortlos Safari auf. Am selben Tag mit `idb`
+lückenlos nachgeholt: angemeldet über den Magic Link aus dem Postfach des
+Prüfservers, dann der geteilte Link angetippt, dann ein Kind angemeldet.
+Auf dem Schirm stand danach „Mika Probst abmelden", **darunter weiter das
+Formular** — die beiden Behebungen aus dem Zweig-Review, auf einem Gerät
+gesehen statt nur in Tests. Und „Mika Probst" in der Teilnehmerliste,
+obwohl „Nachname zeigen" ausgeschaltet war: Dem Anfragenden zeigt die API
+sein eigenes Kind ungefiltert.
+
+**Vier Fallen dabei, alle stumm.** Drei betreffen `idb` selbst
+(`ui text` verliert bei langen Zeichenketten das Ende; Koordinaten
+verschieben sich durch die Tastatur und müssen vor jedem Tippen neu
+gelesen werden; `codesign -d --entitlements` meldet bei
+Simulator-Programmen ein leeres `[Dict]`, obwohl die Berechtigungen im
+Abschnitt `__TEXT,__entitlements` stehen).
+
+Die vierte ist die teuerste und hat mit `idb` nichts zu tun:
+**`expo run:ios` benutzt einen bereits laufenden Metro weiter.**
+`npm run ios:dev` setzt `EXPO_PUBLIC_API_URL` dann zwar für den Bau, aber
+nicht für den laufenden Metro — die App sprach mit dem örtlichen Aufbau
+statt mit dem Prüfserver, und nirgends stand etwas anderes. Aufgefallen
+ist es erst, weil im Protokoll des Servers **gar keine** Anfrage stand.
+Vor einem Wechsel der Umgebung deshalb `pkill -f "expo start"`.
 
 Zwei Fallen dabei, beide teuer bezahlt:
 
