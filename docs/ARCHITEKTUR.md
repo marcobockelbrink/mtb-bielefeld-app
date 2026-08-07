@@ -379,9 +379,15 @@ fiele auf dev zurück, während die Bündelkennung „prod" sagt. Und die
 Caddy die Datei mit leerer `appID` aus, iOS verwirft sie wortlos, und der
 geteilte Link öffnet nur den Browser.
 
-**Am 07.08.2026 auf dem Simulator nachgemessen:**
-`xcrun simctl openurl booted "https://api.bockelbrink.net/t/<id>"` öffnet die
-App beim Training, nicht Safari.
+**Am 07.08.2026 auf dem Simulator nachgemessen**, zweimal: Gegen den
+Vorgängerserver öffnete `xcrun simctl openurl booted
+"https://api.bockelbrink.net/t/<id>"` die App unmittelbar beim Training,
+nicht Safari. Gegen den Prüfserver `api-dev.bockelbrink.net` fragte iOS
+stattdessen „In ‚MTB Bielefeld (dev)' öffnen?" — auch das ist der
+Nachweis, denn diesen Dialog gibt es nur bei zugeordneter Domain; ohne
+Zuordnung ginge wortlos Safari auf. **Der Knopf selbst wurde nicht
+gedrückt** — dafür fehlte `idb` auf dem Rechner. Wer das nachholt, hat den
+Weg dann lückenlos.
 
 Zwei Fallen dabei, beide teuer bezahlt:
 

@@ -130,13 +130,35 @@ npm start          # QR-Code mit Expo Go scannen
 Weitere Befehle:
 
 ```bash
-npm run start:dev  # gegen den Prüfserver statt gegen localhost
 npm test           # Tests (ohne Gerät, reines Node)
 npm run typecheck  # TypeScript prüfen
 npm run android    # auf Android-Gerät/Emulator starten
 npm run ios        # auf iOS-Gerät/Simulator starten (macOS nötig)
 npm run vorschau   # Web-Fassung bauen und Screenshots aufnehmen
 ```
+
+### Welchen Server die App anspricht
+
+Es gibt einen Prüfserver und — sobald der Verein eine Maschine hat — den
+Vereinsserver. **Welchen die App anspricht, steht im Bündel und nicht in
+einer Einstellung:** Ein Umschalter in der fertigen App könnte die Fassung
+eines Mitglieds auf einen fremden Server richten.
+
+| Befehl | API | Name auf dem Telefon |
+| --- | --- | --- |
+| `npm start` | `http://localhost` | MTB Bielefeld (dev) |
+| `npm run start:dev` | `https://api-dev.bockelbrink.net` | MTB Bielefeld (dev) |
+| `npm run bau:prod` | `https://api.mtb-bielefeld.de` | MTB Bielefeld |
+
+Die dev-Fassung trägt eine eigene Bündelkennung
+(`de.mtbbielefeld.app.dev`) und liegt deshalb als **eigenes Symbol** neben
+der echten — beide lassen sich gleichzeitig auf einem Telefon installieren
+und vergleichen.
+
+**Ohne Angabe kommt immer die dev-Fassung heraus.** Wer für den Verein
+baut, sagt es ausdrücklich. Der umgekehrte Standard wäre gefährlich: Ein
+vergessener Schalter ergäbe eine App, die ungefragt echte Mitgliederdaten
+anfasst, und das fiele niemandem auf — sie funktioniert ja.
 
 ### Auf dem Mac testen
 

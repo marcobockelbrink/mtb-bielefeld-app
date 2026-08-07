@@ -17,7 +17,7 @@ Vor größeren Änderungen zusätzlich:
 npm run vorschau    # baut die Web-Fassung, rendert sie, meldet Render-Fehler
 ```
 
-## Die fünf Fallen
+## Die sechs Fallen
 
 ### 1. Expo gibt Paketversionen vor — auch TypeScript
 
@@ -80,6 +80,39 @@ python3 tools/logo-assets.py   # Symbole und Startbild ziehen nach
 Farbwerte nicht anderswo hinschreiben — `tools/logo-assets.py` liest sie aus
 `src/brand.ts`.
 
+### 6. Ohne Angabe ist es ein dev-Bau
+
+Seit dem 7. August 2026 gibt es zwei Server: den Prüfserver
+`api-dev.bockelbrink.net` und den Vereinsserver. Welchen die App anspricht,
+entscheidet **eine Variable beim Bauen**:
+
+```bash
+npm start            # örtlicher Aufbau
+npm run start:dev    # gegen den Prüfserver
+npm run bau:prod     # für den Verein — nur so
+```
+
+Wer eine Fassung für den Verein baut und `EXPO_PUBLIC_APP_UMGEBUNG=prod`
+vergisst, bekommt eine App, die auf den Prüfserver zeigt: **grüne Tests,
+zufriedene Typprüfung, fehlerfreies Bündel** — und Mitglieder, deren
+Anmeldungen in einer Datenbank landen, die niemand ansieht. Die
+Voreinstellung ist absichtlich die harmlose Richtung; der Umkehrschluss
+wäre eine App, die ungefragt echte Mitgliederdaten anfasst.
+
+Auffallen würde es immerhin am Namen: Die dev-Fassung heißt „MTB Bielefeld
+(dev)", trägt die Bündelkennung `de.mtbbielefeld.app.dev` und liegt als
+eigenes Symbol neben der echten.
+
+Zwei Stellen müssen dabei dieselbe Domain nennen — `src/config.ts` für die
+App und `app.config.js` für das Betriebssystem. Laufen sie auseinander,
+öffnet ein geteilter Link den Browser statt der App, und **nur** die
+Rauchprobe merkt es.
+
+Das Präfix `EXPO_PUBLIC_` ist keine Zier: Expo ersetzt beim Bündeln
+ausschließlich Variablen mit diesem Präfix. Ein `APP_UMGEBUNG` ohne
+Präfix wäre in der App `undefined` — sie fiele stumm auf dev zurück,
+während die Bündelkennung „prod" sagt.
+
 ## Aufbau
 
 | Bereich | Ort |
@@ -90,6 +123,7 @@ Farbwerte nicht anderswo hinschreiben — `tools/logo-assets.py` liest sie aus
 | Auswertung | `src/data/ical/`, `src/data/web/`, `src/data/parse/` |
 | Erinnerungen | `src/notifications/` — Logik getrennt von der System-Anbindung |
 | Vereinstexte | `src/content/club.ts` (von Hand gepflegt) |
+| Umgebung (dev/prod) | `app.config.js` fürs Betriebssystem, `src/config.ts` für die App |
 
 Wiederkehrendes Muster: **Rechenlogik ohne React Native, damit sie ohne Gerät
 prüfbar bleibt.** Die Anbindung ans Betriebssystem steht jeweils in einer
