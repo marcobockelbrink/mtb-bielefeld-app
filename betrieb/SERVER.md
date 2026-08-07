@@ -7,12 +7,65 @@ Wer den Server neu aufsetzen muss, arbeitet diese Datei von oben nach unten ab.
 `betrieb/.env` auf dem Server und im Schlüsselbund der Personen, die Zugang
 haben — dieses Repository ist öffentlich.
 
-## Die Maschine
+## Zwei Maschinen, zwei Rollen
+
+Seit dem 7. August 2026 sind **dev und prod getrennt**. Der Grund ist
+nicht Ordnungsliebe: Solange beide dieselbe Datenbank benutzten, war jeder
+Versuch ein Eingriff in Vereinsdaten — und ab dem Tag, an dem echte
+Mitglieder darin stehen, wäre das nicht mehr einzufangen.
+
+| | Prüfserver (dev) | Verein (prod) |
+| --- | --- | --- |
+| Adresse | `api-dev.bockelbrink.net` | `api.mtb-bielefeld.de` |
+| Maschine | Hetzner, `78.47.128.71` | steht noch aus |
+| Zugang | `ssh mtb-hetzner` | — |
+| Bündelkennung der App | `de.mtbbielefeld.app.dev` | `de.mtbbielefeld.app` |
+
+Dazu läuft **Contabo** (`api.bockelbrink.net`, `169.58.129.20`,
+`ssh mtb`) noch als Vorgänger des Prüfservers. Er wird abgeschaltet, sobald
+die Hetzner-Maschine sich bewährt hat — nicht vorher und nicht am selben
+Tag, denn bis dahin ist er der Rückfallweg.
+
+Vier Werte in `betrieb/.env` unterscheiden die Aufbauten: `API_DOMAIN`,
+`API_BASIS_URL`, `AASA_APP_ID` und das Datenbankpasswort. **Die Datenbanken
+bleiben getrennt** — ein gemeinsamer Postgres verfehlte den ganzen Sinn.
+Beim Umzug wandert sie deshalb auch nicht mit, sondern wird frisch
+migriert; das beweist nebenbei, dass die Migrationen von null an
+durchlaufen, und das prüft sonst niemand.
+
+## Die Maschinen im Einzelnen
+
+### Prüfserver (Hetzner)
+
+| | |
+| --- | --- |
+| Anbieter | Hetzner Cloud, Falkenstein |
+| Adresse | `78.47.128.71` — `api-dev.bockelbrink.net` |
+| System | Ubuntu 24.04 LTS, nacktes Image |
+| Ausstattung | 2 Kerne, 3,8 GB RAM, 38 GB Platte, x86_64 |
+| Eingerichtet | 7. August 2026 |
+
+Zwei Dinge über die Abschnitte 1–5 hinaus, weil diese Maschine kleiner ist
+als Contabo:
+
+- **2 GB Swap** mit `vm.swappiness=10`. Der `xcaddy`-Bau übersetzt das
+  Ratenbegrenzungs-Modul aus Go-Quelltext und ist der Schritt, der ohne
+  Swap umkippt — mit 3,8 GB RAM ist das keine theoretische Sorge.
+- **Docker-Logrotation** in `/etc/docker/daemon.json` (10 MB × 3). **Auf
+  Contabo fehlt sie**; dort wächst `json-file` unbegrenzt.
+
+Zwei Eigenheiten des Hetzner-Images, die beim Härten irritieren und beide
+kein Fehler sind: `/etc/ssh/sshd_config.d/` ist leer (es gibt keine
+`50-cloud-init.conf`, die auf Contabo `PasswordAuthentication yes` setzte),
+und `systemctl is-enabled ssh` meldet `disabled`, weil Ubuntu 24.04 über
+`ssh.socket` startet.
+
+### Vorgänger (Contabo)
 
 | | |
 | --- | --- |
 | Anbieter | Contabo, Standort Deutschland |
-| Adresse | `169.58.129.20` |
+| Adresse | `169.58.129.20` — `api.bockelbrink.net` |
 | System | Ubuntu 24.04 LTS (noble) |
 | Ausstattung | 4 Kerne, 7 GB RAM, 96 GB Platte, x86_64 |
 | Eingerichtet | 4. August 2026 |

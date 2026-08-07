@@ -128,6 +128,37 @@ Skripte sagen das auch selbst, wenn es passiert.
 > Ratenbegrenzung für `/t/*` fehlte in der Caddyfile, die auf dem Server
 > läuft, und keines der Skripte hätte es gemerkt.
 
+## Die Rauchprobe gegen einen entfernten Server
+
+Sie prüft normalerweise den Aufbau auf dem eigenen Rechner. Gegen den
+Prüfserver geht es auch — und das ist der Nachweis, den keine andere Stufe
+liefert: dieselben Module, die auf dem Telefon laufen, gegen die Maschine,
+mit der das Telefon später spricht.
+
+Drei Dinge müssen dafür stimmen, und alle drei sind nicht offensichtlich:
+
+```bash
+ssh -f -N -L 8026:127.0.0.1:8025 mtb-hetzner   # Mailpit hängt dort an 127.0.0.1
+
+DOCKER_HOST=ssh://mtb-hetzner \
+RAUCHPROBE_BASIS=https://api-dev.bockelbrink.net \
+RAUCHPROBE_MAILPIT=http://localhost:8026 \
+npm run rauchprobe
+```
+
+- **`DOCKER_HOST=ssh://…`** — die Probe erzeugt ihren Einladungscode über
+  `docker compose exec api`. Ohne diese Zeile liefe der Befehl gegen den
+  *örtlichen* Container, und die Probe meldete einen Code, den der entfernte
+  Server nicht kennt. Sie schlüge fehl, aber an einer Stelle, die nichts
+  damit zu tun hat.
+- **Der Tunnel** — Mailpit ist auf dem Server bewusst an `127.0.0.1`
+  gebunden und von außen unerreichbar. Ohne ihn findet die Probe die
+  Anmeldemail nicht.
+- **`RAUCHPROBE_BASIS` mit `https://`** — sonst prüft sie weiter den
+  örtlichen Aufbau und meldet grün, ohne den Server je berührt zu haben.
+
+Danach den Tunnel wieder schließen: `pkill -f "8026:127.0.0.1:8025"`.
+
 ## Was das prüft
 
 - Caddys Pfad- und Methoden-Muster gegen echte Anfragen
