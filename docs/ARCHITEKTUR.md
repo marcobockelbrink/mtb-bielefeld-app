@@ -331,21 +331,83 @@ prüfe sie gegen die Gegenseite.
 Ein geteilter Link `https://<domain>/t/<id>` öffnet die App nur, wenn drei
 Dinge gleichzeitig stimmen — und keine zwei davon liegen an derselben Stelle:
 
-1. **`app.json`** meldet die Domain an (`associatedDomains`, `intentFilters`).
-   Das Betriebssystem liest sie aus dem fertigen Bündel, nicht aus dem
-   Quelltext.
+1. **`app.config.js`** meldet die Domain an (`associatedDomains`,
+   `intentFilters`). Das Betriebssystem liest sie aus dem fertigen Bündel,
+   nicht aus dem Quelltext.
 2. **`betrieb/Caddyfile`** liefert `/.well-known/apple-app-site-association`
    aus, mit `application/json` und der passenden `appID`.
 3. **`app/t/[id].tsx`** fängt den Pfad in expo-router ab.
 
 Fehlt eines, öffnet sich Safari — und alle Prüfungen bleiben grün, weil keine
 von ihnen einen Link antippt. Die Rauchprobe deckt seit dem 07.08.2026
-Punkt 2 ab und gleicht die `appID` gegen `app.json` ab; Punkt 1 und 3 bleiben
-Sache des Simulators.
+Punkt 2 ab und gleicht die `appID` gegen `app.config.js` ab; Punkt 1 und 3
+bleiben Sache des Simulators.
 
-**Am 07.08.2026 auf dem Simulator nachgemessen:**
-`xcrun simctl openurl booted "https://api.bockelbrink.net/t/<id>"` öffnet die
-App beim Training, nicht Safari.
+### Drei Ziele, und die Voreinstellung ist die harmlose
+
+Seit dem 07.08.2026 gibt es **dev und prod getrennt**: ein Prüfserver
+(`api-dev.bockelbrink.net`) und der Vereinsserver, mit eigener Datenbank
+je Seite. Solange beide dieselbe benutzten, war jeder Versuch ein Eingriff
+in Vereinsdaten — und ab dem Tag, an dem echte Mitglieder darin stehen,
+wäre das nicht mehr einzufangen.
+
+| Ziel | API | Bündelkennung | Name auf dem Telefon |
+| --- | --- | --- | --- |
+| lokal (`npm start`) | `http://localhost` | `de.mtbbielefeld.app.dev` | MTB Bielefeld (dev) |
+| dev (`npm run start:dev`) | `https://api-dev.bockelbrink.net` | `de.mtbbielefeld.app.dev` | MTB Bielefeld (dev) |
+| prod (`npm run bau:prod`) | `https://api.mtb-bielefeld.de` | `de.mtbbielefeld.app` | MTB Bielefeld |
+
+Zwei Entscheidungen dahinter, beide bewusst:
+
+- **Beim Bauen festgelegt, nicht zur Laufzeit umschaltbar.** Ein Umschalter
+  in den Einstellungen stünde im ausgelieferten Programm; wer ihn findet,
+  richtet die App eines Mitglieds auf einen fremden Server.
+- **Die Voreinstellung ist `dev`.** Wer für den Verein baut, sagt es
+  ausdrücklich (`EXPO_PUBLIC_APP_UMGEBUNG=prod`). Andersherum wäre ein
+  vergessener Schalter eine App, die auf echte Mitgliederdaten zeigt — und
+  die fiele niemandem auf, weil sie ja funktioniert. Ein dev-Bau dagegen
+  fällt sofort auf: Er heißt „MTB Bielefeld (dev)" und liegt als eigenes
+  Symbol neben der echten Fassung.
+
+Eine Falle, die dabei zweimal zuschlug und beide Male stumm war: Expo
+ersetzt beim Bündeln **nur** Variablen mit dem Präfix `EXPO_PUBLIC_`.
+Deshalb heißt die Variable `EXPO_PUBLIC_APP_UMGEBUNG` und nicht
+`APP_UMGEBUNG` — sonst stünde in der App zur Laufzeit `undefined`, und sie
+fiele auf dev zurück, während die Bündelkennung „prod" sagt. Und die
+`appID` in der `apple-app-site-association` kommt aus `AASA_APP_ID`, das
+**die Compose-Datei an Caddy durchreichen muss**: Ohne diese Zeile liefert
+Caddy die Datei mit leerer `appID` aus, iOS verwirft sie wortlos, und der
+geteilte Link öffnet nur den Browser.
+
+**Am 07.08.2026 auf dem Simulator nachgemessen**, zweimal: Gegen den
+Vorgängerserver öffnete `xcrun simctl openurl booted
+"https://api.bockelbrink.net/t/<id>"` die App unmittelbar beim Training,
+nicht Safari. Gegen den Prüfserver `api-dev.bockelbrink.net` fragte iOS
+stattdessen „In ‚MTB Bielefeld (dev)' öffnen?" — auch das ist der
+Nachweis, denn diesen Dialog gibt es nur bei zugeordneter Domain; ohne
+Zuordnung ginge wortlos Safari auf. Am selben Tag mit `idb`
+lückenlos nachgeholt: angemeldet über den Magic Link aus dem Postfach des
+Prüfservers, dann der geteilte Link angetippt, dann ein Kind angemeldet.
+Auf dem Schirm stand danach „Mika Probst abmelden", **darunter weiter das
+Formular** — die beiden Behebungen aus dem Zweig-Review, auf einem Gerät
+gesehen statt nur in Tests. Und „Mika Probst" in der Teilnehmerliste,
+obwohl „Nachname zeigen" ausgeschaltet war: Dem Anfragenden zeigt die API
+sein eigenes Kind ungefiltert.
+
+**Vier Fallen dabei, alle stumm.** Drei betreffen `idb` selbst
+(`ui text` verliert bei langen Zeichenketten das Ende; Koordinaten
+verschieben sich durch die Tastatur und müssen vor jedem Tippen neu
+gelesen werden; `codesign -d --entitlements` meldet bei
+Simulator-Programmen ein leeres `[Dict]`, obwohl die Berechtigungen im
+Abschnitt `__TEXT,__entitlements` stehen).
+
+Die vierte ist die teuerste und hat mit `idb` nichts zu tun:
+**`expo run:ios` benutzt einen bereits laufenden Metro weiter.**
+`npm run ios:dev` setzt `EXPO_PUBLIC_API_URL` dann zwar für den Bau, aber
+nicht für den laufenden Metro — die App sprach mit dem örtlichen Aufbau
+statt mit dem Prüfserver, und nirgends stand etwas anderes. Aufgefallen
+ist es erst, weil im Protokoll des Servers **gar keine** Anfrage stand.
+Vor einem Wechsel der Umgebung deshalb `pkill -f "expo start"`.
 
 Zwei Fallen dabei, beide teuer bezahlt:
 

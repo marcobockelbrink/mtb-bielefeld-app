@@ -26,13 +26,13 @@
  *
  * ## Wenn die App doch einmal Remote-Push bekommt
  *
- * Dann gehört dieser Eintrag aus der Plugin-Liste in `app.json` entfernt —
+ * Dann gehört dieser Eintrag aus der Plugin-Liste in `app.config.js` entfernt —
  * nicht diese Datei angepasst. Ohne `aps-environment` kommt keine
  * Server-Mitteilung an, und der Fehler wäre schwer zu finden.
  *
  * ## Reihenfolge — Vorsicht, sie ist umgekehrt
  *
- * Der Eintrag muss in `app.json` **vor** `expo-notifications` stehen, obwohl
+ * Der Eintrag muss in `app.config.js` **vor** `expo-notifications` stehen, obwohl
  * er danach wirken soll. Die Mods der Config Plugins bilden eine Kette, und
  * die wird von hinten nach vorn abgearbeitet: Was zuletzt in der Liste steht,
  * läuft zuerst.

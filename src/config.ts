@@ -110,11 +110,49 @@ export const EXPANSION_WINDOW_DAYS_FUTURE = 365;
 export const CACHE_TTL_MS = 30 * 60 * 1000; // 30 Minuten
 
 /**
+ * Auf welchen Server die App zeigt — als eigene Funktion, damit sich die
+ * Rechnung ohne Gerät prüfen lässt. Das Ergebnis steht darunter in
+ * `API_BASE_URL`, wo auch die längere Begründung steht.
+ *
+ * Drei Angaben, und die Reihenfolge ist tragend:
+ *
+ * 1. **`EXPO_PUBLIC_API_URL` schlägt alles.** Der Weg fürs echte Telefon im
+ *    WLAN, wo `localhost` das Telefon selbst wäre.
+ * 2. **Ein Entwicklungsbau bleibt örtlich.** Wer über Metro entwickelt,
+ *    meint den Aufbau vor sich — auch wenn er zufällig einen prod-Bau
+ *    gestartet hat. Andersherum schriebe ein Tippfehler beim Ausprobieren
+ *    in die echten Mitgliederdaten.
+ * 3. **Sonst entscheidet die Umgebung**, und nur das genaue Wort `'prod'`
+ *    führt zum Vereinsserver. Dieselbe Vorsicht wie in `app.config.js`:
+ *    Die riskante Richtung braucht die ausdrückliche Angabe.
+ */
+export function waehleApiAdresse({
+  ueberschrieben,
+  umgebung,
+  imEntwicklungsbau,
+}: {
+  ueberschrieben: string | undefined;
+  umgebung: string | undefined;
+  imEntwicklungsbau: boolean;
+}): string {
+  if (ueberschrieben) return ueberschrieben;
+  if (imEntwicklungsbau) return 'http://localhost';
+  return umgebung === 'prod' ? 'https://api.mtb-bielefeld.de' : 'https://api-dev.bockelbrink.net';
+}
+
+/**
  * Die Adresse der Vereins-API.
  *
  * Nur für Anmeldung und Tourenanmeldung. Termine und Beiträge holt die App
  * weiterhin direkt von Google und der Website — die API ist ein Zusatz, kein
  * Umweg. Fällt sie aus, bleibt die App vollständig benutzbar.
+ *
+ * **Drei Ziele statt zweier** (seit dem 07.08.2026): örtlich beim
+ * Entwickeln, der Prüfserver `api-dev.bockelbrink.net` in der dev-Fassung,
+ * der Vereinsserver in der prod-Fassung. Solange beide dieselbe Datenbank
+ * benutzten, war jeder Versuch ein Eingriff in Vereinsdaten — und ab dem
+ * Tag, an dem echte Mitglieder darin stehen, wäre das nicht mehr
+ * einzufangen.
  *
  * In der Entwicklung zeigt sie auf `http://localhost`, **nicht** auf
  * `:3000`: Der Betriebsaufbau (`betrieb/docker-compose.yml`, siehe
@@ -133,11 +171,15 @@ export const CACHE_TTL_MS = 30 * 60 * 1000; // 30 Minuten
  * typisierbar, wo es weder die `dom`-Lib noch eine `__DEV__`-Deklaration
  * gibt.
  */
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ??
-  ((globalThis as { __DEV__?: boolean }).__DEV__ === true
-    ? 'http://localhost'
-    : 'https://api.mtb-bielefeld.de');
+export const API_BASE_URL = waehleApiAdresse({
+  ueberschrieben: process.env.EXPO_PUBLIC_API_URL,
+  // Dieselbe Variable, die `app.config.js` liest. Das Präfix
+  // `EXPO_PUBLIC_` ist keine Zier: Nur damit ersetzt Expo den Wert beim
+  // Bündeln — ohne stünde hier zur Laufzeit `undefined`, und die App fiele
+  // stumm auf dev zurück, während die Bündelkennung „prod" sagt.
+  umgebung: process.env.EXPO_PUBLIC_APP_UMGEBUNG,
+  imEntwicklungsbau: (globalThis as { __DEV__?: boolean }).__DEV__ === true,
+});
 
 /**
  * Basis-Adresse für den Teilen-Link eines Jugendtrainings (`/t/:id`).
@@ -149,17 +191,15 @@ export const API_BASE_URL =
  * noch aus (siehe `betrieb/SERVER.md`).
  *
  * **Diese Datei allein genügt nicht.** Damit ein geteilter Link die App
- * öffnet statt den Browser, muss dieselbe Domain zusätzlich in `app.json`
+ * öffnet statt den Browser, muss dieselbe Domain zusätzlich in `app.config.js`
  * unter `associatedDomains` (iOS) und `intentFilters` (Android) stehen. Die
  * liest das Betriebssystem aus dem fertigen Bündel, nicht diese Datei — sie
  * lassen sich von hier aus weder ableiten noch nachziehen, und ein
  * Auseinanderlaufen fällt in keiner Prüfung auf, sondern erst auf einem
  * Gerät, wenn statt der App Safari aufgeht.
  *
- * Deshalb meldet `app.json` **beide** Domains an: `api.bockelbrink.net` zum
- * Prüfen und `api.mtb-bielefeld.de` für die Veröffentlichungsfassung, auf
- * die diese Konstante dort zeigt. Eine angemeldete Domain, die es noch nicht
- * gibt, schadet nicht — iOS prüft jede für sich und lässt die andere in
- * Ruhe.
+ * `app.config.js` meldet deshalb je Umgebung **genau die eine** Domain an,
+ * auf die diese Konstante dort zeigt — beide zusammen wären ein Bau, der
+ * einen Link für den jeweils anderen Server abfängt.
  */
 export const TEILEN_BASIS_URL = API_BASE_URL;

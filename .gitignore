@@ -31,6 +31,11 @@ yarn-error.*
 *.pem
 
 # local env files
+# Expo lädt `.env` im Wurzelverzeichnis von selbst und bettet jede
+# EXPO_PUBLIC_-Variable ins Bündel ein. Eine solche Datei wäre damit ein
+# stiller Umgebungsschalter für **jeden** Befehl — und im öffentlichen
+# Repository ein Fund.
+.env
 .env*.local
 
 # typescript

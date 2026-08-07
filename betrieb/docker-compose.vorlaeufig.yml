@@ -48,6 +48,11 @@ services:
     # doppelt belegt. Nachgemessen, nicht angenommen.
     environment:
       API_DOMAIN: ${API_DOMAIN:?API_DOMAIN fehlt in betrieb/.env}
+      # Ohne Wert liefert Caddy die apple-app-site-association mit leerer
+      # `appID` aus — gültiges JSON, das iOS wortlos verwirft. Der geteilte
+      # Link öffnet dann nur den Browser, und nichts meldet es. Deshalb `:?`
+      # wie bei API_DOMAIN: lieber gar nicht starten als still falsch laufen.
+      AASA_APP_ID: ${AASA_APP_ID:?AASA_APP_ID fehlt in betrieb/.env (<Apple-Team-ID>.<Buendelkennung>)}
     ports: !override
       # Wie in der Server-Fassung: 443 für den Verkehr, 80 für Umleitung und
       # Zertifikatsnachweis.

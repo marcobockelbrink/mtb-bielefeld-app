@@ -132,10 +132,47 @@ Weitere Befehle:
 ```bash
 npm test           # Tests (ohne Gerät, reines Node)
 npm run typecheck  # TypeScript prüfen
-npm run android    # auf Android-Gerät/Emulator starten
-npm run ios        # auf iOS-Gerät/Simulator starten (macOS nötig)
+npm run android    # nativ bauen und auf Android starten
+npm run ios        # nativ bauen und auf iOS starten (macOS nötig)
 npm run vorschau   # Web-Fassung bauen und Screenshots aufnehmen
 ```
+
+### Welchen Server die App anspricht
+
+Es gibt einen Prüfserver und — sobald der Verein eine Maschine hat — den
+Vereinsserver. **Welchen die App anspricht, steht im Bündel und nicht in
+einer Einstellung:** Ein Umschalter in der fertigen App könnte die Fassung
+eines Mitglieds auf einen fremden Server richten.
+
+| Befehl | API | Name auf dem Telefon |
+| --- | --- | --- |
+| `npm start` | `http://localhost` | MTB Bielefeld (dev) |
+| `npm run start:dev` | `https://api-dev.bockelbrink.net` | MTB Bielefeld (dev) |
+| `npm run vorbereiten:prod` + Bau | `https://api.mtb-bielefeld.de` | MTB Bielefeld |
+
+Die dev-Fassung trägt eine eigene Bündelkennung
+(`de.mtbbielefeld.app.dev`) und ein eigenes Adressschema (`mtbie-dev`).
+Sie liegt deshalb als **eigenes Symbol** neben der echten — beide lassen
+sich gleichzeitig auf einem Telefon installieren und vergleichen, ohne
+sich um den Anmeldelink zu streiten.
+
+**Der prod-Weg hat zwei Schritte, und die Variable gehört in beide:**
+
+```bash
+npm run vorbereiten:prod                                   # erzeugt ios/ und android/
+EXPO_PUBLIC_APP_UMGEBUNG=prod npx expo run:ios --configuration Release
+```
+
+`npm` setzt eine so vorangestellte Variable nur für den einen Befehl. Wer
+sie im zweiten Schritt vergisst, bekommt eine App, die außen „MTB
+Bielefeld" heißt und `api.mtb-bielefeld.de` angemeldet hat, innen aber mit
+dem Prüfserver spricht — grüne Tests, fehlerfreies Bündel, und niemand
+sieht es.
+
+**Ohne Angabe kommt immer die dev-Fassung heraus.** Wer für den Verein
+baut, sagt es ausdrücklich. Der umgekehrte Standard wäre gefährlich: Ein
+vergessener Schalter ergäbe eine App, die ungefragt echte Mitgliederdaten
+anfasst, und das fiele niemandem auf — sie funktioniert ja.
 
 ### Auf dem Mac testen
 
@@ -463,7 +500,7 @@ Deshalb wird der geteilte Link eines Jugendtrainings **auf dem Simulator**
 nachgemessen, nicht nur gebaut: `xcrun simctl openurl booted
 "https://<domain>/t/<id>"` muss die App beim Training öffnen. Geht Safari
 auf, fehlt eine von drei Stellen, die alle stimmen müssen —
-`associatedDomains` in `app.json`, die ausgelieferte
+`associatedDomains` in `app.config.js`, die ausgelieferte
 `apple-app-site-association` in `betrieb/Caddyfile` und die Route
 `app/t/[id].tsx`. Die Rauchprobe prüft die mittlere mit; die beiden anderen
 bleiben Sache des Simulators. Einzelheiten in `docs/ARCHITEKTUR.md`.

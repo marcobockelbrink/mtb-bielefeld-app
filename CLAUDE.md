@@ -6,7 +6,7 @@ kennt, baut mit grüner CI etwas kaputt.
 ## Vor jedem Commit
 
 ```bash
-npm test            # 172 Tests, ~1 Sekunde
+npm test            # 284 Tests, unter einer Sekunde
 npm run typecheck
 npx expo install --check
 ```
@@ -17,7 +17,7 @@ Vor größeren Änderungen zusätzlich:
 npm run vorschau    # baut die Web-Fassung, rendert sie, meldet Render-Fehler
 ```
 
-## Die fünf Fallen
+## Die sechs Fallen
 
 ### 1. Expo gibt Paketversionen vor — auch TypeScript
 
@@ -80,6 +80,62 @@ python3 tools/logo-assets.py   # Symbole und Startbild ziehen nach
 Farbwerte nicht anderswo hinschreiben — `tools/logo-assets.py` liest sie aus
 `src/brand.ts`.
 
+### 6. Ohne Angabe ist es ein dev-Bau
+
+Seit dem 7. August 2026 gibt es zwei Server: den Prüfserver
+`api-dev.bockelbrink.net` und den Vereinsserver. Welchen die App anspricht,
+entscheidet **eine Variable beim Bauen**:
+
+```bash
+npm start            # örtlicher Aufbau
+npm run start:dev    # gegen den Prüfserver
+npm run vorbereiten:prod   # erzeugt ios/ und android/ für den Verein
+```
+
+**Der prod-Weg hat zwei Schritte, und die Variable gehört in beide:**
+`npm` setzt eine vorangestellte Variable nur für den einen Befehl.
+
+```bash
+npm run vorbereiten:prod
+EXPO_PUBLIC_APP_UMGEBUNG=prod npx expo run:ios --configuration Release
+```
+
+Fehlt sie im zweiten, heißt die App außen „MTB Bielefeld", hat
+`api.mtb-bielefeld.de` angemeldet — und spricht innen mit dem Prüfserver.
+
+**Zwei Dinge schreibt `expo prebuild` still um**, und beide sind schon
+mehrfach zurückgenommen und wieder erschienen:
+
+- `npm run ios` und `npm run android` werden zu `expo run:*` (nativer Bau
+  statt Expo Go). Das ist inzwischen **richtig** — Bündelkennung, Schema
+  und Entitlements stecken im nativen Projekt, ein Metro-Neustart reicht
+  dafür nicht. Nicht zurückdrehen.
+- `tsconfig.json` verliert `.expo/types/**/*.ts` aus `include`. Das ist
+  **falsch** und gehört zurückgesetzt: `.expo` ist ein Punkt-Verzeichnis,
+  in das `**/*.ts` nicht hineingreift, und die erzeugten Routentypen
+  fielen sonst aus der Prüfung — bei grüner Typprüfung.
+
+Wer eine Fassung für den Verein baut und `EXPO_PUBLIC_APP_UMGEBUNG=prod`
+vergisst, bekommt eine App, die auf den Prüfserver zeigt: **grüne Tests,
+zufriedene Typprüfung, fehlerfreies Bündel** — und Mitglieder, deren
+Anmeldungen in einer Datenbank landen, die niemand ansieht. Die
+Voreinstellung ist absichtlich die harmlose Richtung; der Umkehrschluss
+wäre eine App, die ungefragt echte Mitgliederdaten anfasst.
+
+Auffallen würde es immerhin am Namen: Die dev-Fassung heißt „MTB Bielefeld
+(dev)", trägt die Bündelkennung `de.mtbbielefeld.app.dev` und liegt als
+eigenes Symbol neben der echten.
+
+Zwei Stellen müssen dabei dieselbe Domain nennen — `src/config.ts` für die
+App und `app.config.js` für das Betriebssystem. Laufen sie auseinander,
+öffnet ein geteilter Link den Browser statt der App, und **nur** die
+Rauchprobe merkt es.
+
+Das Präfix `EXPO_PUBLIC_` ist keine Zier: Expo ersetzt beim Bündeln
+ausschließlich Variablen mit diesem Präfix. Ein `APP_UMGEBUNG` ohne
+Präfix wäre in der App `undefined` — sie fiele stumm auf dev zurück,
+während die Bündelkennung „prod" sagt.
+
 ## Aufbau
 
 | Bereich | Ort |
@@ -90,6 +146,7 @@ Farbwerte nicht anderswo hinschreiben — `tools/logo-assets.py` liest sie aus
 | Auswertung | `src/data/ical/`, `src/data/web/`, `src/data/parse/` |
 | Erinnerungen | `src/notifications/` — Logik getrennt von der System-Anbindung |
 | Vereinstexte | `src/content/club.ts` (von Hand gepflegt) |
+| Umgebung (dev/prod) | `app.config.js` fürs Betriebssystem, `src/config.ts` für die App |
 
 Wiederkehrendes Muster: **Rechenlogik ohne React Native, damit sie ohne Gerät
 prüfbar bleibt.** Die Anbindung ans Betriebssystem steht jeweils in einer
@@ -109,6 +166,30 @@ Sinnvolle Aufteilung, wenn zwei parallel arbeiten:
   `.github/**`, `tests/**`
 
 Gemeinsam ist dann nur `src/brand.ts`.
+
+## Claudes Notizen liegen im Repository
+
+Unter `.claude/memory/` — was in den Gesprächen an Entscheidungen und
+Stolperstellen angefallen ist, mit `MEMORY.md` als Inhaltsverzeichnis. Dort
+steht Wissen, das sich weder aus dem Quelltext noch aus der Historie ergibt:
+warum Instagram vertagt ist, was dem Server noch fehlt, welcher Schlüssel wo
+liegt.
+
+Normalerweise legt Claude Code das unter `~/.claude/projects/…/memory/` ab,
+also außerhalb des Projekts und auf genau einem Rechner. Deshalb steht dort
+eine Verknüpfung hierher. **Auf einem neuen Rechner einmal nach dem Klonen:**
+
+```bash
+./tools/gedaechtnis-verknuepfen.sh
+```
+
+Ohne das schreibt Claude in einen leeren Ordner daneben und fängt bei null an —
+die Dateien hier bleiben trotzdem lesbar.
+
+**Was der Klon nicht mitbringt** und von Hand mitmuss: `~/.ssh/mtb-verein`
+(Zugang zum Server), `~/.ssh/mtb-sicherung.age-key` (ohne ihn ist **jede**
+Sicherung wertlos) und die zugehörigen `~/.ssh/config`-Einträge. Absichtlich —
+das Repository ist öffentlich.
 
 ## Sprache
 

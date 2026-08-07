@@ -51,6 +51,11 @@ services:
       # `:?` statt Vorgabe — ein falscher oder fehlender Name kostet
       # Zertifikatsversuche bei Let's Encrypt, und die sind kontingentiert.
       API_DOMAIN: ${API_DOMAIN:?API_DOMAIN fehlt in betrieb/.env (z. B. api.mtb-bielefeld.de)}
+      # Ohne Wert liefert Caddy die apple-app-site-association mit leerer
+      # `appID` aus — gültiges JSON, das iOS wortlos verwirft. Der geteilte
+      # Link öffnet dann nur den Browser, und nichts meldet es. Deshalb `:?`
+      # wie bei API_DOMAIN: lieber gar nicht starten als still falsch laufen.
+      AASA_APP_ID: ${AASA_APP_ID:?AASA_APP_ID fehlt in betrieb/.env (<Apple-Team-ID>.<Buendelkennung>)}
     # `!override` und nicht bloß `ports:` — nachgemessen, nicht angenommen:
     # Compose **verschmilzt** Listen aus Überlagerungsdateien, statt sie zu
     # ersetzen. Ohne diese Angabe stünde in der zusammengeführten Fassung
