@@ -28,8 +28,11 @@ import type { TrainingDetails } from '../../data/jugend';
  * keine Prüfung in der App leisten. Der Wert hier blendet nur das Formular
  * rechtzeitig aus, damit niemand tippt und dann ein 409 bekommt.
  *
- * Wer ihn ändert, ändert `api/migrationen/` mit. Sonst verspricht die App
- * einen Platz, den die Datenbank nicht gibt.
+ * Wer ihn ändert, muss **drei** Stellen mitziehen, sonst verspricht die App
+ * einen Platz, den die Datenbank nicht gibt:
+ * `CHECK (platz IN (1, 2))` und den Teilindex in
+ * `api/src/migrationen/012-jugendtraining.sql`, dazu die Liste
+ * `(VALUES (1), (2))` in `meldeKindAn` (`api/src/jugendtraining.ts`).
  */
 export const KINDER_JE_KONTO = 2;
 

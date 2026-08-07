@@ -384,6 +384,15 @@ describe('Kinder anmelden', () => {
   });
 });
 
+/** Ein Konto, das weder Guide ist noch das Kind angemeldet hat. */
+async function drittesKonto(): Promise<string> {
+  const { rows } = await pool.query<{ id: string }>(
+    `INSERT INTO mitglied (email) VALUES ('dritter-${Math.random().toString(36).slice(2)}@example.org')
+     RETURNING id`,
+  );
+  return rows[0]!.id;
+}
+
 describe('holeKinder', () => {
   let elternId: string;
   let trainingId: string;
@@ -419,8 +428,27 @@ describe('holeKinder', () => {
       { vorname: 'Lena', nachname: 'Musterfrau', zeigtVorname: true, zeigtNachname: false },
       jetzt,
     );
-    const fuerMitglied = await holeKinder(pool, trainingId, false, elternId);
+    // Ein Dritter schaut, nicht das anmeldende Elternteil selbst — sonst
+    // prüfte der Test die eigene Sicht und hieße trotzdem „andere".
+    const fuerMitglied = await holeKinder(pool, trainingId, false, await drittesKonto());
     expect(fuerMitglied[0]?.anzeige).toBe('Lena');
+  });
+
+  it('zeigt dem Anfragenden sein eigenes Kind ungefiltert', async () => {
+    // Die Freigabe regelt, was andere sehen. Sich selbst gegenüber verbirgt
+    // niemand einen Namen, den er eben eingetippt hat — und ohne das stünden
+    // bei zwei datensparsam angemeldeten Kindern zwei ununterscheidbare
+    // Knöpfe „ein Kind abmelden" nebeneinander.
+    await meldeKindAn(
+      pool,
+      trainingId,
+      elternId,
+      { vorname: 'Lena', nachname: 'Musterfrau', zeigtVorname: false, zeigtNachname: false },
+      jetzt,
+    );
+    const fuerMichSelbst = await holeKinder(pool, trainingId, false, elternId);
+    expect(fuerMichSelbst[0]?.anzeige).toBe('Lena Musterfrau');
+    expect(fuerMichSelbst[0]?.eigene).toBe(true);
   });
 
   it('zeigt ein Kind ohne jede Freigabe als „ein Kind"', async () => {
@@ -433,7 +461,7 @@ describe('holeKinder', () => {
       { vorname: 'Lena', nachname: 'Musterfrau', zeigtVorname: false, zeigtNachname: false },
       jetzt,
     );
-    const fuerMitglied = await holeKinder(pool, trainingId, false, elternId);
+    const fuerMitglied = await holeKinder(pool, trainingId, false, await drittesKonto());
     expect(fuerMitglied[0]?.anzeige).toBe('ein Kind');
   });
 
@@ -473,11 +501,15 @@ describe('holeKinder', () => {
       jetzt,
     );
 
+    // Das eigene Kind ungefiltert („Lena M"), das fremde nur so weit, wie
+    // dessen Elternteil freigegeben hat („Finn"). Beides in einer Antwort —
+    // genau daran hängt, dass der Abmelden-Knopf einen Namen tragen kann.
+    // Nach Merkmal nachschlagen statt nach Position: Beide Kinder tragen
+    // denselben `angelegt_am`, die Reihenfolge entscheidet dann die
+    // zufällige Kennung.
     const ausSichtEltern = await holeKinder(pool, trainingId, false, elternId);
-    expect(ausSichtEltern.map((k) => [k.anzeige, k.eigene])).toEqual([
-      ['Lena', true],
-      ['Finn', false],
-    ]);
+    expect(ausSichtEltern.find((k) => k.eigene)?.anzeige).toBe('Lena M');
+    expect(ausSichtEltern.find((k) => !k.eigene)?.anzeige).toBe('Finn');
   });
 
   it('gibt einem Guide bei fremden Kindern kein eigene: true', async () => {

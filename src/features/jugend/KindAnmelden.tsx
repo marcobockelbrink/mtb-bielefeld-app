@@ -6,14 +6,10 @@
  * eigenem Erklärsatz statt eines stillen Standardwerts, und deshalb die
  * datensparsame Vorgabe — Vorname an, Nachname aus.
  *
- * Baugleich mit `TeilnahmeKarte` in zwei Punkten, die dort schon einmal
- * schiefgingen:
- *
- * - Erfolg und Fehlschlag laufen beide über `Banner`, aber nie mit derselben
- *   `tone` — sonst stünde „Dieses Training ist voll." in derselben ruhigen
- *   Vereinsfarbe da wie „Eingetragen.".
- * - Erfolg und Fehlschlag laufen beide über `Banner`, aber nie mit derselben
- *   `tone`.
+ * Wie bei `TeilnahmeKarte` laufen Erfolg und Fehlschlag beide über `Banner`,
+ * aber nie mit derselben `tone` — sonst stünde „Dieses Training ist voll." in
+ * derselben ruhigen Vereinsfarbe da wie „Eingetragen.". Das ging dort schon
+ * einmal schief.
  *
  * **Der Zustand kommt aus der API, nicht aus dem Arbeitsspeicher.** Das war
  * einmal anders: Die Komponente merkte sich die `kindId` aus der Antwort
@@ -115,26 +111,37 @@ export function KindAnmelden({
       ) : null}
 
       {/*
-        Je eigenem Kind eine Zeile mit eigenem Knopf. Der Name steht dabei,
-        weil bei zwei Kindern sonst niemand wüsste, welches der beiden er
-        gerade austrägt — und weil „Abmelden" allein schon einmal das falsche
-        versprochen hat.
+        Während einer laufenden Anfrage ist **alles** weg und nur der
+        Kringel da. `ActionButton` kennt kein `disabled` — Ausblenden ist in
+        diesem Projekt die einzige Sperre, und ohne sie bliebe der Knopf
+        drückbar: Wer im Funkloch zweimal tippt, dessen zweites `DELETE`
+        trifft ein bereits abgemeldetes Kind, bekommt 404 „Diese Anmeldung
+        gibt es nicht." und sieht einen roten Banner über einem Vorgang, der
+        geglückt ist.
       */}
-      {meine.map((kind) => (
-        <View key={kind.id} style={styles.knopf}>
-          <ActionButton
-            label={`${kind.anzeige} abmelden`}
-            tone="secondary"
-            onPress={() => void abmelden(kind.id)}
-          />
-        </View>
-      ))}
-
       {laeuft ? (
         <View style={styles.knopf}>
           <ActivityIndicator color={palette.primary} />
         </View>
       ) : null}
+
+      {/*
+        Je eigenem Kind ein Knopf mit dem Namen daran. Der Name ist keine
+        Zierde: Bei zwei Kindern wüsste sonst niemand, welches er gerade
+        austrägt. Er steht hier ungefiltert, weil `holeKinder` dem
+        Anfragenden das eigene Kind ungefiltert schickt (`api/src/`
+        `jugendtraining.ts`) — die Freigabe regelt, was *andere* sehen.
+      */}
+      {!laeuft &&
+        meine.map((kind) => (
+          <View key={kind.id} style={styles.knopf}>
+            <ActionButton
+              label={`${kind.anzeige} abmelden`}
+              tone="secondary"
+              onPress={() => void abmelden(kind.id)}
+            />
+          </View>
+        ))}
 
       {darfNochAnmelden(training) && !laeuft ? (
         <>

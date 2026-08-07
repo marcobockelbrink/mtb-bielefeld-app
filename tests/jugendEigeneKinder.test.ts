@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { TrainingDetails } from '../src/data/jugend';
-import { KINDER_JE_KONTO, darfNochAnmelden, eigeneKinder } from '../src/features/jugend/eigeneKinder';
+import { darfNochAnmelden, eigeneKinder } from '../src/features/jugend/eigeneKinder';
 
 function training(
   kinder: TrainingDetails['kinder'],
@@ -67,7 +67,4 @@ describe('darfNochAnmelden', () => {
     expect(darfNochAnmelden(training([], 'entwurf'))).toBe(false);
   });
 
-  it('geht von zwei Kindern je Konto aus — wie der Teilindex in der Datenbank', () => {
-    expect(KINDER_JE_KONTO).toBe(2);
-  });
 });

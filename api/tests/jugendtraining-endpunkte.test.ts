@@ -209,20 +209,31 @@ describe('GET /jugendtraining/:id — eigene Kinder', () => {
     expect(kinder.map((k) => k.eigene)).toEqual([false, false]);
     // Und die Namenssichtbarkeit bleibt, wie sie war — das war eine
     // Vereinsentscheidung, keine Nebenwirkung der neuen Markierung.
-    expect(kinder.map((k) => k.anzeige)).toEqual(['Finn Meyer', 'Lena Musterfrau']);
+    // Sortiert verglichen: Beide Kinder tragen denselben `angelegt_am`, die
+    // Reihenfolge entscheidet dann die zufällige Kennung.
+    expect(kinder.map((k) => k.anzeige).sort()).toEqual(['Finn Meyer', 'Lena Musterfrau']);
     await app.close();
   });
 
-  it('lässt die Namenssichtbarkeit für andere Mitglieder unverändert', async () => {
+  it('filtert den Namen des fremden Kindes, zeigt das eigene aber ganz', async () => {
     const app = bauen();
-    const { training, elternA } = await trainingMitZweiEltern(app);
+    const { training, elternA, kindA, kindB } = await trainingMitZweiEltern(app);
 
     const antwort = await holen(app, training.id, elternA);
-    const kinder = antwort.json().kinder as Array<{ anzeige: string }>;
+    const kinder = antwort.json().kinder as Array<{ id: string; anzeige: string }>;
 
-    // Nachname war nicht freigegeben — auch beim eigenen Kind nicht, denn
-    // die Anzeige richtet sich nach der Freigabe, nicht nach dem Besitz.
-    expect(kinder.map((k) => k.anzeige)).toEqual(['Finn', 'Lena']);
+    // Zwei verschiedene Fragen in einer Antwort. Das **fremde** Kind zeigt
+    // nur, was dessen Elternteil freigegeben hat — der Nachname war es
+    // nicht. Das **eigene** steht ungefiltert da: Die Freigabe regelt, was
+    // andere sehen, und sich selbst gegenüber verbirgt niemand einen Namen,
+    // den er eben eingetippt hat.
+    //
+    // Daran hängt mehr als Bequemlichkeit: Ohne den vollen Namen trügen bei
+    // zwei datensparsam angemeldeten Kindern beide Knöpfe „ein Kind
+    // abmelden", und das Elternteil hätte beim Austragen die Wahl zwischen
+    // zwei nicht unterscheidbaren Möglichkeiten.
+    expect(kinder.find((k) => k.id === kindA)?.anzeige).toBe('Finn Meyer');
+    expect(kinder.find((k) => k.id === kindB)?.anzeige).toBe('Lena');
     await app.close();
   });
 });

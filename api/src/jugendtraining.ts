@@ -530,7 +530,7 @@ export async function holeKinder(
             mitglied_id = $2 AS eigene
        FROM jugendtraining_kind
       WHERE training_id = $1 AND storniert_am IS NULL
-      ORDER BY angelegt_am`,
+      ORDER BY angelegt_am, id`,
     [trainingId, fragenderId],
   );
 
@@ -541,7 +541,14 @@ export async function holeKinder(
     // **und** `eigene: false` — abmelden darf er sie trotzdem nicht, das
     // steht in `meldeKindAb` in der `WHERE`-Bedingung.
     const eigene = z.eigene;
-    if (alsGuide) return { id: z.id, anzeige: `${z.vorname} ${z.nachname}`, eigene };
+
+    // **Dem Anfragenden das eigene Kind ungefiltert zeigen.** Die Freigabe
+    // regelt, was *andere* sehen — sich selbst gegenüber verbirgt niemand
+    // einen Namen, den er eben eingetippt hat. Ohne diese Zeile stünden bei
+    // zwei datensparsam angemeldeten Kindern zwei Knöpfe „ein Kind abmelden"
+    // nebeneinander, und ein Elternteil hätte beim Austragen die Wahl
+    // zwischen zwei nicht unterscheidbaren Möglichkeiten.
+    if (alsGuide || eigene) return { id: z.id, anzeige: `${z.vorname} ${z.nachname}`, eigene };
     const teile = [z.zeigt_vorname ? z.vorname : null, z.zeigt_nachname ? z.nachname : null];
     const anzeige = teile.filter(Boolean).join(' ');
     return { id: z.id, anzeige: anzeige || 'ein Kind', eigene };
