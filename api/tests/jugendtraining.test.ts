@@ -206,7 +206,7 @@ describe('Guide-Antworten', () => {
   it('merkt sich Zusage und Absage je Guide', async () => {
     const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
 
-    expect(await setzeGuideAntwort(pool, id, guideId, true, jetzt)).toBe(true);
+    expect(await setzeGuideAntwort(pool, id, guideId, true, jetzt)).toBe('ok');
 
     const antworten = await holeGuideAntworten(pool, id);
     expect(antworten).toEqual([
@@ -225,10 +225,34 @@ describe('Guide-Antworten', () => {
     expect(antworten[0]?.zusage).toBe(false);
   });
 
-  it('meldet false für ein unbekanntes Training, statt einen Fremdschlüssel zu werfen', async () => {
+  it('meldet „unbekannt" für ein unbekanntes Training, statt einen Fremdschlüssel zu werfen', async () => {
     expect(
       await setzeGuideAntwort(pool, '00000000-0000-0000-0000-000000000000', guideId, true, jetzt),
-    ).toBe(false);
+    ).toBe('unbekannt');
+  });
+
+  it('nimmt keine Antwort mehr an, wenn das Training abgesagt ist', async () => {
+    // Der erlaubte Ausgangszustand steht in der Bedingung der Anweisung, nicht
+    // in einer Prüfung davor — sonst käme zwischen Lesen und Schreiben eine
+    // Absage durch. Genau wie bei `aendereTraining`.
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    await veroeffentliche(pool, id, jetzt);
+    await sageAb(pool, id, 'Gewitter', jetzt);
+
+    expect(await setzeGuideAntwort(pool, id, guideId, true, jetzt)).toBe('abgesagt');
+    expect(await holeGuideAntworten(pool, id)).toHaveLength(0);
+  });
+
+  it('lässt eine frühere Zusage nach der Absage unangetastet', async () => {
+    // Wer vor der Absage zugesagt hat, dessen Antwort bleibt stehen — sie
+    // wird nur nicht mehr geändert.
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    await veroeffentliche(pool, id, jetzt);
+    await setzeGuideAntwort(pool, id, guideId, true, jetzt);
+    await sageAb(pool, id, 'Gewitter', jetzt);
+
+    expect(await setzeGuideAntwort(pool, id, guideId, false, jetzt)).toBe('abgesagt');
+    expect((await holeGuideAntworten(pool, id))[0]?.zusage).toBe(true);
   });
 
   it('holeGuideAdressen findet nur Guides', async () => {
@@ -383,7 +407,7 @@ describe('holeKinder', () => {
       { vorname: 'Lena', nachname: 'Musterfrau', zeigtVorname: false, zeigtNachname: false },
       jetzt,
     );
-    const fuerGuide = await holeKinder(pool, trainingId, true);
+    const fuerGuide = await holeKinder(pool, trainingId, true, guideId);
     expect(fuerGuide[0]?.anzeige).toBe('Lena Musterfrau');
   });
 
@@ -395,7 +419,7 @@ describe('holeKinder', () => {
       { vorname: 'Lena', nachname: 'Musterfrau', zeigtVorname: true, zeigtNachname: false },
       jetzt,
     );
-    const fuerMitglied = await holeKinder(pool, trainingId, false);
+    const fuerMitglied = await holeKinder(pool, trainingId, false, elternId);
     expect(fuerMitglied[0]?.anzeige).toBe('Lena');
   });
 
@@ -409,7 +433,7 @@ describe('holeKinder', () => {
       { vorname: 'Lena', nachname: 'Musterfrau', zeigtVorname: false, zeigtNachname: false },
       jetzt,
     );
-    const fuerMitglied = await holeKinder(pool, trainingId, false);
+    const fuerMitglied = await holeKinder(pool, trainingId, false, elternId);
     expect(fuerMitglied[0]?.anzeige).toBe('ein Kind');
   });
 
@@ -424,6 +448,51 @@ describe('holeKinder', () => {
     if (!erst.ok) throw new Error('Anmeldung schlug fehl');
     await meldeKindAb(pool, trainingId, elternId, erst.kindId, jetzt);
 
-    expect(await holeKinder(pool, trainingId, true)).toHaveLength(0);
+    expect(await holeKinder(pool, trainingId, true, guideId)).toHaveLength(0);
+  });
+
+  it('markiert die Kinder des Anfragenden als eigene', async () => {
+    // Ohne diese Markierung weiß die App nach einem Neustart nicht mehr,
+    // welchen Platz sie abmelden darf.
+    const { rows } = await pool.query<{ id: string }>(
+      "INSERT INTO mitglied (email) VALUES ('zweite@example.org') RETURNING id",
+    );
+    const andereId = rows[0]!.id;
+    await meldeKindAn(
+      pool,
+      trainingId,
+      elternId,
+      { vorname: 'Lena', nachname: 'M', zeigtVorname: true, zeigtNachname: false },
+      jetzt,
+    );
+    await meldeKindAn(
+      pool,
+      trainingId,
+      andereId,
+      { vorname: 'Finn', nachname: 'B', zeigtVorname: true, zeigtNachname: false },
+      jetzt,
+    );
+
+    const ausSichtEltern = await holeKinder(pool, trainingId, false, elternId);
+    expect(ausSichtEltern.map((k) => [k.anzeige, k.eigene])).toEqual([
+      ['Lena', true],
+      ['Finn', false],
+    ]);
+  });
+
+  it('gibt einem Guide bei fremden Kindern kein eigene: true', async () => {
+    // Die Guide-Rolle gibt Namenssichtbarkeit, nicht Besitz.
+    await meldeKindAn(
+      pool,
+      trainingId,
+      elternId,
+      { vorname: 'Lena', nachname: 'Musterfrau', zeigtVorname: false, zeigtNachname: false },
+      jetzt,
+    );
+
+    const fuerGuide = await holeKinder(pool, trainingId, true, guideId);
+    expect(fuerGuide[0]?.eigene).toBe(false);
+    // Und die Namenssichtbarkeit bleibt unverändert.
+    expect(fuerGuide[0]?.anzeige).toBe('Lena Musterfrau');
   });
 });

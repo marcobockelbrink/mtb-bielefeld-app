@@ -982,7 +982,7 @@ dein Kind auch anmelden.</p>
     return antwort.send({
       ...training,
       belegt: await jugend.holeBelegungTraining(pool, id),
-      kinder: await jugend.holeKinder(pool, id, istGuide),
+      kinder: await jugend.holeKinder(pool, id, istGuide, ausweis.mitgliedId),
       // Guides bekommen die Namen, alle anderen nur die Zahl der Zusagen —
       // die Spec verspricht ihnen genau das. Ohne die Zahl bliebe „reichen
       // die Guides?" für Eltern unsichtbar, mit den Namen wüssten sie mehr
@@ -1081,8 +1081,16 @@ dein Kind auch anmelden.</p>
       return antwort.code(400).send({ fehler: 'Zusage oder Absage angeben.' });
     }
 
-    const gesetzt = await jugend.setzeGuideAntwort(pool, id, guide.mitgliedId, koerper.zusage, jetzt());
-    if (!gesetzt) return antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' });
+    const ergebnis = await jugend.setzeGuideAntwort(pool, id, guide.mitgliedId, koerper.zusage, jetzt());
+    // 409 und nicht 404: Das Training gibt es ja, es ist nur nicht mehr das,
+    // was der Bildschirm zeigte. Der Satz muss das sagen — „gibt es nicht"
+    // schickte einen Guide auf die Suche nach einem Fehler, der keiner ist.
+    if (ergebnis === 'abgesagt') {
+      return antwort.code(409).send({ fehler: 'Dieses Training wurde inzwischen abgesagt.' });
+    }
+    if (ergebnis === 'unbekannt') {
+      return antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' });
+    }
     return antwort.code(204).send();
   });
 

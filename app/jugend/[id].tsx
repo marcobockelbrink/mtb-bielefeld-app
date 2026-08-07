@@ -175,7 +175,14 @@ export default function TrainingDetailScreen() {
         Banner oben sagt schon, warum. Ein Formular danach würde einen
         Vorgang anbieten, den es nicht mehr gibt.
       */}
-      {abgesagt ? null : <KindAnmelden trainingId={training.id} onGeaendert={() => void laden(false)} />}
+      {/*
+        Die Karte trägt jetzt beides: die Abmelden-Knöpfe für die eigenen
+        Kinder und, solange noch ein Platz frei ist, das Formular. Sie
+        entscheidet das selbst (`darfNochAnmelden`) — auch für den Entwurf,
+        auf den `POST …/kinder` mit 409 antwortet. Hier bleibt nur die
+        Absage stehen, denn dann gibt es auch nichts mehr abzumelden.
+      */}
+      {abgesagt ? null : <KindAnmelden training={training} onGeaendert={() => void laden(false)} />}
     </ScrollView>
   );
 }

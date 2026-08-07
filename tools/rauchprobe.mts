@@ -32,11 +32,19 @@
  * Caddy-Zone "anmeldung" (`/anmeldung/*`, `/sitzung*`, `/konto*`,
  * `betrieb/Caddyfile`) Anfragen für zwei Konten — das ursprüngliche und, für
  * den Sichtbarkeits-Prüfstein der Jugendtrainings, ein zweites ohne
- * Guide-Rolle — und bleibt damit klar unter den zehn je Minute. Die eigene
- * Zone "tourenanmeldung" (schreibend auf `/termine/*` **und** `/jugendtraining*`)
- * ist enger: Der Lauf schöpft sie über weite Strecken aus. Zwei Läufe
- * unmittelbar hintereinander laufen deshalb in ein 429 — das ist die Bremse
- * von vorhin, kein kaputter Ablauf. Eine Minute warten.
+ * Guide-Rolle.
+ *
+ * **Die Zonen rechnen je IP, nicht je Konto** (`key {remote_host}`). Beide
+ * Prüfkonten teilen sich also denselben Eimer von zehn — ein zweites Konto
+ * schafft keinen Abstand, es verbraucht denselben. Wer hier Prüfsteine
+ * ergänzt, zählt die Schreibvorgänge mit, statt auf Luft zu hoffen.
+ *
+ * Es gibt drei Zonen: "anmeldung" (10/min), "tourenanmeldung" (schreibend
+ * auf `/termine/*`, 10/min) und seit dem 06.08.2026 "jugendtraining"
+ * (schreibend auf `/jugendtraining*`, 15/min). Der Lauf schöpft die letzten
+ * beiden über weite Strecken aus. Zwei Läufe unmittelbar hintereinander
+ * laufen deshalb in ein 429 — das ist die Bremse von vorhin, kein kaputter
+ * Ablauf. Eine Minute warten.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -295,6 +303,16 @@ pruefe(
   typeof alsGuideGesehen.guideZusagen === 'number',
   alsGuideGesehen.guideZusagen,
 );
+// `eigene` ist der Unterschied zwischen „ich kann mein Kind abmelden" und
+// „der Platz bleibt bis zum Training belegt": Die App zeigt allein danach
+// einen Abmelden-Knopf (`src/features/jugend/eigeneKinder.ts`). Fällt das
+// Feld weg, sieht sie aus wie vor der Behebung — und keine andere Prüfung
+// im Projekt merkt es.
+pruefe(
+  'Das eben angemeldete Kind trägt eigene: true',
+  alsGuideGesehen.kinder.find((k) => k.id === anmeldung.kindId)?.eigene === true,
+  alsGuideGesehen.kinder,
+);
 
 // --- Der Prüfstein: ein zweites, gewöhnliches Mitgliedskonto ---------------
 abschnitt('Prüfstein: Sichtbarkeit der Kindernamen — Guide gegen gewöhnliches Mitglied');
@@ -357,6 +375,14 @@ pruefe(
   alsMitgliedGesehen,
 );
 pruefe('Ein gewöhnliches Mitglied bekommt gar kein guides-Feld', alsMitgliedGesehen.guides === undefined);
+// Sichtbarkeit ist nicht Besitz — dasselbe Kind, anderes Konto, `eigene:
+// false`. Ohne diesen Prüfstein könnte `eigene` schlicht überall `true`
+// sein, und der Prüfstein darüber bliebe trotzdem grün.
+pruefe(
+  'Aus dem zweiten Konto heraus ist dasselbe Kind eigene: false',
+  alsMitgliedGesehen.kinder.find((k) => k.id === anmeldung.kindId)?.eigene === false,
+  alsMitgliedGesehen.kinder,
+);
 pruefe(
   'guideZusagen bleibt trotzdem sichtbar — die Zahl, nicht die Namen',
   typeof alsMitgliedGesehen.guideZusagen === 'number',
@@ -377,6 +403,26 @@ pruefe(
   abgesagt.absagegrund === 'Rauchprobe: aufgeräumt',
   abgesagt.absagegrund,
 );
+
+// Befund 3 aus dem Zweig-Review: Eine Zusage auf ein abgesagtes Training
+// ging als 204 durch und meldete Erfolg — die Oberfläche blendet den Knopf
+// nur nach dem zuletzt geladenen Stand aus, und zwischen Laden und Tippen
+// passt eine Absage.
+try {
+  await api.sende(`/jugendtraining/${training.id}/guide`, 'PUT', { zusage: true });
+  pruefe('Eine Zusage auf ein abgesagtes Training wird abgelehnt', false);
+} catch (fehler) {
+  pruefe(
+    'Eine Zusage auf ein abgesagtes Training wird mit 409 abgelehnt',
+    fehler instanceof ApiFehler && fehler.status === 409,
+    fehler instanceof ApiFehler ? fehler.status : fehler,
+  );
+  pruefe(
+    'und der Satz sagt, was inzwischen passiert ist',
+    beschreibeJugendFehler(fehler) === 'Dieses Training wurde inzwischen abgesagt.',
+    beschreibeJugendFehler(fehler),
+  );
+}
 
 // Aufgeräumt, nicht nur abgesagt.
 //
@@ -404,7 +450,7 @@ try {
 }
 
 // Ein unbekanntes Training kostet kein Kontingent (GET zählt in der Zone
-// "tourenanmeldung" nicht mit) — hier lohnt sich der echte Fehlerweg.
+// "jugendtraining" nicht mit) — hier lohnt sich der echte Fehlerweg.
 try {
   await holeTraining(api, 'gibtsnichtaufkeinenfall');
   pruefe('Ein unbekanntes Training wirft', false);
@@ -467,13 +513,12 @@ try {
 await api.sende(`${pfad}/ich`, 'DELETE');
 
 // Eine schreibende Anfrage ohne gültige Sitzung — ein frischer, nie
-// eingeloggter Zugang. Bewusst nicht mehr gegen `/termine/*`: Seit die
-// Jugendtrainings dieselbe Caddy-Zone "tourenanmeldung" mitbenutzen
-// (`betrieb/Caddyfile`), schöpft dieser Lauf sie über weite Strecken aus —
-// ein elfter Schreibzugriff dort träfe nicht die Sitzungsprüfung, sondern
-// Caddys Bremse (429), und das Ergebnis wäre reiner Zufall der Reihenfolge.
+// eingeloggter Zugang. Bewusst nicht gegen `/termine/*`: Diese Probe
+// schöpft die Zone "tourenanmeldung" über weite Strecken aus — ein elfter
+// Schreibzugriff dort träfe nicht die Sitzungsprüfung, sondern Caddys
+// Bremse (429), und das Ergebnis wäre reiner Zufall der Reihenfolge.
 // `/konto/jugend-benachrichtigung` prüft `holeAusweis` genauso, liegt aber
-// in der Zone "anmeldung", die hier noch reichlich Luft hat.
+// in der Zone "anmeldung", die hier noch Luft hat.
 let ohneToken: string | null = null;
 const anonymerSpeicher: TokenSpeicher = {
   lies: async () => ohneToken,

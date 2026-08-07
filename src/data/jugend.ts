@@ -28,7 +28,19 @@ export interface Training {
 }
 
 export interface TrainingDetails extends Training {
-  kinder: Array<{ id: string; anzeige: string }>;
+  /**
+   * Die angemeldeten Kinder. `eigene` markiert die des anfragenden Kontos.
+   *
+   * Ohne diese Markierung wüsste die App nach einem Neustart nicht mehr,
+   * welchen Platz sie abmelden darf — die Kennung lebte vorher nur im
+   * Arbeitsspeicher des Bildschirms, und wer ihn verließ, konnte sein Kind
+   * nie wieder austragen. Der Platz blieb bis zum Training belegt.
+   *
+   * `eigene` ist **nicht** dasselbe wie „darf den Namen sehen": Ein Guide
+   * sieht bei fremden Kindern den vollen Namen und trotzdem `eigene: false`.
+   * Sichtbarkeit ist nicht Besitz.
+   */
+  kinder: Array<{ id: string; anzeige: string; eigene: boolean }>;
   /** Nur für Guides — sonst schickt die API das Feld gar nicht. */
   guides?: Array<{ mitgliedId: string; email: string; zusage: boolean }>;
   /**
