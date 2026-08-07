@@ -7,7 +7,7 @@ Termine, Aktuelles und Vereinsinfos — aus den Daten, die der Verein ohnehin pf
 
 | Termine | Aktuelles | Verein | Jugend | Einstellungen |
 | --- | --- | --- | --- | --- |
-| ![Terminliste mit Filterleiste und nach Tagen gruppierten Terminen](docs/screenshots/termine.png) | ![Beitragsliste mit Themenfiltern wie Racing und Jugend](docs/screenshots/aktuelles.png) | ![Vereinsseite mit Beschreibung und Angeboten](docs/screenshots/verein.png) | ![Liste der Jugendtrainings mit Ort und Belegung](docs/screenshots/jugend.png) | ![Einstellungen für Termin-Erinnerungen und das Konto](docs/screenshots/einstellungen.png) |
+| ![Terminliste mit Filterleiste und nach Tagen gruppierten Terminen](docs/screenshots/termine.png) | ![Beitragsliste mit Themenfiltern wie Racing und Jugend](docs/screenshots/aktuelles.png) | ![Vereinsseite mit Beschreibung und Angeboten](docs/screenshots/verein.png) | ![Jugendbereich im abgemeldeten Zustand mit dem Hinweis, sich anzumelden](docs/screenshots/jugend.png) | ![Einstellungen für Termin-Erinnerungen und das Konto](docs/screenshots/einstellungen.png) |
 
 > Vier davon sind Reiter unten; **Einstellungen** liegt hinter dem Zahnrad
 > oben rechts. Die Reiterleiste fasst nur vier Einträge — mit einem fünften
@@ -25,7 +25,7 @@ iOS-System aufgenommen (iPhone 17 Pro, iOS 26.5):
 
 | Nach dem Anmeldelink | Angemeldet | Zu einer Tour eintragen | Jugendtrainings | Kind anmelden |
 | --- | --- | --- | --- | --- |
-| ![Terminliste, auf der der angetippte Anmeldelink landet](docs/screenshots/simulator-nach-magiclink.png) | ![Einstellungen mit der Karte „Mein Konto" und dem Zustand „Du bist angemeldet"](docs/screenshots/simulator-angemeldet.png) | ![Terminansicht mit der Belegung und dem Knopf „Ich bin dabei", darunter der Mail-Knopf](docs/screenshots/simulator-teilnahme.png) | ![Liste der Jugendtrainings mit Belegung, einem Entwurf und einem abgesagten Training samt Grund](docs/screenshots/simulator-jugend.png)  ![Anmeldeformular für ein Kind mit zwei Schaltern für die Namensfreigabe](docs/screenshots/simulator-jugend-anmelden.png) |
+| ![Terminliste, auf der der angetippte Anmeldelink landet](docs/screenshots/simulator-nach-magiclink.png) | ![Einstellungen mit der Karte „Mein Konto" und dem Zustand „Du bist angemeldet"](docs/screenshots/simulator-angemeldet.png) | ![Terminansicht mit der Belegung und dem Knopf „Ich bin dabei", darunter der Mail-Knopf](docs/screenshots/simulator-teilnahme.png) | ![Liste der Jugendtrainings mit Belegung, einem Entwurf und einem abgesagten Training samt Grund](docs/screenshots/simulator-jugend.png) | ![Anmeldeformular für ein Kind mit zwei Schaltern für die Namensfreigabe](docs/screenshots/simulator-jugend-anmelden.png) |
 
 ## Worum es geht
 
@@ -296,9 +296,14 @@ app/                     Bildschirme (expo-router: Dateiname = Adresse)
   (tabs)/index.tsx         Termine — Hauptbildschirm
   (tabs)/news.tsx          Aktuelles
   (tabs)/verein.tsx        Verein & Mitmachen
-  (tabs)/einstellungen.tsx Erinnerungen
+  (tabs)/jugend.tsx        Jugendtrainings
+  einstellungen.tsx        Erinnerungen und Konto — über das Zahnrad oben
   termin/[id].tsx          Termin-Detailansicht
   news/[id].tsx            Beitrag-Detailansicht
+  jugend/[id].tsx          ein Training: Belegung, Guides, Kind anmelden
+  jugend/neu.tsx           Entwurf anlegen (nur Guides)
+  t/[id].tsx               Ziel eines geteilten Links
+  anmeldung/[token].tsx    Ziel des Links aus der Anmeldemail
 
 src/
   config.ts              Adressen der Datenquellen — hier wird getauscht
@@ -308,7 +313,10 @@ src/
     rss/                 News-Feed einlesen
     parse/               Beschreibungen auswerten und einordnen
     repository.ts        Abruf + Zwischenspeicher (Umstiegspunkt für ein Backend)
+    jugend.ts            Jugendtrainings von der API holen und ändern
   features/events/       Filter, Aufbereitung, Terminkarte
+  features/jugend/       Trainingskarte, Anmeldeformular, Guide-Ansicht
+  konto/                 wer angemeldet ist, und der Magic Link
   notifications/         Erinnerungen (Planung getrennt von der System-Anbindung)
   content/club.ts        Vereinstexte — von Hand gepflegt
   ui/                    Farbschema und wiederverwendete Bausteine

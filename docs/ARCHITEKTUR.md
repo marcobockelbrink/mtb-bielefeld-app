@@ -73,9 +73,13 @@ app/                       Bildschirme (expo-router: Dateiname = Adresse)
   (tabs)/index.tsx           Termine
   (tabs)/news.tsx            Aktuelles
   (tabs)/verein.tsx          Verein & Mitmachen
-  (tabs)/einstellungen.tsx   Erinnerungen und Konto
+  (tabs)/jugend.tsx          Jugendtrainings
+  einstellungen.tsx          Erinnerungen und Konto — bewusst kein Reiter
   termin/[id].tsx            Termin-Detailansicht
   news/[id].tsx              Beitrag-Detailansicht
+  jugend/[id].tsx            ein Training: Belegung, Guides, Kind anmelden
+  jugend/neu.tsx             Entwurf anlegen (nur Guides)
+  t/[id].tsx                 Ziel eines geteilten Links (Universal Link)
   anmeldung/[token].tsx      Ziel des Links aus der Anmeldemail
 
 src/
@@ -91,12 +95,15 @@ src/
     api.ts                   Zugang zur Vereins-API
     tokenSpeicher.ts         Schnittstelle + Fassung für Tests
     secureTokenSpeicher.ts   Anbindung an den Schlüsselbund
+    jugend.ts                Jugendtrainings holen, anlegen, anmelden
   konto/
     KontoContext.tsx         wer angemeldet ist, und der Magic Link
     magicLink.ts             Token aus der angetippten Adresse ziehen
     einloesenFehler.ts       Fehler → deutscher Satz
     anfordernFehler.ts       Fehler → deutscher Satz
   features/events/         Filter, Aufbereitung, Terminkarte, Teilnahmekarte
+  features/jugend/         Trainingskarte, Anmeldeformular, Guide-Ansicht,
+                           Teilen-Text, Fehler → deutscher Satz
   notifications/           Erinnerungen
   content/club.ts          Vereinstexte, von Hand gepflegt
   ui/                      wiederverwendete Bausteine

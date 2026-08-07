@@ -24,7 +24,7 @@
 # `VERTRAUTER_PROXY` mit anpassen (`api/src/app.ts`), sonst ist die
 # Begrenzung je IP wertlos, ohne dass ein Test rot wird.
 #
-# ## Die zwei Zonen
+# ## Die drei Zonen
 #
 # Diese Schicht und die Begrenzung in der API tun Verschiedenes: Caddy sieht
 # den Anfragekörper nicht und kann deshalb nicht je Adresse begrenzen — er
@@ -44,14 +44,17 @@
 # Segment, und `/termine*` passte zusätzlich auf erfundene Wege wie
 # `/termineXY`.
 #
-# Zone `tourenanmeldung`: zwei Zonen und nicht eine, weil ein `match`-Block
+# Zone `tourenanmeldung`: getrennt von `anmeldung`, weil ein `match`-Block
 # seine Bedingungen mit UND verknüpft — „diese Pfade, egal welche Methode"
-# und „jene Pfade, aber nur schreibend" passen nicht in denselben Block. Zwei
-# getrennte Kontingente je IP sind hier auch richtig herum: Eine
+# und „jene Pfade, aber nur schreibend" passen nicht in denselben Block.
+# Getrennte Kontingente je IP sind hier auch richtig herum: Eine
 # ausgeschöpfte Anmeldeflut soll das Eintragen zu einer Tour nicht abwürgen.
 #
+# Zone `jugendtraining`: seit dem 06.08.2026 eine eigene, nicht mit der
+# Tourenanmeldung geteilt. Die Begründung steht unten am Block selbst.
+#
 # Die lesenden Abfragen `GET /termine/…` und `GET /jugendtraining…` fehlen
-# mit Absicht in beiden Zonen — dieselbe Abwägung wie in `app.ts` (siehe
+# mit Absicht in allen dreien — dieselbe Abwägung wie in `app.ts` (siehe
 # `NUR_SCHREIBEND_GEZAEHLT`): Eine App, die eine Liste öffnet, stellt sie im
 # Normalbetrieb reihenweise und würde jede sinnvolle Grenze reißen.
 #
