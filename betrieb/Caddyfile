@@ -101,5 +101,38 @@
 		}
 	}
 
-	reverse_proxy api:3000
+	# --- Universal Links -------------------------------------------------
+	#
+	# Ohne diese Datei öffnet ein geteilter `/t/<id>`-Link nur den Browser,
+	# nicht die App — und das fällt erst auf einem Gerät auf, nie in Tests
+	# und nie im Bündel. iOS holt sie beim Installieren und danach
+	# gelegentlich; sie muss über HTTPS erreichbar sein und `application/json`
+	# tragen, aber ausdrücklich **ohne** Dateiendung im Pfad.
+	#
+	# `appID` ist `<Team-ID>.<Bundle-ID>`. DH3N3RBQX3 steht in
+	# `ios/MTBBielefeld.xcodeproj/project.pbxproj` als `DEVELOPMENT_TEAM` —
+	# das ist Marcos persönliches Apple-Team. **Für den App Store gehört hier
+	# die Team-ID des Vereinskontos**, sobald es eines gibt; bis dahin trägt
+	# diese Angabe nur die Prüfung auf dem eigenen Gerät.
+	#
+	# `handle` und nicht lose im Block: Caddy sortiert Direktiven nach einer
+	# eigenen, unsichtbaren Reihenfolge — `handle`-Blöcke dagegen schließen
+	# einander aus und greifen in Quelltextreihenfolge. So steht sicher, dass
+	# diese Antwort vor dem `reverse_proxy` kommt.
+	handle /.well-known/apple-app-site-association {
+		header Content-Type application/json
+		respond `{"applinks":{"apps":[],"details":[{"appID":"DH3N3RBQX3.de.mtbbielefeld.app","paths":["/t/*"]}]}}` 200
+	}
+
+	# **`assetlinks.json` fehlt mit Absicht.** Android verlangt darin den
+	# SHA-256-Fingerabdruck des Signierschlüssels, und den gibt es in diesem
+	# Projekt noch nicht: kein `android/`-Ordner, kein Keystore, kein
+	# `eas.json`. Eine Datei mit erfundenem Fingerabdruck wäre schlechter als
+	# keine — Android holte sie, verwürfe sie stumm, und niemand käme darauf,
+	# dass der Fingerabdruck schuld ist. Sobald ein Schlüssel existiert,
+	# gehört sie hierher, gebaut wie die Datei darüber.
+
+	handle {
+		reverse_proxy api:3000
+	}
 }
