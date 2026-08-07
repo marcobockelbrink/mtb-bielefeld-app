@@ -51,11 +51,25 @@ Lokal und dev teilen sich die Kennung mit Absicht: Beides ist dieselbe
 Fassung, nur mit anderem Gegenüber, und drei Symbole auf dem Startbildschirm
 verwirren mehr, als sie helfen.
 
-`api-dev.bockelbrink.net` steht seit dem 07.08.2026 im DNS und zeigt auf
-dieselbe Maschine wie `api.bockelbrink.net` (169.58.129.20). Der alte Name
-wird damit frei: Bis zur Umstellung tragen beide denselben Aufbau, danach
-kann `api.bockelbrink.net` weg. Kein Mitglied hat je einen Link darauf
-bekommen, also bricht nichts.
+**Das sind zwei Maschinen, nicht eine.**
+
+| Name | Adresse | Maschine | Zustand |
+| --- | --- | --- | --- |
+| `api.bockelbrink.net` | 169.58.129.20 | Contabo | läuft, trägt heute alles |
+| `api-dev.bockelbrink.net` | 78.47.128.71 | Hetzner | grundinstalliert, **kein Aufbau** |
+
+Die Hetzner-Maschine löst Contabo ab und wird der dev-Server. Auf ihr
+läuft noch kein Docker Compose: kein Repository, keine `.env`, keine
+Datenbank. Die Datenbank wandert **nicht** mit, sondern wird frisch
+migriert — es stehen ohnehin nur Prüfkonten darin.
+
+Dass beide Namen existieren, ist der Übergang: Solange Contabo trägt,
+bleibt `api.bockelbrink.net` in Betrieb. Kein Mitglied hat je einen Link
+auf eine der beiden bekommen, also bricht beim Umschalten nichts.
+
+> **DNS immer gegen `@1.1.1.1` prüfen, nie gegen den Systemauflöser.** Der
+> hielt `api-dev.bockelbrink.net` hier zwischenzeitlich auf der alten
+> Adresse fest, und daraufhin stand in diesem Plan eine Weile das Falsche.
 
 ## Dateien
 
@@ -384,43 +398,82 @@ Damit prüft die Rauchprobe automatisch das Richtige: Läuft sie mit
 
 ---
 
-### Aufgabe 5: Den dev-Server umstellen und nachweisen
+### Aufgabe 5: Den dev-Aufbau auf der Hetzner-Maschine hochziehen
 
-**Dateien:** keine im Repository — `betrieb/.env` auf dem Server
-(unversioniert).
+**Dateien:** keine im Repository — alles auf dem Server (`betrieb/.env`
+bleibt unversioniert).
 
-**Vorher mit Marco abstimmen:** Das ändert einen laufenden Server.
+**Vorher mit Marco abstimmen.** Diese Aufgabe fasst als einzige eine
+Maschine an, und sie ist die einzige, die scheitern kann, ohne dass eine
+Prüfung im Repository es merkt.
 
-- [ ] **Schritt 1: `AASA_APP_ID` in der Server-`.env` setzen**
+Zugang: `ssh mtb-hetzner` (Contabo bleibt `ssh mtb`). Die Grundinstallation
+nach `betrieb/SERVER.md` Abschnitt 1–5 ist dort **schon erledigt und
+nachgemessen** — Benutzer `verein`, root und Passwort abgeschaltet, `ufw`
+mit 22/80/443, unattended-upgrades, Docker aus docker.com. Fang bei
+Abschnitt 6 an.
+
+- [ ] **Schritt 1: Repository und `.env` anlegen**
+
+Dann in `betrieb/.env` die Werte setzen, die diese Maschine von Contabo
+unterscheiden:
 
 ```bash
-ssh -i ~/.ssh/mtb-verein verein@169.58.129.20
-cd ~/mtb-bielefeld-app && git pull
-echo 'AASA_APP_ID=DH3N3RBQX3.de.mtbbielefeld.app.dev' >> betrieb/.env
-cd betrieb && docker compose up -d --build && docker compose restart caddy
+API_DOMAIN=api-dev.bockelbrink.net
+API_BASIS_URL=https://api-dev.bockelbrink.net
+AASA_APP_ID=DH3N3RBQX3.de.mtbbielefeld.app.dev
+POSTGRES_PASSWORD=<neu erzeugen, nicht von Contabo abschreiben>
 ```
 
-- [ ] **Schritt 2: Von außen nachmessen**
+**Die Datenbank wandert nicht mit.** Sie enthält nur Prüfkonten, und ein
+frischer Aufbau beweist nebenbei, dass die Migrationen von null an
+durchlaufen — das prüft sonst niemand.
+
+- [ ] **Schritt 2: Starten**
 
 ```bash
-curl -s https://api-dev.bockelbrink.net/.well-known/apple-app-site-association
+cd ~/mtb-bielefeld-app/betrieb && docker compose up -d --build
 ```
 
-Erwartet: `…app.dev`.
+Der erste Bau dauert: `xcaddy` übersetzt das Ratenbegrenzungs-Modul aus dem
+Quelltext. **Das ist der Schritt, der auf dieser Maschine ohne Swap
+umkippt** — die 2 GB sind eingerichtet, aber wenn der Bau ohne Meldung
+abbricht, ist das die erste Stelle zum Nachsehen.
 
-- [ ] **Schritt 3: Auf dem Simulator nachweisen**
+- [ ] **Schritt 3: Von außen nachmessen, nicht von innen**
+
+Erwartet: `/gesundheit` liefert 200, `/jugendtraining` ohne Token **401**
+(nicht 403), die `appID` in der `apple-app-site-association` endet auf
+`…app.dev`, und ab der elften Anfrage auf `/t/x` kommt 429. Das
+TLS-Zertifikat holt Caddy selbst — schlägt das fehl, zeigt der DNS-Eintrag
+nicht auf diese Maschine.
+
+- [ ] **Schritt 4: Die Rauchprobe gegen den dev-Server laufen lassen**
+
+```bash
+RAUCHPROBE_BASIS=https://api-dev.bockelbrink.net npm run rauchprobe
+```
+
+Sie braucht Mailpit und das CLI im Container; läuft sie von außen nicht
+durch, dann auf der Maschine selbst.
+
+- [ ] **Schritt 5: Auf dem Simulator nachweisen**
 
 ```bash
 npm run ios:dev
 xcrun simctl openurl booted "https://api-dev.bockelbrink.net/t/<kennung>"
 ```
 
-**Erwartet: die App öffnet sich beim Training, nicht Safari.** Geht
-Safari auf, ist der Nachweis gescheitert — dann wird das so berichtet,
-nicht weggeredet. Zwei Fallen dabei stehen in `docs/ARCHITEKTUR.md`
-unter „Universal Links"; lies sie vorher.
+**Erwartet: die App öffnet sich beim Training, nicht Safari.** Geht Safari
+auf, ist der Nachweis gescheitert — das wird so berichtet, nicht
+weggeredet. Zwei Fallen dabei stehen in `docs/ARCHITEKTUR.md` unter
+„Universal Links"; lies sie vorher, sie haben schon einmal zwei Stunden
+gekostet.
 
-- [ ] **Schritt 4: Festschreiben** (nur die Dokumentation)
+- [ ] **Schritt 6: Contabo abschalten — erst danach**
+
+Nicht vorher und nicht am selben Tag. Solange Hetzner nicht nachgemessen
+läuft, ist Contabo der Rückfallweg.
 
 ---
 
