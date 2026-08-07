@@ -527,6 +527,54 @@ try {
   pruefe('mit Status 0 („gar nicht angekommen")', (fehler as ApiFehler).status === 0, (fehler as ApiFehler).status);
 }
 
+// --- Universal Links -------------------------------------------------------
+//
+// Diese Datei entscheidet, ob ein geteilter `/t/<id>`-Link die App öffnet oder
+// nur den Browser. Sie liegt in `betrieb/Caddyfile`, nicht im App-Quelltext —
+// niemand fasst sie an, wenn er an der App arbeitet, und ihr Wegfall fällt in
+// keiner Prüfung auf: Tests, Typprüfung und beide Plattform-Bündel bleiben
+// grün. Auffallen würde er erst einem Elternteil, das in der WhatsApp-Gruppe
+// auf den Link tippt und in Safari landet.
+//
+// Der Abgleich der `appID` gegen `app.json` ist der eigentliche Punkt. Die
+// Kennung steht an zwei Stellen — hier in der ausgelieferten Datei und dort im
+// Bündel —, und iOS verlangt, dass beide übereinstimmen. Wer die eine ändert,
+// merkt vom Auseinanderlaufen sonst nichts.
+abschnitt('Universal Links: liefert der Server apple-app-site-association aus?');
+{
+  const appJson = JSON.parse(
+    await import('node:fs/promises').then((fs) => fs.readFile(path.join(WURZEL, 'app.json'), 'utf8')),
+  ) as { expo: { ios: { bundleIdentifier: string } } };
+  const buendel = appJson.expo.ios.bundleIdentifier;
+
+  const antwort = await fetch(`${BASIS}/.well-known/apple-app-site-association`);
+  pruefe('Sie wird ausgeliefert (200)', antwort.status === 200, antwort.status);
+  // Ohne `application/json` verwirft iOS die Datei stillschweigend. Eine
+  // Dateiendung darf der Pfad dabei ausdrücklich nicht tragen — deshalb der
+  // Kopfzeilenwert und nicht der Name.
+  pruefe(
+    'mit content-type application/json',
+    (antwort.headers.get('content-type') ?? '').startsWith('application/json'),
+    antwort.headers.get('content-type'),
+  );
+
+  const aasa = (await antwort.json()) as {
+    applinks?: { details?: { appID?: string; paths?: string[] }[] };
+  };
+  const eintrag = aasa.applinks?.details?.[0];
+  pruefe('Sie nennt genau einen App-Eintrag', aasa.applinks?.details?.length === 1, aasa.applinks?.details?.length);
+  pruefe(
+    `Dessen appID endet auf die Bündelkennung aus app.json (${buendel})`,
+    eintrag?.appID?.endsWith(`.${buendel}`) === true,
+    eintrag?.appID,
+  );
+  pruefe(
+    'Sie gibt `/t/*` frei — den Pfad, auf den der Teilen-Knopf zeigt',
+    eintrag?.paths?.includes('/t/*') === true,
+    eintrag?.paths,
+  );
+}
+
 // --- Abmelden --------------------------------------------------------------
 abschnitt('Abmelden');
 await api.abmelden();

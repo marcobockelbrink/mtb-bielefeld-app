@@ -12,7 +12,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "associatedDomains": ["applinks:api.bockelbrink.net"]
+      "associatedDomains": ["applinks:api.mtb-bielefeld.de", "applinks:api.bockelbrink.net"]
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +26,10 @@
         {
           "action": "VIEW",
           "autoVerify": true,
-          "data": [{ "scheme": "https", "host": "api.bockelbrink.net", "pathPrefix": "/t" }],
+          "data": [
+            { "scheme": "https", "host": "api.mtb-bielefeld.de", "pathPrefix": "/t" },
+            { "scheme": "https", "host": "api.bockelbrink.net", "pathPrefix": "/t" }
+          ],
           "category": ["BROWSABLE", "DEFAULT"]
         }
       ]

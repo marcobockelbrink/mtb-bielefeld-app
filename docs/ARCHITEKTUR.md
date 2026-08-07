@@ -319,6 +319,41 @@ Daraus die Lehre, die dieses Projekt am teuersten bezahlt hat: **Ein grüner
 Test beweist nur, was er misst.** Wer eine Annahme über die Gegenseite trifft,
 prüfe sie gegen die Gegenseite.
 
+### Universal Links, und warum die Prüfung dafür halb im Server liegt
+
+Ein geteilter Link `https://<domain>/t/<id>` öffnet die App nur, wenn drei
+Dinge gleichzeitig stimmen — und keine zwei davon liegen an derselben Stelle:
+
+1. **`app.json`** meldet die Domain an (`associatedDomains`, `intentFilters`).
+   Das Betriebssystem liest sie aus dem fertigen Bündel, nicht aus dem
+   Quelltext.
+2. **`betrieb/Caddyfile`** liefert `/.well-known/apple-app-site-association`
+   aus, mit `application/json` und der passenden `appID`.
+3. **`app/t/[id].tsx`** fängt den Pfad in expo-router ab.
+
+Fehlt eines, öffnet sich Safari — und alle Prüfungen bleiben grün, weil keine
+von ihnen einen Link antippt. Die Rauchprobe deckt seit dem 07.08.2026
+Punkt 2 ab und gleicht die `appID` gegen `app.json` ab; Punkt 1 und 3 bleiben
+Sache des Simulators.
+
+**Am 07.08.2026 auf dem Simulator nachgemessen:**
+`xcrun simctl openurl booted "https://api.bockelbrink.net/t/<id>"` öffnet die
+App beim Training, nicht Safari.
+
+Zwei Fallen dabei, beide teuer bezahlt:
+
+- **`codesign -d --entitlements` lügt bei Simulator-Programmen.** Es meldet
+  einen leeren `[Dict]`, obwohl die Berechtigungen im Programm stehen — dort
+  liegen sie im Abschnitt `__TEXT,__entitlements`, den man mit `otool -X -s
+  __TEXT __entitlements` liest (die Wörter stehen umgedreht). Wer dem
+  `codesign` glaubt, signiert von Hand nach und zerstört dabei die App:
+  Nachsignieren nur der äußeren Hülle bricht das Siegel der eingebetteten
+  Bibliotheken, und danach startet gar nichts mehr.
+- **Auf einem echten iPhone ist das ungeprüft.**
+  `com.apple.developer.associated-domains` ist wie `aps-environment` eine
+  Berechtigung, die ein kostenloses Apple Personal Team nicht ausstellt.
+  Behoben ist das erst mit einem bezahlten Entwicklerkonto.
+
 ## Was bewusst nicht gebaut wurde
 
 - **Kein ORM.** Rohes SQL, nummerierte Migrationen, ein Läufer in gut sechzig

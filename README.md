@@ -451,6 +451,15 @@ Notbildschirm „Unmatched Route", weil die Route dafür fehlte. Die Anmeldung
 gelang im Hintergrund — sichtbar war eine Fehlerseite in einer fremden
 Sprache. Gefunden hat es erst der Simulator.
 
+Deshalb wird der geteilte Link eines Jugendtrainings **auf dem Simulator**
+nachgemessen, nicht nur gebaut: `xcrun simctl openurl booted
+"https://<domain>/t/<id>"` muss die App beim Training öffnen. Geht Safari
+auf, fehlt eine von drei Stellen, die alle stimmen müssen —
+`associatedDomains` in `app.json`, die ausgelieferte
+`apple-app-site-association` in `betrieb/Caddyfile` und die Route
+`app/t/[id].tsx`. Die Rauchprobe prüft die mittlere mit; die beiden anderen
+bleiben Sache des Simulators. Einzelheiten in `docs/ARCHITEKTUR.md`.
+
 ## Was noch offen ist
 
 - **Jugendtrainings in der App.** Die API kann sie vollständig, die App zeigt

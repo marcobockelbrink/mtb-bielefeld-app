@@ -146,10 +146,20 @@ export const API_BASE_URL =
  * ein Pfad der Vereins-API (`api/src/app.ts`), kein eigener Dienst. Eine
  * zweite Konstante wäre eine zweite Stelle, die bei einem Domainwechsel
  * vergessen werden könnte — und genau die feststehende Vereinsdomain steht
- * noch aus (siehe `betrieb/SERVER.md`). Bis dahin zeigt `API_BASE_URL` auf
- * die Testdomain `api.bockelbrink.net`; `applinks`/`intentFilters` in
- * `app.json` müssen beim Umzug denselben Schritt mitgehen — sie werden vom
- * nativen Betriebssystem gelesen, nicht von dieser Datei, und lassen sich
- * deshalb nicht von hier aus ableiten.
+ * noch aus (siehe `betrieb/SERVER.md`).
+ *
+ * **Diese Datei allein genügt nicht.** Damit ein geteilter Link die App
+ * öffnet statt den Browser, muss dieselbe Domain zusätzlich in `app.json`
+ * unter `associatedDomains` (iOS) und `intentFilters` (Android) stehen. Die
+ * liest das Betriebssystem aus dem fertigen Bündel, nicht diese Datei — sie
+ * lassen sich von hier aus weder ableiten noch nachziehen, und ein
+ * Auseinanderlaufen fällt in keiner Prüfung auf, sondern erst auf einem
+ * Gerät, wenn statt der App Safari aufgeht.
+ *
+ * Deshalb meldet `app.json` **beide** Domains an: `api.bockelbrink.net` zum
+ * Prüfen und `api.mtb-bielefeld.de` für die Veröffentlichungsfassung, auf
+ * die diese Konstante dort zeigt. Eine angemeldete Domain, die es noch nicht
+ * gibt, schadet nicht — iOS prüft jede für sich und lässt die andere in
+ * Ruhe.
  */
 export const TEILEN_BASIS_URL = API_BASE_URL;
