@@ -41,10 +41,10 @@
   "scripts": {
     "start": "expo start",
     "start:dev": "EXPO_PUBLIC_API_URL=https://api-dev.bockelbrink.net expo start",
-    "android": "expo start --android",
+    "android": "expo run:android",
     "android:dev": "EXPO_PUBLIC_API_URL=https://api-dev.bockelbrink.net expo start --android",
-    "ios": "expo start --ios",
-    "ios:dev": "EXPO_PUBLIC_API_URL=https://api-dev.bockelbrink.net expo run:ios",
+    "ios": "expo run:ios",
+    "ios:dev": "pkill -f \"expo start\" || true; EXPO_PUBLIC_API_URL=https://api-dev.bockelbrink.net expo run:ios",
     "web": "expo start --web",
     "test": "vitest run",
     "rauchprobe": "node --experimental-strip-types tools/rauchprobe.mts",
@@ -52,7 +52,7 @@
     "typecheck": "tsc --noEmit",
     "vorschau": "expo export --platform web --output-dir .vorschau-web && node tools/serve-und-schiessen.mjs",
     "proxy": "node tools/dev-proxy.mjs",
-    "bau:prod": "EXPO_PUBLIC_APP_UMGEBUNG=prod expo prebuild --clean"
+    "vorbereiten:prod": "EXPO_PUBLIC_APP_UMGEBUNG=prod expo prebuild --clean"
   },
   "private": true,
   "overrides": {

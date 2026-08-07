@@ -6,7 +6,7 @@ kennt, baut mit grüner CI etwas kaputt.
 ## Vor jedem Commit
 
 ```bash
-npm test            # 172 Tests, ~1 Sekunde
+npm test            # 284 Tests, unter einer Sekunde
 npm run typecheck
 npx expo install --check
 ```
@@ -89,8 +89,31 @@ entscheidet **eine Variable beim Bauen**:
 ```bash
 npm start            # örtlicher Aufbau
 npm run start:dev    # gegen den Prüfserver
-npm run bau:prod     # für den Verein — nur so
+npm run vorbereiten:prod   # erzeugt ios/ und android/ für den Verein
 ```
+
+**Der prod-Weg hat zwei Schritte, und die Variable gehört in beide:**
+`npm` setzt eine vorangestellte Variable nur für den einen Befehl.
+
+```bash
+npm run vorbereiten:prod
+EXPO_PUBLIC_APP_UMGEBUNG=prod npx expo run:ios --configuration Release
+```
+
+Fehlt sie im zweiten, heißt die App außen „MTB Bielefeld", hat
+`api.mtb-bielefeld.de` angemeldet — und spricht innen mit dem Prüfserver.
+
+**Zwei Dinge schreibt `expo prebuild` still um**, und beide sind schon
+mehrfach zurückgenommen und wieder erschienen:
+
+- `npm run ios` und `npm run android` werden zu `expo run:*` (nativer Bau
+  statt Expo Go). Das ist inzwischen **richtig** — Bündelkennung, Schema
+  und Entitlements stecken im nativen Projekt, ein Metro-Neustart reicht
+  dafür nicht. Nicht zurückdrehen.
+- `tsconfig.json` verliert `.expo/types/**/*.ts` aus `include`. Das ist
+  **falsch** und gehört zurückgesetzt: `.expo` ist ein Punkt-Verzeichnis,
+  in das `**/*.ts` nicht hineingreift, und die erzeugten Routentypen
+  fielen sonst aus der Prüfung — bei grüner Typprüfung.
 
 Wer eine Fassung für den Verein baut und `EXPO_PUBLIC_APP_UMGEBUNG=prod`
 vergisst, bekommt eine App, die auf den Prüfserver zeigt: **grüne Tests,

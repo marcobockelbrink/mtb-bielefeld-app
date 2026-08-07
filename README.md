@@ -132,8 +132,8 @@ Weitere Befehle:
 ```bash
 npm test           # Tests (ohne Gerät, reines Node)
 npm run typecheck  # TypeScript prüfen
-npm run android    # auf Android-Gerät/Emulator starten
-npm run ios        # auf iOS-Gerät/Simulator starten (macOS nötig)
+npm run android    # nativ bauen und auf Android starten
+npm run ios        # nativ bauen und auf iOS starten (macOS nötig)
 npm run vorschau   # Web-Fassung bauen und Screenshots aufnehmen
 ```
 
@@ -148,12 +148,26 @@ eines Mitglieds auf einen fremden Server richten.
 | --- | --- | --- |
 | `npm start` | `http://localhost` | MTB Bielefeld (dev) |
 | `npm run start:dev` | `https://api-dev.bockelbrink.net` | MTB Bielefeld (dev) |
-| `npm run bau:prod` | `https://api.mtb-bielefeld.de` | MTB Bielefeld |
+| `npm run vorbereiten:prod` + Bau | `https://api.mtb-bielefeld.de` | MTB Bielefeld |
 
 Die dev-Fassung trägt eine eigene Bündelkennung
-(`de.mtbbielefeld.app.dev`) und liegt deshalb als **eigenes Symbol** neben
-der echten — beide lassen sich gleichzeitig auf einem Telefon installieren
-und vergleichen.
+(`de.mtbbielefeld.app.dev`) und ein eigenes Adressschema (`mtbie-dev`).
+Sie liegt deshalb als **eigenes Symbol** neben der echten — beide lassen
+sich gleichzeitig auf einem Telefon installieren und vergleichen, ohne
+sich um den Anmeldelink zu streiten.
+
+**Der prod-Weg hat zwei Schritte, und die Variable gehört in beide:**
+
+```bash
+npm run vorbereiten:prod                                   # erzeugt ios/ und android/
+EXPO_PUBLIC_APP_UMGEBUNG=prod npx expo run:ios --configuration Release
+```
+
+`npm` setzt eine so vorangestellte Variable nur für den einen Befehl. Wer
+sie im zweiten Schritt vergisst, bekommt eine App, die außen „MTB
+Bielefeld" heißt und `api.mtb-bielefeld.de` angemeldet hat, innen aber mit
+dem Prüfserver spricht — grüne Tests, fehlerfreies Bündel, und niemand
+sieht es.
 
 **Ohne Angabe kommt immer die dev-Fassung heraus.** Wer für den Verein
 baut, sagt es ausdrücklich. Der umgekehrte Standard wäre gefährlich: Ein

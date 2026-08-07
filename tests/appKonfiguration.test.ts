@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { baueKonfiguration } from '../app.config.js';
+import { waehleApiAdresse } from '../src/config';
 
 describe('app.config.js', () => {
   it('gibt der dev-Fassung eine eigene Bündelkennung', () => {
@@ -66,6 +67,28 @@ describe('app.config.js', () => {
    * not support the Push Notifications capability" — und zwar erst dort,
    * nicht hier.
    */
+  /**
+   * **Der wichtigste Prüfstein dieser Datei.** Die Domain steht an zwei
+   * Stellen: hier für das Betriebssystem und in `src/config.ts` für die
+   * App. Laufen sie auseinander, öffnet ein geteilter Link den Browser
+   * statt der App — und keine andere Prüfung im Projekt sieht das, auch
+   * die Rauchprobe nicht: Die kennt nur `RAUCHPROBE_BASIS` und vergleicht
+   * die ausgelieferte `appID`, nie die Adresse aus `waehleApiAdresse`.
+   */
+  it('nennt dieselbe Domain wie src/config.ts — je Umgebung', () => {
+    for (const umgebung of ['dev', 'prod'] as const) {
+      const konfig = baueKonfiguration(umgebung).expo;
+      const ausConfig = new URL(
+        waehleApiAdresse({ ueberschrieben: undefined, umgebung, imEntwicklungsbau: false }),
+      ).host;
+
+      expect(konfig.ios.associatedDomains).toEqual([`applinks:${ausConfig}`]);
+      expect(konfig.android.intentFilters[0].data).toEqual([
+        { scheme: 'https', host: ausConfig, pathPrefix: '/t' },
+      ]);
+    }
+  });
+
   it('lässt ohne-push-berechtigung an erster Stelle', () => {
     for (const umgebung of ['dev', 'prod'] as const) {
       expect(baueKonfiguration(umgebung).expo.plugins[0]).toBe(
@@ -74,13 +97,27 @@ describe('app.config.js', () => {
     }
   });
 
+  /**
+   * Ein eigenes Schema je Fassung, nicht nur eine eigene Bündelkennung.
+   *
+   * Der Anmeldelink läuft über das Schema, nicht über Universal Links. Zwei
+   * Apps mit `mtbie` — und beide gleichzeitig installiert zu haben ist der
+   * Zweck der eigenen Kennung — stritten sich um denselben Link, und iOS
+   * entschiede unbestimmt.
+   */
+  it('gibt jeder Fassung ein eigenes Schema', () => {
+    expect(baueKonfiguration('dev').expo.scheme).toBe('mtbie-dev');
+    expect(baueKonfiguration('prod').expo.scheme).toBe('mtbie');
+  });
+
   it('ändert nichts, was nicht von der Umgebung abhängt', () => {
     const dev = baueKonfiguration('dev').expo;
     const prod = baueKonfiguration('prod').expo;
+    // `slug` muss gleich bleiben: Er ordnet beide Fassungen demselben
+    // Expo-Projekt zu. Ein umgebungsabhängiger `slug` bräche das, und zwar
+    // erst beim Veröffentlichen.
     expect(dev.slug).toBe(prod.slug);
     expect(dev.version).toBe(prod.version);
-    expect(dev.scheme).toBe('mtbie');
-    expect(prod.scheme).toBe('mtbie');
     expect(dev.plugins).toEqual(prod.plugins);
   });
 });

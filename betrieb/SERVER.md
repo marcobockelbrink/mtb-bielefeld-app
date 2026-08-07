@@ -272,15 +272,24 @@ ist nicht geplant.
   `.env`. Erst danach bekommt ein Mensch je einen Anmeldelink, und erst
   danach tritt `docker-compose.server.yml` an die Stelle der vorläufigen
   Fassung.
-- **Die Vereinsdomain** — `API_DOMAIN` in der `.env` umstellen ist der
-  Server-seitige Teil. Dazu kommt jetzt ein App-seitiger: Die Universal
-  Links für den Teilen-Knopf der Jugendtrainings (Plan 6, Aufgabe 6) tragen
-  `api.bockelbrink.net` fest in `app.json` (`ios.associatedDomains`,
-  `android.intentFilters`) — JSON kennt keine Kommentare, die den
-  Umzugshinweis dorthin tragen könnten, deshalb steht er hier. Nach dem
-  Umstellen dort **und** hier braucht es einen Neubau der nativen Apps
-  (`npx expo prebuild --clean` bzw. `run:ios`/`run:android`): Die Domain
-  landet in den nativen Entitlements, ein Metro-Neustart reicht nicht.
+- **Die Vereinsdomain** — sie steht an **drei** Stellen, und alle drei
+  müssen mitgehen:
+
+  | Wo | Was |
+  | --- | --- |
+  | `betrieb/.env` auf dem Server | `API_DOMAIN`, `API_BASIS_URL` |
+  | `app.config.js` (`UMGEBUNGEN`) | `domain` — für `associatedDomains` und `intentFilters` |
+  | `src/config.ts` (`waehleApiAdresse`) | die Adresse, mit der die App spricht |
+
+  Die letzten beiden liegen absichtlich nebeneinander und werden von
+  `tests/appKonfiguration.test.ts` gegeneinander geprüft — laufen sie
+  auseinander, öffnet ein geteilter Link den Browser statt der App, und
+  das fiele sonst erst auf einem Gerät auf.
+
+  Nach dem Umstellen braucht es einen **Neubau der nativen Apps**
+  (`npm run vorbereiten:prod`, dann `expo run:ios`/`run:android` mit
+  gesetztem `EXPO_PUBLIC_APP_UMGEBUNG=prod`): Die Domain landet in den
+  nativen Entitlements, ein Metro-Neustart reicht nicht.
 - **Backups** — Plan 4b, Aufgabe 5. **Nichts wird gesichert, solange das
   fehlt.** Solange nur Testkonten in der Datenbank liegen, ist das
   verschmerzbar; ab dem ersten echten Mitglied nicht mehr.

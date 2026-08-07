@@ -42,11 +42,13 @@ const UMGEBUNGEN = {
     kennung: 'de.mtbbielefeld.app.dev',
     name: 'MTB Bielefeld (dev)',
     domain: 'api-dev.bockelbrink.net',
+    schema: 'mtbie-dev',
   },
   prod: {
     kennung: 'de.mtbbielefeld.app',
     name: 'MTB Bielefeld',
     domain: 'api.mtb-bielefeld.de',
+    schema: 'mtbie',
   },
 };
 
@@ -121,7 +123,21 @@ export function baueKonfiguration(umgebung) {
         'expo-image',
         'expo-secure-store',
       ],
-      scheme: 'mtbie',
+      // **Auch das Schema unterscheidet sich, nicht nur die Bündelkennung.**
+      // Der Anmeldelink läuft nicht über Universal Links, sondern über das
+      // eigene Schema (`mtbie:///anmeldung/<token>`, siehe `APP_BASIS_URL`
+      // in `betrieb/.env`). Trügen beide Fassungen `mtbie`, registrierten
+      // zwei Apps dasselbe Schema — und genau das ist der Normalfall, denn
+      // nebeneinander installierbar zu sein ist der Zweck der eigenen
+      // Kennung. iOS entschiede dann unbestimmt, welche App den Link
+      // bekommt; träfe es die falsche, schickte sie das Token an den
+      // falschen Server und meldete einen ungültigen Link. Android zeigte
+      // eine Auswahl mit zwei gleich aussehenden Einträgen.
+      //
+      // **Beim Umstellen zieht `APP_BASIS_URL` in der `.env` des
+      // Prüfservers mit** (`mtbie-dev://`), sonst verschickt er Links, die
+      // niemand einlösen kann.
+      scheme: u.schema,
     },
   };
 }
