@@ -1,6 +1,6 @@
 ---
 name: mtb-server-offene-punkte
-description: "Zwei Server (Contabo als Vorgänger, Hetzner als Prüfserver); was noch fehlt, kann nur von außen kommen — Stand 07.08.2026"
+description: "Hetzner ist der Prüfserver, Contabo am 08.08.2026 gekündigt; was noch fehlt, kann nur von außen kommen — Stand 08.08.2026"
 metadata:
   node_type: memory
   type: project
@@ -19,8 +19,24 @@ Beide fahren die **vorläufige** Fassung mit Mailpit
 (`docker-compose.vorlaeufig.yml`) — `docker-compose.server.yml` verlangt
 einen echten SMTP-Zugang. Der Prüfserver hat eine frisch migrierte
 Datenbank (12 Migrationen von null), nichts ist von Contabo mitgewandert.
-Contabo bleibt der Rückfallweg, bis sich Hetzner ein paar Tage bewährt
-hat.
+
+**Contabo ist am 08.08.2026 gekündigt**, der Hetzner trägt allein.
+
+`api.bockelbrink.net` ist damit **aufgegeben, nicht kaputt**. Der
+DNS-Eintrag zeigt seit dem 08.08.2026 auf den Hetzner (`78.47.128.71`),
+aber Caddy dort hat nur einen Site-Block für `api-dev.bockelbrink.net` —
+der Name liefert deshalb HTTP 000, kein Zertifikat. **Das ist so gewollt
+und kein Befund.** Marcos Entscheidung vom 08.08.2026: alles bleibt bei
+`api-dev`, der prod-Endpunkt entsteht später direkt als
+`api.mtb-bielefeld.de` auf der Vereinsmaschine. Ein zweiter Site-Block auf
+dem Hetzner wurde erwogen und **verworfen** — Vereinsdaten gehören nicht
+auf eine private Maschine, und ohne SMTP und bezahltes Apple-Konto wäre
+ein prod-Aufbau ohnehin unbenutzbar.
+
+Beim Messen die Falle beachten: Der Systemauflöser hielt
+`api.bockelbrink.net` noch auf der Contabo-Adresse fest und lieferte
+prompt einen 200er. Gegen `@1.1.1.1` prüfen, und die Maschine mit
+`curl --resolve <name>:443:<ip>` festnageln.
 
 Der Vereinsserver (`api.mtb-bielefeld.de`) existiert noch nicht.
 
