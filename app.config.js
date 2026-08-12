@@ -64,6 +64,13 @@ export function baueKonfiguration(umgebung) {
       name: u.name,
       slug: 'mtb-bielefeld-app',
       version: '0.8.0',
+      // Die Kennung des EAS-Projekts (Konto marco.bockelbrink) — EAS Build
+      // findet darüber das Projekt, sie ist kein Geheimnis. Weil diese
+      // Konfiguration eine Funktion ist, konnte `eas init` sie nicht selbst
+      // eintragen und hat sie beim Anlegen am 12.08.2026 ausgegeben.
+      extra: {
+        eas: { projectId: '7db10909-1416-435b-9dec-c6ab28113289' },
+      },
       orientation: 'portrait',
       icon: './assets/icon.png',
       userInterfaceStyle: 'automatic',
