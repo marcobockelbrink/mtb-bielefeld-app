@@ -41,8 +41,11 @@ jobs:
       # Prüfung, die wegen einer mittelschweren Lücke im Build-Werkzeug rot
       # steht, wird nach der dritten Woche abgeschaltet. Dann ist gar nichts
       # gewonnen.
+      # Über das Skript statt direkt: Es kennt benannte Ausnahmen mit
+      # Ablaufdatum — für Advisories ohne geflickte Fassung (image-size hat
+      # den Bereich `*`). Alles Unbenannte blockiert weiterhin.
       - name: Schwerwiegende Schwachstellen (blockiert)
-        run: npm audit --audit-level=high
+        run: node tools/audit-mit-ausnahmen.mjs
 
       # Zur Kenntnis: läuft immer durch, macht den Stand aber sichtbar.
       - name: Vollständiger Bericht (nur zur Information)
