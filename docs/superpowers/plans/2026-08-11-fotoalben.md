@@ -336,10 +336,9 @@ oder verstaubt.
 Neben der Freigabe. Das sind die Bilder, die wirklich weiterverwendet werden
 — und die vom späteren automatischen Löschen ausgenommen bleiben.
 
-- [ ] **Schritt 3: Download**
-
-Die markierten als ZIP in Originalauflösung. Die App zeigt verkleinert; für
-die Vereinsseite braucht es die volle Größe.
+- [ ] ~~**Schritt 3: Download**~~ — **gestrichen am 12.08.2026.** Ein ZIP
+  aus JPEGs spart fast nichts, die sind schon komprimiert. Die Verwaltung
+  holt die volle Auflösung je Bild über `GET /foto/:id/original`.
 
 - [ ] **Schritt 4: Löschen und Melden**
 
@@ -351,14 +350,20 @@ nicht in eine WhatsApp-Gruppe.
 
 ---
 
-## Offen
+## Offen — Stand 12.08.2026
 
-- **Das automatische Löschen nach 31 Tagen.** Das Feld `loeschen_ab` wird
-  mitgebaut, der Job in `aufraeumen.ts` kommt später. Wichtig ist nur, dass
+Gebaut und auf dem Prüfserver in Betrieb: Aufgaben 1–6 samt persistenter
+Upload-Warteschlange. Es bleibt:
+
+- **Das automatische Löschen nach 31 Tagen.** Das Feld `loeschen_ab` ist da,
+  der Job in `aufraeumen.ts` kommt später. Wichtig ist nur, dass
   `fuer_homepage` davon ausgenommen bleibt — sonst ist die Auswahl nach
   einem Monat weg, und das wäre die unangenehmste Art, das zu lernen.
 - **Wohin die freigegebenen Bilder danach gehen.** Bis auf Weiteres: Der
-  Admin lädt sie herunter und stellt sie selbst auf die Vereinsseite. Eine
-  Anbindung an die Homepage ist ein eigenes Vorhaben.
+  Admin lädt sie herunter (`GET /foto/:id/original`) und stellt sie selbst
+  auf die Vereinsseite. Eine Anbindung an die Homepage ist ein eigenes
+  Vorhaben. Der ZIP-Sammeldownload ist gestrichen, siehe Aufgabe 6.
+- **Eine Vollbild-Ansicht in der App.** Das Raster zeigt die 400er; die
+  2000er-Fassung liefert die API längst, es fehlt nur der Bildschirm dazu.
 - **Speicherplatz.** Der Prüfserver hat 38 GB. Für die Erprobung reicht das;
   der Vereinsserver soll mehr bekommen.
