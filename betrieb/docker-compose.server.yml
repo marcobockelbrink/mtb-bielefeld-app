@@ -51,6 +51,10 @@ services:
       # `:?` statt Vorgabe — ein falscher oder fehlender Name kostet
       # Zertifikatsversuche bei Let's Encrypt, und die sind kontingentiert.
       API_DOMAIN: ${API_DOMAIN:?API_DOMAIN fehlt in betrieb/.env (z. B. api.mtb-bielefeld.de)}
+      # Optionaler zweiter Name — hier **mit** leerer Vorgabe statt `:?`:
+      # Der Normalfall ist ein Aufbau mit genau einer Domain, und der soll
+      # nicht daran scheitern, dass eine Zeile für einen Übergang fehlt.
+      API_DOMAIN_ZUSATZ: ${API_DOMAIN_ZUSATZ:-}
       # Ohne Wert liefert Caddy die apple-app-site-association mit leerer
       # `appID` aus — gültiges JSON, das iOS wortlos verwirft. Der geteilte
       # Link öffnet dann nur den Browser, und nichts meldet es. Deshalb `:?`

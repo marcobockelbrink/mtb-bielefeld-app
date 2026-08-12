@@ -61,7 +61,16 @@
 # Braucht das Modul caddy-ratelimit — `betrieb/caddy/Dockerfile` baut es ein.
 # Geprüft wird das alles von `betrieb/pruefe-begrenzung.sh`.
 
-{$API_DOMAIN} {
+# Der zweite Name ist **optional**. Ist `API_DOMAIN_ZUSATZ` leer oder nicht
+# gesetzt, expandiert der Platzhalter zu nichts, und es bleibt bei einem
+# Namen — lokal (`:80`) ist genau das der Fall. Steht ein Name darin, holt
+# Caddy auch dafür ein Zertifikat und bedient beide Adressen aus demselben
+# Aufbau.
+#
+# Gebraucht wird das für den Übergang: `api.bockelbrink.net` zeigt seit dem
+# 08.08.2026 auf diese Maschine, wurde hier aber nicht bedient — der Name
+# lieferte kein Zertifikat, während der DNS-Eintrag längst hierher wies.
+{$API_DOMAIN} {$API_DOMAIN_ZUSATZ} {
 	rate_limit {
 		zone anmeldung {
 			match {
@@ -102,6 +111,35 @@
 			events 15
 			window 1m
 		}
+
+		# Die großzügigste Zone von allen — und sie muss es sein. Wer nach
+		# einem Event dreißig Bilder hochlädt, schickt dreißig Anfragen in
+		# Folge; das ist der Normalfall und keine Flut. Mit dem Kontingent der
+		# Anmeldung (10) bräche der Upload nach dem zehnten Bild ab, mitten im
+		# Stapel und ohne dass jemand wüsste, was angekommen ist.
+		#
+		# Nur schreibend gezählt, aus demselben Grund wie bei den Terminen:
+		# Ein geöffnetes Album holt bis zu 120 Vorschaubilder, und jede
+		# sinnvolle Grenze wäre davon sofort gerissen.
+		zone fotoupload {
+			match {
+				path /fotoalbum* /foto/*
+				method POST PATCH DELETE PUT
+			}
+			key {remote_host}
+			events 60
+			window 1m
+		}
+	}
+
+	# Ein Bild je Anfrage, und mehr nimmt niemand mit dem Telefon auf. Die App
+	# verkleinert ohnehin vor dem Senden; was hier größer ankommt, will etwas
+	# anderes. Die API hat dieselbe Grenze noch einmal
+	# (`HOECHSTGROESSE_BYTES` in `api/src/bildverarbeitung.ts`) — zwei
+	# Schichten, weil diese hier bei einem Aufruf ohne Proxy fehlt, etwa im
+	# lokalen Aufbau oder in den Tests.
+	request_body {
+		max_size 25MB
 	}
 
 	# --- Universal Links -------------------------------------------------
