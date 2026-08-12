@@ -67,6 +67,17 @@ services:
       # Caddy — dürfen `X-Forwarded-For` bestimmen, wer die IP-Begrenzung
       # sieht. Siehe `vertrauterProxy` in `api/src/app.ts`.
       VERTRAUTER_PROXY: ${VERTRAUTER_PROXY:-172.16.0.0/12}
+      # Wohin die Bilddateien der Fotoalben gehen. Der Wert ist der Pfad
+      # **im Container**; welches Volume dahinterliegt, entscheidet
+      # `volumes:` unten. Ohne die Angabe fiele die API auf `/fotos`
+      # zurück — dasselbe Verzeichnis, nur unausgesprochen.
+      FOTO_WURZEL: /fotos
+    volumes:
+      # Bilder gehören nicht in die Datenbank: Sie würden jede Sicherung und
+      # jedes `pg_dump` mitschleppen, und ein Vereinsjahr wäre zweistellig in
+      # Gigabyte. Ein eigenes Volume lässt sich außerdem getrennt sichern und
+      # getrennt umziehen, wenn der Vereinsserver kommt.
+      - betrieb-fotos:/fotos
     depends_on:
       postgres:
         condition: service_healthy
@@ -109,4 +120,5 @@ services:
 
 volumes:
   betrieb-postgres:
+  betrieb-fotos:
   caddy-daten:

@@ -5,10 +5,14 @@
  * und einen gemerkten Mailer einsetzen können.
  */
 
+import multipart from '@fastify/multipart';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type pg from 'pg';
 
 import { fordereMagicLinkAn } from './anmeldung.ts';
+import { Bildablage, INHALTSTYPEN, etag } from './bildablage.ts';
+import { BildFehler, HOECHSTGROESSE_BYTES, verarbeite } from './bildverarbeitung.ts';
+import * as fotos from './fotoalbum.ts';
 import { IpBegrenzung } from './ipbegrenzung.ts';
 import * as jugend from './jugendtraining.ts';
 import * as jugendmails from './jugendmails.ts';
@@ -54,6 +58,12 @@ export interface Abhaengigkeiten {
   ipBegrenzung?: IpBegrenzung;
   /** Standard: `erzeugeStandardTerminDienst` — Tests reichen einen mit eingebettetem Kalender. */
   terminDienst?: TerminDienst;
+  /**
+   * Standard: das Volume unter `FOTO_WURZEL` (im Container `/fotos`). Tests
+   * reichen einen Wegwerf-Ordner herein — sonst schriebe `npm test` Bilder
+   * in die Ablage des Betriebs.
+   */
+  bildablage?: Bildablage;
 }
 
 /**
@@ -302,8 +312,15 @@ export function baueApp({
   hintergrundZeitschrankeMs = HINTERGRUND_ZEITSCHRANKE_MS,
   ipBegrenzung = new IpBegrenzung(HOECHSTENS_ANFRAGEN_JE_MINUTE, EINE_MINUTE_MS),
   terminDienst,
+  bildablage = new Bildablage(process.env.FOTO_WURZEL ?? '/fotos'),
 }: Abhaengigkeiten): FastifyInstance {
   const app = Fastify({ logger: protokollEinstellung, trustProxy: vertrauterProxy ?? false });
+
+  // Ein Bild je Anfrage, und die Grenze steht **hier** und nicht erst in der
+  // Bildverarbeitung: Ohne sie läse Fastify erst 400 MB in den Speicher, um
+  // sie danach abzulehnen. Caddy hat davor noch eine eigene Grenze — zwei
+  // Schichten, weil die äußere bei einem Aufruf ohne Proxy fehlt.
+  app.register(multipart, { limits: { fileSize: HOECHSTGROESSE_BYTES, files: 1 } });
   const log = protokoll ?? app.log;
   const termine = terminDienst ?? erzeugeStandardTerminDienst(log);
 
@@ -1143,6 +1160,318 @@ dein Kind auch anmelden.</p>
     // 404 auch für ein fremdes Kind: „Gibt es nicht" und „gehört dir nicht"
     // dürfen sich für den Anfragenden nicht unterscheiden.
     if (!weg) return antwort.code(404).send({ fehler: 'Diese Anmeldung gibt es nicht.' });
+    return antwort.code(204).send();
+  });
+
+  // --- Fotoalben ------------------------------------------------------------
+
+  /**
+   * Wer fragt — samt der Angabe, ob er zur Jugend zählt.
+   *
+   * Die Zusatzabfrage kostet eine Zeile Datenbank je Anfrage und ist der
+   * Preis dafür, dass `darfSehen` nichts herleiten muss. Sie läuft nur bei
+   * den Foto-Pfaden, nicht bei jeder Anfrage der API.
+   */
+  async function holeBetrachter(
+    anfrage: { headers: Record<string, unknown> },
+  ): Promise<fotos.Betrachter | null> {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return null;
+
+    return {
+      id: ausweis.mitgliedId,
+      rolle: ausweis.rolle as fotos.Betrachter['rolle'],
+      gehoertZurJugend: await fotos.gehoertZurJugend(pool, ausweis.mitgliedId),
+    };
+  }
+
+  app.post('/fotoalbum', async (anfrage, antwort) => {
+    const betrachter = await holeBetrachter(anfrage);
+    if (!betrachter) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+    if (!fotos.darfAlbumAnlegen(betrachter.rolle)) {
+      return antwort.code(403).send({ fehler: 'Alben legen Guides und die Verwaltung an.' });
+    }
+
+    const koerper = anfrage.body as Record<string, unknown>;
+    const titel = typeof koerper?.titel === 'string' ? koerper.titel.trim() : '';
+    const ereignisAm = lieszeitpunkt(koerper?.ereignisAm);
+
+    if (titel === '' || !ereignisAm) {
+      return antwort.code(400).send({ fehler: 'Titel und Datum werden gebraucht.' });
+    }
+
+    const sichtbarkeit = koerper?.sichtbarkeit;
+    if (sichtbarkeit !== undefined && sichtbarkeit !== 'mitglieder' && sichtbarkeit !== 'jugend') {
+      return antwort.code(400).send({ fehler: 'Sichtbarkeit ist „mitglieder" oder „jugend".' });
+    }
+
+    const album = await fotos.legeAlbumAn(
+      pool,
+      {
+        titel,
+        beschreibung: typeof koerper.beschreibung === 'string' ? koerper.beschreibung.trim() : null,
+        ereignisAm,
+        terminSchluessel:
+          typeof koerper.terminSchluessel === 'string' ? koerper.terminSchluessel : null,
+        sichtbarkeit,
+        hochladenBis: lieszeitpunkt(koerper?.hochladenBis),
+      },
+      betrachter.id,
+    );
+
+    return antwort.code(201).send(album);
+  });
+
+  app.get('/fotoalbum', async (anfrage, antwort) => {
+    const betrachter = await holeBetrachter(anfrage);
+    if (!betrachter) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    return antwort.send(await fotos.holeAlben(pool));
+  });
+
+  app.get('/fotoalbum/:id', async (anfrage, antwort) => {
+    const betrachter = await holeBetrachter(anfrage);
+    if (!betrachter) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    const album = await fotos.holeAlbum(pool, id);
+    if (!album) return antwort.code(404).send({ fehler: 'Dieses Album gibt es nicht.' });
+
+    // Gefiltert wird **hier**, nicht in der Abfrage: Die eine Funktion, die
+    // über Sichtbarkeit entscheidet, soll auch die einzige bleiben.
+    const alle = await fotos.holeFotos(pool, id);
+    return antwort.send({
+      ...album,
+      fotos: alle.filter((foto) => fotos.darfSehen(betrachter, album, foto)),
+    });
+  });
+
+  app.patch('/fotoalbum/:id', async (anfrage, antwort) => {
+    const betrachter = await holeBetrachter(anfrage);
+    if (!betrachter) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+    if (!fotos.darfAlbumAnlegen(betrachter.rolle)) {
+      return antwort.code(403).send({ fehler: 'Das dürfen Guides und die Verwaltung.' });
+    }
+
+    const { id } = anfrage.params as { id: string };
+    const koerper = anfrage.body as Record<string, unknown>;
+
+    const geaendert = await fotos.aendereAlbum(pool, id, {
+      titel: typeof koerper?.titel === 'string' ? koerper.titel : undefined,
+      beschreibung: 'beschreibung' in (koerper ?? {})
+        ? (koerper.beschreibung as string | null)
+        : undefined,
+      sichtbarkeit:
+        koerper?.sichtbarkeit === 'mitglieder' || koerper?.sichtbarkeit === 'jugend'
+          ? koerper.sichtbarkeit
+          : undefined,
+      zustand:
+        koerper?.zustand === 'offen' || koerper?.zustand === 'geschlossen'
+          ? koerper.zustand
+          : undefined,
+    });
+
+    if (!geaendert) return antwort.code(404).send({ fehler: 'Dieses Album gibt es nicht.' });
+    return antwort.send(geaendert);
+  });
+
+  app.delete('/fotoalbum/:id', async (anfrage, antwort) => {
+    const betrachter = await holeBetrachter(anfrage);
+    if (!betrachter) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+    if (!fotos.darfSichten(betrachter.rolle)) {
+      return antwort.code(403).send({ fehler: 'Das darf nur die Verwaltung.' });
+    }
+
+    const { id } = anfrage.params as { id: string };
+    const weg = await fotos.loescheAlbum(pool, id);
+    if (!weg) return antwort.code(404).send({ fehler: 'Dieses Album gibt es nicht.' });
+
+    // Erst die Zeilen, dann die Dateien. Andersherum bliebe bei einem Fehler
+    // dazwischen ein Album voller kaputter Platzhalter stehen; so bleiben
+    // schlimmstenfalls Dateien liegen, die niemand mehr referenziert.
+    await bildablage.loescheAlbum(id);
+    return antwort.code(204).send();
+  });
+
+  app.post('/fotoalbum/:id/fotos', async (anfrage, antwort) => {
+    const betrachter = await holeBetrachter(anfrage);
+    if (!betrachter) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    const album = await fotos.holeAlbum(pool, id);
+    if (!album) return antwort.code(404).send({ fehler: 'Dieses Album gibt es nicht.' });
+
+    if (!fotos.darfHochladen(album, jetzt())) {
+      return antwort.code(409).send({ fehler: 'Dieses Album nimmt keine Bilder mehr an.' });
+    }
+
+    const datei = await anfrage.file();
+    if (!datei) return antwort.code(400).send({ fehler: 'Es kam keine Datei an.' });
+
+    const roh = await datei.toBuffer();
+
+    let bild;
+    try {
+      bild = await verarbeite(roh);
+    } catch (fehler) {
+      if (fehler instanceof BildFehler) {
+        return antwort.code(400).send({ fehler: fehler.message });
+      }
+      throw fehler;
+    }
+
+    const zeile = await fotos.legeFotoAn(pool, {
+      albumId: id,
+      hochgeladenVon: betrachter.id,
+      aufgenommenAm: bild.aufgenommenAm,
+      pruefsumme: bild.pruefsumme,
+      bytes: bild.bytes,
+      breite: bild.breite,
+      hoehe: bild.hoehe,
+    });
+
+    // 200 statt 409: Für den Hochladenden ist „liegt schon drin" kein
+    // Fehler, sondern das gewünschte Ergebnis. Bei einem Stapel von dreißig
+    // Bildern, von denen fünf schon da sind, will niemand fünf rote Meldungen.
+    if (zeile === 'doppelt') {
+      return antwort.code(200).send({ doppelt: true });
+    }
+
+    await bildablage.lege(id, zeile.id, bild.fassungen);
+    return antwort.code(201).send(zeile);
+  });
+
+  app.get('/foto/:id/:fassung', async (anfrage, antwort) => {
+    const betrachter = await holeBetrachter(anfrage);
+    if (!betrachter) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id, fassung } = anfrage.params as { id: string; fassung: string };
+    if (fassung !== 'vorschau' && fassung !== 'anzeige' && fassung !== 'original') {
+      return antwort.code(404).send({ fehler: 'Diese Fassung gibt es nicht.' });
+    }
+
+    const foto = await fotos.holeFoto(pool, id);
+    const album = foto ? await fotos.holeAlbum(pool, foto.albumId) : null;
+
+    // **404 und nicht 403.** Ein 403 verriete, dass es dieses Bild gibt —
+    // und damit, dass jemand ein Bild hochgeladen hat, das noch niemand
+    // freigegeben hat. „Gibt es nicht" und „darfst du nicht" müssen sich für
+    // den Anfragenden gleich anfühlen.
+    if (
+      !foto ||
+      !album ||
+      !fotos.darfSehen(betrachter, album, foto) ||
+      !fotos.darfFassungSehen(betrachter.rolle, fassung)
+    ) {
+      return antwort.code(404).send({ fehler: 'Dieses Bild gibt es nicht.' });
+    }
+
+    const marke = etag(foto.albumId, foto.id, fassung);
+    if (anfrage.headers['if-none-match'] === marke) return antwort.code(304).send();
+
+    let daten;
+    try {
+      daten = await bildablage.lies(foto.albumId, foto.id, fassung);
+    } catch {
+      // Zeile ohne Datei: Das sollte nicht vorkommen, und wenn doch, ist ein
+      // 404 die ehrlichere Antwort als ein 500 — für den Anfragenden ist das
+      // Bild schlicht nicht da.
+      return antwort.code(404).send({ fehler: 'Dieses Bild gibt es nicht.' });
+    }
+
+    return antwort
+      .header('content-type', INHALTSTYPEN[fassung])
+      .header('etag', marke)
+      // `private`: Bilder dürfen im Browser des Mitglieds liegen, aber in
+      // keinem Zwischenspeicher, der sie an andere ausliefert.
+      .header('cache-control', 'private, max-age=86400')
+      .send(daten);
+  });
+
+  app.patch('/foto/:id', async (anfrage, antwort) => {
+    const betrachter = await holeBetrachter(anfrage);
+    if (!betrachter) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+    if (!fotos.darfSichten(betrachter.rolle)) {
+      return antwort.code(403).send({ fehler: 'Sichten darf nur die Verwaltung.' });
+    }
+
+    const { id } = anfrage.params as { id: string };
+    const koerper = anfrage.body as Record<string, unknown>;
+
+    if (koerper?.zustand === 'freigegeben' || koerper?.zustand === 'abgelehnt') {
+      const foto = await fotos.entscheideUeberFoto(
+        pool,
+        id,
+        koerper.zustand,
+        betrachter.id,
+        jetzt(),
+      );
+      if (!foto) return antwort.code(404).send({ fehler: 'Dieses Bild gibt es nicht.' });
+      return antwort.send(foto);
+    }
+
+    if (typeof koerper?.fuerHomepage === 'boolean') {
+      const foto = await fotos.setzeFuerHomepage(pool, id, koerper.fuerHomepage);
+      // 409, nicht 404: Das Bild gibt es, nur ist es nicht freigegeben —
+      // und ein nicht freigegebenes Bild gehört nicht auf die Vereinsseite.
+      if (!foto) {
+        const vorhanden = await fotos.holeFoto(pool, id);
+        return vorhanden
+          ? antwort.code(409).send({ fehler: 'Erst freigeben, dann für die Homepage vormerken.' })
+          : antwort.code(404).send({ fehler: 'Dieses Bild gibt es nicht.' });
+      }
+      return antwort.send(foto);
+    }
+
+    return antwort.code(400).send({ fehler: 'Nichts zu ändern.' });
+  });
+
+  app.delete('/foto/:id', async (anfrage, antwort) => {
+    const betrachter = await holeBetrachter(anfrage);
+    if (!betrachter) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    const foto = await fotos.holeFoto(pool, id);
+    if (!foto) return antwort.code(404).send({ fehler: 'Dieses Bild gibt es nicht.' });
+
+    if (!fotos.darfLoeschen(betrachter, foto)) {
+      // 404 aus demselben Grund wie beim Ausliefern: Wer das Bild nicht
+      // sehen darf, soll auch nicht erfahren, dass es existiert.
+      const album = await fotos.holeAlbum(pool, foto.albumId);
+      const sichtbar = album ? fotos.darfSehen(betrachter, album, foto) : false;
+      return sichtbar
+        ? antwort.code(403).send({ fehler: 'Das darf nur die Verwaltung.' })
+        : antwort.code(404).send({ fehler: 'Dieses Bild gibt es nicht.' });
+    }
+
+    await fotos.loescheFoto(pool, id);
+    await bildablage.loesche(foto.albumId, foto.id);
+    return antwort.code(204).send();
+  });
+
+  app.post('/foto/:id/melden', async (anfrage, antwort) => {
+    const betrachter = await holeBetrachter(anfrage);
+    if (!betrachter) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    const foto = await fotos.holeFoto(pool, id);
+    const album = foto ? await fotos.holeAlbum(pool, foto.albumId) : null;
+
+    if (!foto || !album || !fotos.darfSehen(betrachter, album, foto)) {
+      return antwort.code(404).send({ fehler: 'Dieses Bild gibt es nicht.' });
+    }
+
+    const koerper = anfrage.body as Record<string, unknown>;
+    await fotos.meldeFoto(
+      pool,
+      id,
+      betrachter.id,
+      typeof koerper?.grund === 'string' ? koerper.grund.trim() : null,
+    );
+
+    // 204 auch bei der zweiten Meldung desselben Menschen: Ihm zu sagen
+    // „hast du schon" hilft ihm nicht und erzählt ihm etwas über die Liste
+    // der Verwaltung.
     return antwort.code(204).send();
   });
 
