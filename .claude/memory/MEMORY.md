@@ -1,3 +1,4 @@
+- [TestFlight und EAS](testflight-und-eas.md) — Team 755278A9P4, EAS-Projekt, der Bauweg des dev-Builds
 - [Instagram erst mit Backend](instagram-erst-mit-backend.md) — vertagt; Meta verlangt Token, das nirgends sicher liegen kann
 - [iOS-Gerätebau: Push-Berechtigung](ios-geraetebau-push-berechtigung.md) — kostenloses Apple-Team scheitert an `aps-environment`, das die App gar nicht braucht
 - [Server: offene Punkte](mtb-server-offene-punkte.md) — Hetzner trägt allein (Contabo gekündigt); es fehlen SMTP, SFTP-Ziel, ein zweiter Zugang und die Vereinsmaschine
