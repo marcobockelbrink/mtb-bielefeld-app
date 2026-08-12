@@ -34,3 +34,5 @@ Mitglieder laufen ab jetzt über diesen Weg.
 **How to apply:** Neuer Build: `npx eas-cli build --platform ios --profile
 dev-testflight`, dann `… submit … --latest`. Verwandt:
 [[ios-geraetebau-push-berechtigung]], [[mtb-server-offene-punkte]]
+
+**12.08.2026, echtes iPhone:** Build über TestFlight installiert, der geteilte Link öffnet die App. Der Gerätenachweis der Universal Links ist erbracht — mit Team 755278A9P4 und der AASA vom Prüfserver.
