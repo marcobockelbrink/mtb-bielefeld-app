@@ -6,6 +6,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,6 +36,19 @@ export default function VereinScreen() {
         <Text style={[styles.name, { color: palette.text }]}>MTB Bielefeld e.V.</Text>
         <Text style={[styles.intro, { color: palette.textMuted }]}>{CLUB_INTRO}</Text>
       </View>
+
+      {/* Vor den Vereinstexten, weil es das Einzige hier ist, das Mitglieder
+          regelmäßig ansteuern — die Texte darunter liest man einmal. Kein
+          eigener Reiter: Die Leiste fasst vier (README, nachgemessen). */}
+      <Card>
+        <View style={styles.abschnittTitel}>
+          <Heading>Fotoalben</Heading>
+        </View>
+        <Text style={[styles.absatz, { color: palette.text }]}>
+          Bilder von Touren, Trainings und Rennen — von Mitgliedern für Mitglieder.
+        </Text>
+        <ActionButton label="Zu den Alben" onPress={() => router.push('/fotos')} />
+      </Card>
 
       {CLUB_SECTIONS.map((abschnitt) => (
         <Card key={abschnitt.title}>

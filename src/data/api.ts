@@ -133,7 +133,15 @@ export class ApiZugang {
           // `api/src/app.ts` keinen Körper. Stünde die Kopfzeile immer da,
           // käme keine der beiden Anfragen je durch — die Tourenanmeldung
           // funktionierte nie.
-          ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}),
+          //
+          // FormData ausgenommen: Dort setzt fetch die Kopfzeile selbst,
+          // samt der Multipart-Grenze (`boundary=…`), die nur fetch kennt.
+          // Ein von Hand gesetztes `application/json` — oder auch nur ein
+          // `multipart/form-data` ohne Grenze — machte den Foto-Upload
+          // unlesbar, ohne dass ein Test der App es merkte.
+          ...(init.body !== undefined && !(init.body instanceof FormData)
+            ? { 'content-type': 'application/json' }
+            : {}),
         },
       });
     } catch (fehler) {
@@ -350,10 +358,37 @@ export class ApiZugang {
     return this.#mitToken<T>(pfad, { method: 'GET' });
   }
 
-  sende<T>(pfad: string, methode: 'POST' | 'PUT' | 'DELETE', koerper?: unknown): Promise<T> {
+  sende<T>(pfad: string, methode: 'POST' | 'PUT' | 'PATCH' | 'DELETE', koerper?: unknown): Promise<T> {
     return this.#mitToken<T>(pfad, {
       method: methode,
       body: koerper === undefined ? undefined : JSON.stringify(koerper),
     });
+  }
+
+  /** Schickt eine Datei als Multipart — für den Foto-Upload. */
+  sendeDatei<T>(pfad: string, formular: FormData): Promise<T> {
+    return this.#mitToken<T>(pfad, { method: 'POST', body: formular });
+  }
+
+  /**
+   * Quelle für ein `<Image>`, das einen geschützten Pfad lädt.
+   *
+   * Die Fotos liefert die API nur mit Token aus (`GET /foto/:id/:fassung`)
+   * — ein nacktes `{uri}` bekäme 401. React Native kann Kopfzeilen an eine
+   * Bildquelle hängen; hier kommen sie samt dem **aktuellen** Zugangs-Token.
+   *
+   * Die Grenze dieser Abkürzung, ausgesprochen statt versteckt: Das Token
+   * gilt 15 Minuten, und ein Bild, das später lädt (langsame Liste, Tab
+   * lange offen), kann auf ein abgelaufenes treffen. Die Erneuerung von
+   * `#mitToken` greift hier nicht — `<Image>` ruft kein fetch von uns.
+   * In der Praxis lädt ein Album unmittelbar nach dem `hole()` der
+   * Albumdaten, das das Token gerade erst nachgezogen hat. Bleibt ein Bild
+   * doch grau, lädt ein erneutes Öffnen es nach.
+   */
+  bildQuelle(pfad: string): { uri: string; headers?: Record<string, string> } {
+    return {
+      uri: `${this.#basisUrl}${pfad}`,
+      ...(this.#zugang ? { headers: { authorization: `Bearer ${this.#zugang}` } } : {}),
+    };
   }
 }
