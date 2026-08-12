@@ -24,8 +24,14 @@ auf dem Gerät (siehe HINWEISE.md). Die Berechtigung ist also schlicht
 überflüssig, blockiert aber jeden Bau ohne bezahlten Entwicklerzugang und führt
 im App Store zu Rückfragen.
 
-**How to apply:** Die Änderung an `ios/` ist Wegwerf-Material — das Verzeichnis
-steht in `.gitignore` und wird bei jedem `prebuild` neu erzeugt, die
-Berechtigung ist danach wieder da. Dauerhaft gehört ein kleines Config-Plugin
-ins Projekt, das `aps-environment` nach `expo-notifications` wieder entfernt.
-Das ist noch nicht gebaut.
+**Erledigt seit dem 07.08.2026:** Das Config-Plugin gibt es —
+`plugins/ohne-push-berechtigung.cjs`, eingehängt in `app.config.js` als
+**erster** Eintrag der Plugin-Liste. Es entfernt `aps-environment` wieder,
+nachdem `expo-notifications` es gesetzt hat. Der Handgriff unten ist damit
+Geschichte; wer `prebuild` laufen lässt, bekommt die Berechtigung nicht
+mehr zurück.
+
+**How to apply:** Die Änderung an `ios/` wäre ohnehin Wegwerf-Material — das
+Verzeichnis steht in `.gitignore` und entsteht bei jedem `prebuild` neu.
+Bleibt der Bau aufs echte Gerät trotzdem stehen, zuerst prüfen, ob das
+Plugin noch an erster Stelle steht.

@@ -22,16 +22,21 @@ Datenbank (12 Migrationen von null), nichts ist von Contabo mitgewandert.
 
 **Contabo ist am 08.08.2026 gekündigt**, der Hetzner trägt allein.
 
-`api.bockelbrink.net` ist damit **aufgegeben, nicht kaputt**. Der
-DNS-Eintrag zeigt seit dem 08.08.2026 auf den Hetzner (`78.47.128.71`),
-aber Caddy dort hat nur einen Site-Block für `api-dev.bockelbrink.net` —
-der Name liefert deshalb HTTP 000, kein Zertifikat. **Das ist so gewollt
-und kein Befund.** Marcos Entscheidung vom 08.08.2026: alles bleibt bei
-`api-dev`, der prod-Endpunkt entsteht später direkt als
-`api.mtb-bielefeld.de` auf der Vereinsmaschine. Ein zweiter Site-Block auf
-dem Hetzner wurde erwogen und **verworfen** — Vereinsdaten gehören nicht
-auf eine private Maschine, und ohne SMTP und bezahltes Apple-Konto wäre
-ein prod-Aufbau ohnehin unbenutzbar.
+`api.bockelbrink.net` zeigt seit dem 08.08.2026 auf den Hetzner und wird
+**seit dem 12.08.2026 dort auch bedient**: `API_DOMAIN_ZUSATZ` in
+`betrieb/.env` hängt den Namen als zweite Adresse an den Site-Block
+(Commits d0fe880, 40a82fb), Caddy hat das Zertifikat geholt, beide Namen
+liefern `{"zustand":"bereit"}`. Es ist **derselbe Aufbau und dieselbe
+Datenbank** — kein zweiter Stapel, kein prod. Der echte prod-Endpunkt
+entsteht weiterhin später als `api.mtb-bielefeld.de` auf der
+Vereinsmaschine; der Apple-Entwicklerzugang ist seit dem 11.08.2026
+vorhanden (bezahlt), es fehlen noch SMTP und die Maschine selbst.
+
+Seit dem 12.08.2026 besteht außerdem **SSH-Zugang von Marcos neuem
+Laptop**: `ssh mtb-hetzner`, Benutzer `verein`, Schlüssel
+`~/.ssh/mtb-verein` (neu erzeugt am 11.08., Fingerabdruck dTRm/Qgr…, über
+die Hetzner-Konsole hinterlegt). Der Contabo (`ssh mtb`) ist von hier nie
+erreichbar gewesen — Port 22 antwortet nicht, vermutlich `ufw`.
 
 Beim Messen die Falle beachten: Der Systemauflöser hielt
 `api.bockelbrink.net` noch auf der Contabo-Adresse fest und lieferte
