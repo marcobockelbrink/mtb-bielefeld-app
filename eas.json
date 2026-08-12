@@ -5,14 +5,12 @@
   },
   "build": {
     "dev-testflight": {
-      "comment-was-das-ist": "Der Build für TestFlight gegen den Prüfserver: Bündelkennung de.mtbbielefeld.app.dev, Name 'MTB Bielefeld (dev)'. EXPO_PUBLIC_-Variablen wirken beim Bauen (Falle 6 in CLAUDE.md) — ohne die Zeile hier spräche der Build mit localhost, und niemand sähe es, weil alles grün wäre.",
       "distribution": "store",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api-dev.bockelbrink.net"
       }
     },
     "prod": {
-      "comment-was-das-ist": "Der echte Build für den Verein — erst sinnvoll, wenn api.mtb-bielefeld.de existiert. APP_UMGEBUNG=prod setzt Kennung, Namen und Domain; die API-Adresse kommt dann aus src/config.ts, nicht von hier.",
       "distribution": "store",
       "env": {
         "EXPO_PUBLIC_APP_UMGEBUNG": "prod"
