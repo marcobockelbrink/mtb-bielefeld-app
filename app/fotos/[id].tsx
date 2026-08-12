@@ -20,12 +20,13 @@
  * Bilder kursieren in jeder WhatsApp-Gruppe. Auf der Vereinsseite wären sie
  * Ärger anderer Art als ein Persönlichkeitsrecht, aber Ärger.
  *
- * ## Was vom Plan abweicht
+ * ## Die Warteschlange
  *
- * Die Warteschlange für Uploads ohne Netz (Aufgabe 5, Schritt 2) fehlt noch:
- * Scheitert ein Bild, bleibt es im Stapel und der Knopf sagt „N übrig —
- * weiter versuchen". Das überlebt keinen App-Neustart. Für den Wald reicht
- * es fürs Erste; die persistente Schlange steht als offener Punkt im Plan.
+ * Jedes ausgewählte Bild wird sofort ins App-Verzeichnis kopiert und als
+ * Auftrag vermerkt (`warteschlangeSpeicher.ts`) — **vor** dem ersten
+ * Sendeversuch. Scheitert der Upload im Wald, überlebt der Auftrag den
+ * App-Neustart; beim nächsten Öffnen des Albums bietet der Knopf die
+ * übrigen an. Erst der gelungene Upload löscht Kopie und Auftrag.
  */
 
 import * as ImagePicker from 'expo-image-picker';
@@ -48,6 +49,8 @@ import {
 } from '../../src/data/fotos';
 import { formatiereEreignisdatum } from '../../src/features/fotos/AlbumKarte';
 import { FotoRaster } from '../../src/features/fotos/FotoRaster';
+import { entferne, fuegeHinzu, fuerAlbum, vermerkeFehlschlag, type Auftrag } from '../../src/features/fotos/warteschlange';
+import { kopiereInsAppVerzeichnis, liesSchlange, loescheKopie, schreibSchlange } from '../../src/features/fotos/warteschlangeSpeicher';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { useKonto } from '../../src/konto/KontoContext';
 import { font, fontSize, spacing } from '../../src/theme';
@@ -64,8 +67,8 @@ export default function AlbumScreen() {
   const [fehler, setFehler] = useState<string | null>(null);
   const [laedtNach, setLaedtNach] = useState(false);
 
-  /** Upload-Stapel: was noch hoch muss. Leer heißt: kein Upload im Gang. */
-  const [stapel, setStapel] = useState<string[]>([]);
+  /** Offene Aufträge dieses Albums — aus der persistenten Schlange. */
+  const [stapel, setStapel] = useState<Auftrag[]>([]);
   const [laeuftHoch, setLaeuftHoch] = useState(false);
   const [uebersprungen, setUebersprungen] = useState(0);
 
@@ -80,6 +83,9 @@ export default function AlbumScreen() {
     setFehler(null);
     try {
       setAlbum(await holeAlbum(api, id));
+      // Liegengebliebene Aufträge dieses Albums — vom letzten Mal, auch
+      // über einen Neustart hinweg.
+      setStapel(fuerAlbum(await liesSchlange(), id));
     } catch (ursache) {
       setFehler(beschreibeJugendFehler(ursache));
     }
@@ -91,32 +97,48 @@ export default function AlbumScreen() {
     }, [angemeldet, laden]),
   );
 
-  /** Arbeitet den Stapel ab; was scheitert, bleibt für „weiter versuchen". */
-  async function stapelHochladen(uris: string[]) {
+  /**
+   * Arbeitet Aufträge ab. Ein gelungener (oder doppelter) Upload löscht
+   * Auftrag und Kopie sofort — nicht erst am Ende des Stapels, damit ein
+   * Abbruch mittendrin nur die wirklich offenen übrig lässt.
+   */
+  async function stapelHochladen(auftraege: Auftrag[]) {
     setLaeuftHoch(true);
     setFehler(null);
     let doppelte = 0;
-    const gescheitert: string[] = [];
+    let schlange = await liesSchlange();
 
-    for (const uri of uris) {
+    for (const auftrag of auftraege) {
       try {
-        const vorbereitet = await bereiteVor(uri);
-        const ergebnis = await ladeHoch(api, id!, vorbereitet.uri);
+        const vorbereitet = await bereiteVor(auftrag.uri);
+        const ergebnis = await ladeHoch(api, auftrag.albumId, vorbereitet.uri);
         if ('doppelt' in ergebnis) doppelte += 1;
+        loescheKopie(auftrag);
+        schlange = entferne(schlange, auftrag.id);
       } catch {
-        gescheitert.push(uri);
+        schlange = vermerkeFehlschlag(schlange, auftrag.id);
       }
+      await schreibSchlange(schlange);
     }
 
-    setStapel(gescheitert);
+    const offen = fuerAlbum(schlange, id!);
+    setStapel(offen);
     setUebersprungen(doppelte);
     setLaeuftHoch(false);
-    if (gescheitert.length > 0) {
+    if (offen.length > 0) {
       setFehler(
-        `${gescheitert.length} ${gescheitert.length === 1 ? 'Bild ist' : 'Bilder sind'} nicht angekommen — kein Netz? „Weiter versuchen" schickt nur die fehlenden.`,
+        `${offen.length} ${offen.length === 1 ? 'Bild ist' : 'Bilder sind'} nicht angekommen — kein Netz? Sie bleiben gemerkt, auch über einen Neustart, und „Weiter versuchen" schickt nur die fehlenden.`,
       );
     }
     await laden();
+  }
+
+  /** Kopiert die Auswahl ins App-Verzeichnis und stellt sie in die Schlange. */
+  async function inDieSchlange(uris: string[]): Promise<Auftrag[]> {
+    const auftraege = uris.map((uri) => kopiereInsAppVerzeichnis(id!, uri));
+    await schreibSchlange(fuegeHinzu(await liesSchlange(), auftraege));
+    setStapel((alt) => [...alt, ...auftraege]);
+    return auftraege;
   }
 
   async function auswaehlenUndHochladen() {
@@ -134,7 +156,14 @@ export default function AlbumScreen() {
       'Ich habe die Bilder selbst aufgenommen, und die abgebildeten Personen sind mit der Verwendung im Verein einverstanden. Die Vereinsverwaltung sieht sie zuerst; sichtbar für andere werden sie erst nach Freigabe.',
       [
         { text: 'Abbrechen', style: 'cancel' },
-        { text: 'Einverstanden, hochladen', onPress: () => void stapelHochladen(uris) },
+        {
+          text: 'Einverstanden, hochladen',
+          onPress: () => {
+            // Erst sichern, dann senden: Ab hier überlebt die Auswahl auch
+            // einen Absturz zwischen Kopieren und erstem Sendeversuch.
+            void inDieSchlange(uris).then((auftraege) => stapelHochladen(auftraege));
+          },
+        },
       ],
     );
   }
