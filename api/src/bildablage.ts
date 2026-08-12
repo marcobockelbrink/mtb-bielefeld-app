@@ -48,7 +48,16 @@ export const INHALTSTYPEN: Record<Fassung, string> = {
 export class AblageFehler extends Error {}
 
 export class Bildablage {
-  constructor(private readonly wurzel: string) {}
+  // Kein Parameter-Property (`constructor(private readonly wurzel …)`):
+  // Das ist TypeScript-Syntax mit Laufzeitwirkung, und Node im Container
+  // läuft mit --experimental-strip-types, das nur Typen entfernt. Der
+  // Container starb daran in einer Schleife, während vitest — das voll
+  // übersetzt — alle Tests grün meldete. Lokal grün ist nicht Betrieb grün.
+  readonly #wurzel: string;
+
+  constructor(wurzel: string) {
+    this.#wurzel = wurzel;
+  }
 
   /**
    * Der Pfad einer Fassung — und die Stelle, an der Unsinn abprallt.
@@ -65,7 +74,7 @@ export class Bildablage {
       throw new AblageFehler(`Unbekannte Fassung: ${fassung}`);
     }
 
-    return path.join(this.wurzel, albumId, `${fotoId}-${fassung}.${ENDUNGEN[fassung]}`);
+    return path.join(this.#wurzel, albumId, `${fotoId}-${fassung}.${ENDUNGEN[fassung]}`);
   }
 
   async lege(
@@ -77,7 +86,7 @@ export class Bildablage {
     // gleichgültig — was zählt, ist, dass die Datenbankzeile **danach**
     // entsteht: Eine Zeile ohne Datei zeigt einen kaputten Platzhalter, eine
     // Datei ohne Zeile liegt nur herum.
-    await fs.mkdir(path.join(this.wurzel, this.gepruefteKennung(albumId)), { recursive: true });
+    await fs.mkdir(path.join(this.#wurzel, this.gepruefteKennung(albumId)), { recursive: true });
 
     await Promise.all(
       (Object.keys(ENDUNGEN) as Fassung[]).map((fassung) =>
@@ -107,7 +116,7 @@ export class Bildablage {
 
   /** Räumt den ganzen Ordner eines Albums ab — nach `DELETE /fotoalbum/:id`. */
   async loescheAlbum(albumId: string): Promise<void> {
-    await fs.rm(path.join(this.wurzel, this.gepruefteKennung(albumId)), {
+    await fs.rm(path.join(this.#wurzel, this.gepruefteKennung(albumId)), {
       recursive: true,
       force: true,
     });
@@ -115,7 +124,7 @@ export class Bildablage {
 
   /** Wie viel Platz ein Album belegt — für die Übersicht der Verwaltung. */
   async groesse(albumId: string): Promise<number> {
-    const ordner = path.join(this.wurzel, this.gepruefteKennung(albumId));
+    const ordner = path.join(this.#wurzel, this.gepruefteKennung(albumId));
 
     let summe = 0;
     let eintraege: string[];
