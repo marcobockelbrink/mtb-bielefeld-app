@@ -17,7 +17,14 @@
 
 import type pg from 'pg';
 
-export type Zustand = 'entwurf' | 'veroeffentlicht' | 'abgesagt';
+import type { KindEingabe, TrainingEingabe, Zustand } from '../../src/domain/apiVertrag.ts';
+
+// Zustand und die Eingabeformen stehen in `src/domain/apiVertrag.ts`: Die App
+// schickt sie, dieser Server erwartet sie — sie müssen übereinstimmen. Standen
+// sie doppelt, ließ sich eine Seite ändern, ohne dass eine Prüfung anschlug.
+// Hier weitergereicht, damit `app.ts` und die Tests sie wie bisher aus diesem
+// Modul beziehen.
+export type { KindEingabe, TrainingEingabe, Zustand };
 
 /**
  * Ist das überhaupt eine Kennung?
@@ -48,15 +55,6 @@ export interface Training {
   zustand: Zustand;
   absagegrund: string | null;
   angelegtVon: string;
-}
-
-export interface TrainingEingabe {
-  beginntAm: Date;
-  endetAm?: Date | null;
-  ort: string;
-  hinweis?: string | null;
-  plaetze?: number | null;
-  guidesNoetig?: number;
 }
 
 interface Zeile {
@@ -359,13 +357,6 @@ export async function holeGuideAdressen(
 
 /** Wie lange auf die Sperre gewartet wird, bevor abgebrochen wird. */
 const SPERR_ZEITSCHRANKE = '3s';
-
-export interface KindEingabe {
-  vorname: string;
-  nachname: string;
-  zeigtVorname: boolean;
-  zeigtNachname: boolean;
-}
 
 export type Anmeldeergebnis =
   | { ok: true; kindId: string; belegt: number }

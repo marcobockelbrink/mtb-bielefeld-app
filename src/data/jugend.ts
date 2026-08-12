@@ -10,9 +10,13 @@
  * daran denken müssen.
  */
 
+import type { KindEingabe, TrainingEingabe, Zustand } from '../domain/apiVertrag';
 import type { ApiZugang } from './api';
 
-export type Zustand = 'entwurf' | 'veroeffentlicht' | 'abgesagt';
+// Die Eingabeformen stehen in `domain/apiVertrag.ts`, weil der Server dieselben
+// erwartet. Hier weitergereicht, damit die Bildschirme sie wie bisher aus
+// diesem Modul beziehen können.
+export type { KindEingabe, TrainingEingabe, Zustand };
 
 export interface Training {
   id: string;
@@ -86,13 +90,6 @@ export async function holeTraining(api: ApiZugang, id: string): Promise<Training
   return { ...zuTraining(roh), kinder: roh.kinder, guides: roh.guides, guideZusagen: roh.guideZusagen };
 }
 
-export interface KindEingabe {
-  vorname: string;
-  nachname: string;
-  zeigtVorname: boolean;
-  zeigtNachname: boolean;
-}
-
 export function meldeKindAn(
   api: ApiZugang,
   id: string,
@@ -106,15 +103,6 @@ export function meldeKindAb(api: ApiZugang, id: string, kindId: string): Promise
     `/jugendtraining/${encodeURIComponent(id)}/kinder/${encodeURIComponent(kindId)}`,
     'DELETE',
   );
-}
-
-export interface TrainingEingabe {
-  beginntAm: Date;
-  endetAm?: Date | null;
-  ort: string;
-  hinweis?: string | null;
-  plaetze?: number | null;
-  guidesNoetig?: number;
 }
 
 export async function legeTrainingAn(api: ApiZugang, eingabe: TrainingEingabe): Promise<Training> {
