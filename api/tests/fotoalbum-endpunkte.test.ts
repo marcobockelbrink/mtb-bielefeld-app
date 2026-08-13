@@ -122,9 +122,8 @@ describe('POST /fotoalbum', () => {
     expect(antwort.json().sichtbarkeit).toBe('mitglieder');
   });
 
-  it('weist ein einfaches Mitglied mit 403 ab, ohne Anmeldung mit 401', async () => {
-    // Dieselbe Trennung wie beim Jugendtraining: Wer nicht angemeldet ist,
-    // soll sich anmelden; wem die Rolle fehlt, hilft Anmelden nicht.
+  it('verlangt nur eine Anmeldung — ein Mitglied darf anlegen', async () => {
+
     const app = bauen();
     const mitglied = await mitgliedMitToken('anna@example.org');
 
@@ -136,7 +135,7 @@ describe('POST /fotoalbum', () => {
       headers: { authorization: `Bearer ${mitglied.zugang}` },
       payload: { titel: 'X', ereignisAm: '2026-07-12T00:00:00Z' },
     });
-    expect(antwort.statusCode).toBe(403);
+    expect(antwort.statusCode).toBe(201);
   });
 
   it('verlangt Titel und Datum', async () => {

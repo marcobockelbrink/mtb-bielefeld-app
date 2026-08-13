@@ -25,7 +25,7 @@ import { ActionButton, Banner, EmptyState, LoadingState } from '../../src/ui/com
 
 export default function FotoAlbenScreen() {
   const insets = useSafeAreaInsets();
-  const { angemeldet, laedt: kontoLaedt, api, rolle } = useKonto();
+  const { angemeldet, laedt: kontoLaedt, api } = useKonto();
 
   const [alben, setAlben] = useState<Album[] | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -46,7 +46,8 @@ export default function FotoAlbenScreen() {
     }, [angemeldet, laden]),
   );
 
-  const darfAnlegen = rolle === 'guide' || rolle === 'verwaltung';
+  // Seit dem 13.08.2026 darf jedes Mitglied Alben anlegen.
+  const darfAnlegen = angemeldet;
 
   return (
     <>

@@ -136,9 +136,15 @@ export function darfLoeschen(
 
 // --- Kleinere Regeln --------------------------------------------------------
 
-/** Alben legen Guides und Verwaltung an, nicht jedes Mitglied. */
+/**
+ * Alben legt jedes angemeldete Mitglied an — Marcos Entscheidung vom
+ * 13.08.2026, zuvor Guides und Verwaltung. Der Mitfahrer beim Rennen ist
+ * kein Guide, und ohne Album kann er seine Bilder nirgends abladen. Gegen
+ * Wildwuchs schützt, dass die Verwaltung jedes Album löschen kann — und
+ * dass ohnehin nichts sichtbar wird, was sie nicht freigibt.
+ */
 export function darfAlbumAnlegen(rolle: Rolle): boolean {
-  return rolle === 'guide' || rolle === 'verwaltung';
+  return rolle === 'mitglied' || rolle === 'guide' || rolle === 'verwaltung';
 }
 
 /** Sichten — freigeben, ablehnen, für die Homepage markieren — nur Verwaltung. */

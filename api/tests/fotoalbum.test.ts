@@ -169,10 +169,12 @@ describe('darfLoeschen', () => {
 });
 
 describe('die kleineren Regeln', () => {
-  it('lässt Guides und Verwaltung Alben anlegen, Mitglieder nicht', () => {
+  it('lässt jedes Mitglied Alben anlegen — seit dem 13.08.2026', () => {
+    // Der Mitfahrer beim Rennen ist kein Guide; gegen Wildwuchs schützt
+    // das Löschrecht der Verwaltung, nicht eine Hürde beim Anlegen.
     expect(darfAlbumAnlegen('guide')).toBe(true);
     expect(darfAlbumAnlegen('verwaltung')).toBe(true);
-    expect(darfAlbumAnlegen('mitglied')).toBe(false);
+    expect(darfAlbumAnlegen('mitglied')).toBe(true);
   });
 
   it('lässt nur die Verwaltung sichten', () => {
