@@ -21,6 +21,7 @@ import type { Mailer } from './mailer.ts';
 import { serialisiereFehler, type Protokoll } from './protokoll.ts';
 import { beendeSitzung, erneuereSitzung, loeseMagicLinkEin, pruefeZugang, type Ausweis } from './sitzung.ts';
 import { erzeugeStandardTerminDienst, type TerminDienst } from './termine.ts';
+import * as verwaltung from './verwaltung.ts';
 import {
   holeBelegung,
   holeTeilnehmer,
@@ -147,6 +148,7 @@ const IP_GESCHUETZTE_PFAD_PRAEFIXE = [
   '/termine/',
   '/gast/',
   '/jugendtraining',
+  '/verwaltung',
 ];
 
 /**
@@ -1473,6 +1475,87 @@ dein Kind auch anmelden.</p>
     // „hast du schon" hilft ihm nicht und erzählt ihm etwas über die Liste
     // der Verwaltung.
     return antwort.code(204).send();
+  });
+
+  // --- Mitgliederverwaltung -------------------------------------------------
+  //
+  // 403 und nicht 404 für Angemeldete ohne Rolle — dieselbe Abwägung wie
+  // bei den Guide-Wegen: Wer angemeldet ist, darf wissen, dass es diesen
+  // Bereich gibt, nur nicht hinein. Anders als bei den Fotos verrät die
+  // bloße Existenz des Weges nichts über Inhalte.
+
+  async function holeVerwaltung(
+    anfrage: { headers: Record<string, unknown> },
+  ): Promise<{ ausweis: Ausweis } | { fehler: 401 | 403 }> {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return { fehler: 401 };
+    if (ausweis.rolle !== 'verwaltung') return { fehler: 403 };
+    return { ausweis };
+  }
+
+  function weiseVerwaltungAb(
+    antwort: { code(n: number): { send(k: unknown): unknown } },
+    code: 401 | 403,
+  ) {
+    return code === 401
+      ? antwort.code(401).send({ fehler: 'Nicht angemeldet.' })
+      : antwort.code(403).send({ fehler: 'Das darf nur die Verwaltung.' });
+  }
+
+  app.get('/verwaltung/mitglieder', async (anfrage, antwort) => {
+    const erlaubnis = await holeVerwaltung(anfrage);
+    if ('fehler' in erlaubnis) return weiseVerwaltungAb(antwort, erlaubnis.fehler);
+
+    return antwort.send(await verwaltung.holeMitglieder(pool, jetzt()));
+  });
+
+  app.post('/verwaltung/einladungen', async (anfrage, antwort) => {
+    const erlaubnis = await holeVerwaltung(anfrage);
+    if ('fehler' in erlaubnis) return weiseVerwaltungAb(antwort, erlaubnis.fehler);
+
+    const koerper = anfrage.body as Record<string, unknown>;
+    const email = typeof koerper?.email === 'string' ? koerper.email.trim() : '';
+    // Dieselbe bescheidene Prüfung wie beim Anmelden: ein @ mit etwas davor
+    // und dahinter. Alles Strengere weist echte Adressen ab.
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      return antwort.code(400).send({ fehler: 'Das ist keine E-Mail-Adresse.' });
+    }
+
+    // Erst antworten, dann verschicken — dieselbe Regel wie bei den Magic
+    // Links: Der Mailversand darf die Antwort nicht aufhalten.
+    antwort.code(202).send({ eingeladen: email });
+    imHintergrund(() =>
+      verwaltung.ladeEin(pool, mailer, email, jetzt(), process.env.TESTFLIGHT_LINK),
+    );
+    return antwort;
+  });
+
+  app.patch('/verwaltung/mitglieder/:id', async (anfrage, antwort) => {
+    const erlaubnis = await holeVerwaltung(anfrage);
+    if ('fehler' in erlaubnis) return weiseVerwaltungAb(antwort, erlaubnis.fehler);
+
+    const { id } = anfrage.params as { id: string };
+    const koerper = anfrage.body as Record<string, unknown>;
+
+    const rolle =
+      koerper?.rolle === 'mitglied' || koerper?.rolle === 'guide' || koerper?.rolle === 'verwaltung'
+        ? koerper.rolle
+        : undefined;
+    const jugend = typeof koerper?.jugend === 'boolean' ? koerper.jugend : undefined;
+    if (rolle === undefined && jugend === undefined) {
+      return antwort.code(400).send({ fehler: 'Nichts zu ändern.' });
+    }
+
+    const ergebnis = await verwaltung.aendereMitglied(pool, id, { rolle, jugend });
+    if (!ergebnis.ok) {
+      return ergebnis.grund === 'unbekannt'
+        ? antwort.code(404).send({ fehler: 'Dieses Mitglied gibt es nicht.' })
+        : antwort.code(409).send({
+            fehler: 'Das ist die letzte Verwaltungsrolle — erst jemand anderem geben, dann abgeben.',
+          });
+    }
+
+    return antwort.send(ergebnis);
   });
 
   return app;

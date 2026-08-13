@@ -489,8 +489,15 @@ export async function meldeFoto(
  * herzuleiten.
  */
 export async function gehoertZurJugend(db: pg.Pool, mitgliedId: string): Promise<boolean> {
+  // Seit Migration 014 gibt es die ausdrückliche Zuteilung durch die
+  // Verwaltung (`mitglied.jugend`); die Herleitung über angemeldete Kinder
+  // bleibt als ODER — Eltern sollen die Bilder ihrer Kinder sehen, ohne
+  // dass jemand daran denken muss, ihnen ein Häkchen zu setzen.
   const { rowCount } = await db.query(
-    'SELECT 1 FROM jugendtraining_kind WHERE mitglied_id = $1 LIMIT 1',
+    `SELECT 1 FROM mitglied WHERE id = $1 AND jugend
+     UNION ALL
+     SELECT 1 FROM jugendtraining_kind WHERE mitglied_id = $1
+     LIMIT 1`,
     [mitgliedId],
   );
 
