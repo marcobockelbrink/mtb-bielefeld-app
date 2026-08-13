@@ -104,3 +104,14 @@ dem, was der Verein liefern muss. Version bleibt auf Marcos Wunsch bei
 0.8, bis der Mailweg steht. Verwandt:
 [[age-schluessel-fuer-sicherungen]], [[lokal-gruen-ist-nicht-ci-gruen]],
 [[simulator-mit-idb]]
+
+## Nächster Handgriff — Stand 13.08.2026
+
+Marco hat **noch kein Konto** auf dem Prüfserver (nur drei Prüfkonten aus
+der Rauchprobe). Seine Einladung für company@bockelbrink.net ist offen
+(gültig bis Oktober). Reihenfolge: in der App registrieren, dann per CLI
+`rolle:setzen -- company@bockelbrink.net verwaltung` — das Henne-Ei des
+ersten Verwalters. Danach läuft alles über die Verwaltungsansicht der App.
+Sobald der öffentliche TestFlight-Link den Beta-Review passiert hat,
+gehört er als TESTFLIGHT_LINK in die Server-.env — die Einladungsmail
+nimmt ihn dann automatisch auf.

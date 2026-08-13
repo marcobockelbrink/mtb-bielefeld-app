@@ -36,3 +36,5 @@ dev-testflight`, dann `… submit … --latest`. Verwandt:
 [[ios-geraetebau-push-berechtigung]], [[mtb-server-offene-punkte]]
 
 **12.08.2026, echtes iPhone:** Build über TestFlight installiert, der geteilte Link öffnet die App. Der Gerätenachweis der Universal Links ist erbracht — mit Team 755278A9P4 und der AASA vom Prüfserver.
+
+**Release 0.8.5, 13.08.2026:** gebaut und eingereicht (Fotoalben, Mitgliederverwaltung, echter Mailweg). `ascAppId 6800879450` steht im Submit-Profil — ein Release ist jetzt ein Befehl: `npx eas-cli build --platform ios --profile dev-testflight --non-interactive --auto-submit`.
