@@ -105,13 +105,22 @@ dem, was der Verein liefern muss. Version bleibt auf Marcos Wunsch bei
 [[age-schluessel-fuer-sicherungen]], [[lokal-gruen-ist-nicht-ci-gruen]],
 [[simulator-mit-idb]]
 
-## Nächster Handgriff — Stand 13.08.2026
+## Stand nach dem 13.08.2026
 
-Marco hat **noch kein Konto** auf dem Prüfserver (nur drei Prüfkonten aus
-der Rauchprobe). Seine Einladung für company@bockelbrink.net ist offen
-(gültig bis Oktober). Reihenfolge: in der App registrieren, dann per CLI
-`rolle:setzen -- company@bockelbrink.net verwaltung` — das Henne-Ei des
-ersten Verwalters. Danach läuft alles über die Verwaltungsansicht der App.
-Sobald der öffentliche TestFlight-Link den Beta-Review passiert hat,
-gehört er als TESTFLIGHT_LINK in die Server-.env — die Einladungsmail
-nimmt ihn dann automatisch auf.
+Marco ist registriert und hat die Rolle `verwaltung` — der erste
+Verwalter steht, ab jetzt läuft alles über die Verwaltungsansicht der
+App (einladen mit Ein-Klick-Mail, Rollen, Jugend, Einladungen
+zurückziehen, Mitglieder löschen; die letzte Verwaltung ist
+unentziehbar und unlöschbar). **Verwaltung erbt die Guide-Rechte**
+(`hatGuideRechte` in `rolle.ts`) — keine Doppelrolle.
+
+Noch offen, wartet auf außen: der **öffentliche TestFlight-Link** (nach
+Beta-Review) als `TESTFLIGHT_LINK` in die Server-.env — dann ist die
+Einladungsmail die Komplett-Einladung samt App-Installation. Und
+weiterhin: **SFTP-Sicherungsziel** (inzwischen liegen echte Fotos und
+Mitgliederdaten ungesichert!) und die **Vereinsmaschine**.
+
+CodeQL-Funde am 13.08. abgearbeitet: sechs Härtungen, vier begründete
+Fehlalarme. Die zwei Dependabot-Warnungen sind die bekannten
+image-size-Advisories ohne Fix (Ausnahme bis 01.11. in
+tools/audit-mit-ausnahmen.mjs).
