@@ -68,6 +68,10 @@ function AppStack() {
         <Stack.Screen name="termin/[id]" options={{ title: 'Termin' }} />
         <Stack.Screen name="jugend/[id]" options={{ title: 'Jugendtraining' }} />
         <Stack.Screen name="news/[id]" options={{ title: 'Beitrag' }} />
+        {/* Ohne Eintrag stünde der rohe Routenpfad in der Kopfzeile —
+            „anmeldung/[token]" mitten im Anmelden, auf dem Gerät gesehen. */}
+        <Stack.Screen name="anmeldung/[token]" options={{ title: 'Anmeldung' }} />
+        <Stack.Screen name="t/[id]" options={{ title: 'Jugendtraining' }} />
         <Stack.Screen
           name="einstellungen"
           options={{
