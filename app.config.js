@@ -40,7 +40,10 @@
 const UMGEBUNGEN = {
   dev: {
     kennung: 'de.mtbbielefeld.app.dev',
-    name: 'MTB Bielefeld (dev)',
+    // Unterm Icon zeigt iOS nur gut ein Dutzend Zeichen — „MTB Bielefeld
+    // (dev)" wurde abgeschnitten und sah kaputt aus. Kurz genug für den
+    // Startbildschirm, eindeutig genug neben der echten App.
+    name: 'MTB BI (dev)',
     domain: 'api-dev.bockelbrink.net',
     schema: 'mtbie-dev',
   },
@@ -94,7 +97,10 @@ export function baueKonfiguration(umgebung) {
           {
             action: 'VIEW',
             autoVerify: true,
-            data: [{ scheme: 'https', host: u.domain, pathPrefix: '/t' }],
+            data: [
+              { scheme: 'https', host: u.domain, pathPrefix: '/t' },
+              { scheme: 'https', host: u.domain, pathPrefix: '/e' },
+            ],
             category: ['BROWSABLE', 'DEFAULT'],
           },
         ],

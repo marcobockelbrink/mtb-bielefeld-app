@@ -24,7 +24,7 @@ import { setzeAbonnement } from '../data/jugend';
 import { secureTokenSpeicher } from '../data/secureTokenSpeicher';
 import type { TokenSpeicher } from '../data/tokenSpeicher';
 import { beschreibeEinloesenFehler } from './einloesenFehler';
-import { extrahiereMagicToken } from './magicLink';
+import { extrahiereEinladungsCode, extrahiereMagicToken } from './magicLink';
 
 export interface KontoZustand {
   angemeldet: boolean;
@@ -174,7 +174,13 @@ export function KontoProvider({
 
   const loeseEin = useCallback(
     async (url: string) => {
-      const token = extrahiereMagicToken(url);
+      // Zwei Sorten Links, ein Weg: Magic Link (`/anmeldung/<token>`) und
+      // der Ein-Klick-Einladungslink (`/e/<code>`). Beide beweisen
+      // dasselbe — Zugriff auf das Postfach — und enden beide in einem
+      // frischen Token-Paar; nur der Endpunkt unterscheidet sich.
+      const magic = extrahiereMagicToken(url);
+      const einladung = magic ? null : extrahiereEinladungsCode(url);
+      const token = magic ?? einladung;
       if (!token) return;
       // Derselbe Link kann zweimal ankommen (Anfangsadresse und Ereignis) —
       // eine Wiederholung bleibt stumm liegen, statt einen frischen Erfolg
@@ -182,7 +188,8 @@ export function KontoProvider({
       if (token === zuletztVersuchterToken.current) return;
       zuletztVersuchterToken.current = token;
       try {
-        await api.loeseEin(token);
+        if (magic) await api.loeseEin(magic);
+        else await api.loeseEinladungEin(einladung!);
         setAngemeldet(true);
         setZuletztEingeloest(Date.now());
         setEinloesenFehlgeschlagen(null);

@@ -72,6 +72,7 @@ function AppStack() {
             „anmeldung/[token]" mitten im Anmelden, auf dem Gerät gesehen. */}
         <Stack.Screen name="anmeldung/[token]" options={{ title: 'Anmeldung' }} />
         <Stack.Screen name="t/[id]" options={{ title: 'Jugendtraining' }} />
+        <Stack.Screen name="e/[code]" options={{ title: 'Anmeldung' }} />
         <Stack.Screen
           name="einstellungen"
           options={{

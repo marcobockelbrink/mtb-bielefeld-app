@@ -74,7 +74,7 @@
 	rate_limit {
 		zone anmeldung {
 			match {
-				path /anmeldung/* /sitzung* /konto* /gast/* /t/*
+				path /anmeldung/* /sitzung* /konto* /gast/* /t/* /e/*
 			}
 			key {remote_host}
 			events 10
@@ -166,7 +166,7 @@
 	# diese Antwort vor dem `reverse_proxy` kommt.
 	handle /.well-known/apple-app-site-association {
 		header Content-Type application/json
-		respond `{"applinks":{"apps":[],"details":[{"appID":"{$AASA_APP_ID}","paths":["/t/*"]}]}}` 200
+		respond `{"applinks":{"apps":[],"details":[{"appID":"{$AASA_APP_ID}","paths":["/t/*","/e/*"]}]}}` 200
 	}
 
 	# **`assetlinks.json` fehlt mit Absicht.** Android verlangt darin den

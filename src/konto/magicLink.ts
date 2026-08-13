@@ -25,3 +25,14 @@ export function extrahiereMagicToken(url: string): string | null {
   const treffer = MUSTER.exec(url);
   return treffer?.[1] ?? null;
 }
+
+/**
+ * Der Ein-Klick-Link aus der Einladungsmail: `https://<api>/e/<code>`.
+ * Gleiche Zeichenmenge wie die Token — `erzeugeToken` liefert beide.
+ */
+const EINLADUNG = /\/e\/([A-Za-z0-9_-]+)/;
+
+export function extrahiereEinladungsCode(url: string): string | null {
+  const treffer = EINLADUNG.exec(url);
+  return treffer?.[1] ?? null;
+}

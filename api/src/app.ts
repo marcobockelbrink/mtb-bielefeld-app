@@ -19,7 +19,7 @@ import * as jugendmails from './jugendmails.ts';
 import { holeKontoAuskunft, loescheKonto } from './konto.ts';
 import type { Mailer } from './mailer.ts';
 import { serialisiereFehler, type Protokoll } from './protokoll.ts';
-import { beendeSitzung, erneuereSitzung, loeseMagicLinkEin, pruefeZugang, type Ausweis } from './sitzung.ts';
+import { beendeSitzung, erneuereSitzung, loeseEinladungEin, loeseMagicLinkEin, pruefeZugang, type Ausweis } from './sitzung.ts';
 import { erzeugeStandardTerminDienst, type TerminDienst } from './termine.ts';
 import * as verwaltung from './verwaltung.ts';
 import {
@@ -468,6 +468,39 @@ export function baueApp({
     return antwort.code(202).send({
       hinweis: 'Wenn die Angaben stimmen, ist eine Mail unterwegs.',
     });
+  });
+
+  // Der Ein-Klick-Weg aus der Einladungsmail: Der Code im Link genügt,
+  // die Adresse kennt der Server — der Code ist an sie gebunden. Dieselbe
+  // Beweislage wie beim Magic Link (Zugriff aufs Postfach), siehe
+  // `loeseEinladungEin`.
+  app.post('/anmeldung/einladung', async (anfrage, antwort) => {
+    const { code } = (anfrage.body ?? {}) as { code?: unknown };
+
+    if (typeof code !== 'string' || code.length === 0) {
+      return antwort.code(400).send({ fehler: 'Code fehlt.' });
+    }
+
+    const ergebnis = await loeseEinladungEin(pool, code, jetzt());
+    if (!ergebnis.ok) {
+      // Wortgleich zum Magic Link — ein Grund würde verraten, ob es den
+      // Code je gab.
+      return antwort.code(401).send({ fehler: 'Der Link gilt nicht mehr.' });
+    }
+
+    return antwort.send({ zugang: ergebnis.zugang, erneuerung: ergebnis.erneuerung });
+  });
+
+  // Der Einladungslink im **Browser** — Android ohne App, Weiterleitung im
+  // Mailprogramm, Desktop. Statt eines nackten 404: zum TestFlight, wenn
+  // es den Link gibt, sonst ein Satz, der weiterhilft. Der Code wird hier
+  // weder geprüft noch entwertet — das tut erst die App.
+  app.get('/e/:code', async (_anfrage, antwort) => {
+    const testflight = process.env.TESTFLIGHT_LINK;
+    if (testflight) return antwort.redirect(testflight, 302);
+    return antwort
+      .header('content-type', 'text/plain; charset=utf-8')
+      .send('Diesen Link bitte auf dem Handy öffnen — er gehört zur Vereins-App des MTB Bielefeld e.V.');
   });
 
   app.post('/anmeldung/einloesen', async (anfrage, antwort) => {
@@ -1525,7 +1558,14 @@ dein Kind auch anmelden.</p>
     // Links: Der Mailversand darf die Antwort nicht aufhalten.
     antwort.code(202).send({ eingeladen: email });
     imHintergrund(() =>
-      verwaltung.ladeEin(pool, mailer, email, jetzt(), process.env.TESTFLIGHT_LINK),
+      verwaltung.ladeEin(
+        pool,
+        mailer,
+        email,
+        jetzt(),
+        process.env.API_BASIS_URL ?? 'https://api.mtb-bielefeld.de',
+        process.env.TESTFLIGHT_LINK,
+      ),
     );
     return antwort;
   });

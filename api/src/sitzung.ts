@@ -209,6 +209,70 @@ async function findeOderLegeMitgliedAn(
   return verbrauch.ok ? mitgliedId : null;
 }
 
+
+/**
+ * Löst eine **Einladung direkt** ein — der Ein-Klick-Weg aus der
+ * Einladungsmail (`/e/<code>`), seit dem 13.08.2026.
+ *
+ * Warum das dieselbe Sicherheit hat wie der Magic Link: Beide beweisen
+ * dasselbe, nämlich Zugriff auf das Postfach der Adresse. Die
+ * Einladungsmail ging an genau die Adresse, an die der Code gebunden ist —
+ * wer den Link antippen kann, hätte auch die Magic-Link-Mail bekommen.
+ * Der Umweg „Code abtippen, Adresse eintippen, zweite Mail abwarten"
+ * bewies nichts zusätzlich, er war nur umständlich.
+ *
+ * Dieselbe Transaktion wie beim Magic Link, nur der Einstieg anders:
+ * Statt des Link-Tokens wird der Einladungscode nachgeschlagen, alles
+ * Weitere (Mitglied anlegen, Einladung entwerten, Sitzung) übernimmt
+ * `findeOderLegeMitgliedAn` unverändert. Ein zweiter Klick auf denselben
+ * Link meldet das inzwischen bestehende Konto einfach an — die Einladung
+ * ist dann zwar entwertet, aber `findeOderLegeMitgliedAn` braucht sie für
+ * Bekannte gar nicht.
+ */
+export async function loeseEinladungEin(
+  pool: pg.Pool,
+  code: string,
+  jetzt: Date,
+): Promise<{ ok: true; zugang: string; erneuerung: string } | { ok: false }> {
+  const verbindung = await pool.connect();
+  try {
+    await verbindung.query('BEGIN');
+
+    const { rows } = await verbindung.query<{ id: string; ausgestellt_fuer: string }>(
+      `SELECT id, ausgestellt_fuer FROM einladung
+        WHERE code_hash = $1 AND gueltig_bis > $2 FOR UPDATE`,
+      [hashe(code), jetzt],
+    );
+
+    const einladung = rows[0];
+    if (!einladung) {
+      await verbindung.query('ROLLBACK');
+      return { ok: false };
+    }
+
+    const mitgliedId = await findeOderLegeMitgliedAn(
+      verbindung,
+      einladung.ausgestellt_fuer,
+      einladung.id,
+      jetzt,
+    );
+    if (mitgliedId === null) {
+      await verbindung.query('ROLLBACK');
+      return { ok: false };
+    }
+
+    const tokenPaar = await legeSitzungAn(verbindung, mitgliedId, jetzt);
+
+    await verbindung.query('COMMIT');
+    return { ok: true, ...tokenPaar };
+  } catch (fehler) {
+    await versucheRollback(verbindung);
+    throw fehler;
+  } finally {
+    verbindung.release();
+  }
+}
+
 /**
  * Tauscht ein Erneuerungs-Token gegen ein frisches Paar.
  *

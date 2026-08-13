@@ -196,3 +196,76 @@ describe('PATCH /verwaltung/mitglieder/:id', () => {
     expect(await gehoertZurJugend(pool, anna.id)).toBe(true);
   });
 });
+
+describe('POST /anmeldung/einladung — der Ein-Klick-Weg', () => {
+  it('legt Konto und Sitzung mit dem bloßen Code an — die Adresse kennt der Server', async () => {
+    const mailer = new GemerkterMailer();
+    const app = baueApp({ pool, mailer, jetzt: () => jetzt });
+    const chef = await mitgliedMitToken('chef@example.org', 'verwaltung');
+
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/einladungen',
+      headers: { authorization: `Bearer ${chef.zugang}` },
+      payload: { email: 'anna@example.org' },
+    });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Der Link aus der Mail trägt den Code als letztes Pfadstück.
+    const mail = mailer.versendet[0]!;
+    const link = mail.text.split('\n').find((z) => z.includes('/e/'))?.trim();
+    const code = link?.split('/e/')[1];
+    expect(code).toBeTruthy();
+
+    const antwort = await app.inject({
+      method: 'POST',
+      url: '/anmeldung/einladung',
+      payload: { code },
+    });
+
+    expect(antwort.statusCode).toBe(200);
+    expect(antwort.json().zugang).toBeTruthy();
+
+    const { rows } = await pool.query(
+      "SELECT rolle FROM mitglied WHERE email = 'anna@example.org'",
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  it('meldet beim zweiten Klick dasselbe Konto an, statt zu scheitern', async () => {
+    // Derselbe Link wird angetippt, weitergeleitet, nochmal angetippt —
+    // das ist Alltag, kein Angriff. Die Einladung ist dann entwertet, aber
+    // das Konto besteht, und Bestehende brauchen keine Eintrittskarte.
+    const mailer = new GemerkterMailer();
+    const app = baueApp({ pool, mailer, jetzt: () => jetzt });
+    const chef = await mitgliedMitToken('chef@example.org', 'verwaltung');
+
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/einladungen',
+      headers: { authorization: `Bearer ${chef.zugang}` },
+      payload: { email: 'anna@example.org' },
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    const code = mailer.versendet[0]!.text.split('/e/')[1]!.split('\n')[0]!.trim();
+
+    expect((await app.inject({ method: 'POST', url: '/anmeldung/einladung', payload: { code } })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'POST', url: '/anmeldung/einladung', payload: { code } })).statusCode).toBe(200);
+
+    const { rows } = await pool.query("SELECT count(*) AS n FROM mitglied WHERE email = 'anna@example.org'");
+    expect(Number(rows[0]!.n)).toBe(1);
+  });
+
+  it('weist einen erfundenen Code mit 401 ab, wortgleich zum Magic Link', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+
+    const antwort = await app.inject({
+      method: 'POST',
+      url: '/anmeldung/einladung',
+      payload: { code: 'gibt-es-nicht' },
+    });
+
+    expect(antwort.statusCode).toBe(401);
+    expect(antwort.json().fehler).toBe('Der Link gilt nicht mehr.');
+  });
+});

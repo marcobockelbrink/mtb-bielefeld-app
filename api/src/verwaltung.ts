@@ -142,26 +142,33 @@ export async function ladeEin(
   mailer: Mailer,
   email: string,
   jetzt: Date,
+  apiBasisUrl: string,
   testflightLink?: string,
 ): Promise<void> {
   const code = await erzeugeEinladung(db, email, jetzt);
+
+  // Der Ein-Klick-Weg: Der Link trägt den Code, die Adresse kennt der
+  // Server — Antippen genügt, die App meldet an. Der Code steht trotzdem
+  // noch einzeln darunter: für den, dessen Mailprogramm den Link
+  // zerreißt, und für die Anmeldung auf einem zweiten Gerät.
+  const einKlick = `${apiBasisUrl}/e/${code}`;
 
   const zeilen = [
     'Hallo!',
     '',
     'Du bist eingeladen, die App des MTB Bielefeld e.V. zu benutzen.',
     '',
-    ...(testflightLink
-      ? [`1. App installieren: ${testflightLink}`, '']
-      : []),
-    `${testflightLink ? '2.' : '1.'} In der App unter Einstellungen anmelden — mit dieser`,
-    `E-Mail-Adresse (${email}) und dem folgenden Einladungscode:`,
+    ...(testflightLink ? [`1. App installieren: ${testflightLink}`, ''] : []),
+    `${testflightLink ? '2.' : '1.'} Diesen Link auf dem Handy antippen — das meldet dich an:`,
+    '',
+    `    ${einKlick}`,
+    '',
+    'Falls der Link nicht funktioniert: In der App unter Einstellungen',
+    `anmelden, mit dieser Adresse (${email}) und dem Code:`,
     '',
     `    ${code}`,
     '',
-    `${testflightLink ? '3.' : '2.'} Den Anmeldelink aus der Mail antippen, die dann kommt.`,
-    '',
-    'Der Code gilt nur für diese Adresse und nur für die erste Anmeldung —',
+    'Beides gilt nur für diese Adresse und nur für die erste Anmeldung —',
     'danach genügt die Adresse allein.',
     '',
     'Dein MTB Bielefeld e.V.',

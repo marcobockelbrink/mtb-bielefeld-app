@@ -17,7 +17,7 @@ describe('app.config.js', () => {
     const dev = baueKonfiguration('dev').expo;
     expect(dev.ios.bundleIdentifier).toBe('de.mtbbielefeld.app.dev');
     expect(dev.android.package).toBe('de.mtbbielefeld.app.dev');
-    expect(dev.name).toBe('MTB Bielefeld (dev)');
+    expect(dev.name).toBe('MTB BI (dev)');
   });
 
   it('lässt prod die schlichte Kennung', () => {
@@ -45,6 +45,7 @@ describe('app.config.js', () => {
       const [angemeldet] = konfig.ios.associatedDomains;
       expect(konfig.android.intentFilters[0].data).toEqual([
         { scheme: 'https', host: angemeldet.replace('applinks:', ''), pathPrefix: '/t' },
+        { scheme: 'https', host: angemeldet.replace('applinks:', ''), pathPrefix: '/e' },
       ]);
     }
   });
@@ -85,6 +86,7 @@ describe('app.config.js', () => {
       expect(konfig.ios.associatedDomains).toEqual([`applinks:${ausConfig}`]);
       expect(konfig.android.intentFilters[0].data).toEqual([
         { scheme: 'https', host: ausConfig, pathPrefix: '/t' },
+        { scheme: 'https', host: ausConfig, pathPrefix: '/e' },
       ]);
     }
   });

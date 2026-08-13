@@ -210,6 +210,20 @@ export class ApiZugang {
     await this.#auswerten(antwort);
   }
 
+  /**
+   * Löst eine Einladung direkt ein — der Ein-Klick-Weg (`/e/<code>`).
+   * Gleiche Antwortform wie der Magic Link: ein frisches Token-Paar.
+   */
+  async loeseEinladungEin(code: string): Promise<void> {
+    const antwort = await this.#ruf('/anmeldung/einladung', {
+      method: 'POST',
+      body: JSON.stringify({ code }),
+    });
+    const paar = await this.#auswerten<{ zugang: string; erneuerung: string }>(antwort);
+    this.#zugang = paar.zugang;
+    await this.#speicher.schreib(paar.erneuerung);
+  }
+
   async loeseEin(magicToken: string): Promise<void> {
     const antwort = await this.#ruf('/anmeldung/einloesen', {
       method: 'POST',
