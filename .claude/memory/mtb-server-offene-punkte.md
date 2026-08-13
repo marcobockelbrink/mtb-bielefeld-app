@@ -1,6 +1,6 @@
 ---
 name: mtb-server-offene-punkte
-description: "Hetzner ist der Prüfserver, Contabo am 08.08.2026 gekündigt; was noch fehlt, kann nur von außen kommen — Stand 08.08.2026"
+description: "Hetzner ist der Prüfserver und verschickt echte Mail; es fehlen noch Sicherungsziel und Vereinsmaschine — Stand 13.08.2026"
 metadata:
   node_type: memory
   type: project
@@ -47,21 +47,20 @@ Der Vereinsserver (`api.mtb-bielefeld.de`) existiert noch nicht.
 
 ## Was fehlt — und nur von außen kommen kann
 
-- **SMTP-Zugang des Vereins-Mailservers** (Host, Port, Benutzer,
-  Passwort). Bis dahin fängt Mailpit alles ab, also bekommt **kein Mensch
-  je einen Anmeldelink**. Das ist der einzige Punkt zwischen jetzt und
-  „ein Mitglied kann die App benutzen". Vier Zeilen in `betrieb/.env`.
+- ~~SMTP~~ **erledigt am 12.08.2026**: `sslout.df.eu:465`, Konto
+  `jugendorga@mtb-bielefeld.de`, in `betrieb/.env`; `MAIL_ABSENDER` auf
+  dieselbe Adresse umgestellt (Absender muss zum Postfach passen). Mailpit
+  läuft im Compose noch mit, wird aber nicht mehr benutzt. Der
+  Umstieg auf `docker-compose.server.yml` steht noch aus.
 - **SFTP-Ziel für die Sicherungen.** Skripte und systemd-Einheiten liegen
   fertig im Repository, es fehlt nur `SICHERUNG_ZIEL`. Solange wird
   **nichts gesichert**.
 - **Ein zweiter Zugang zu den Servern.** Es kommt genau ein Mensch von
   genau einem Rechner hinein.
 - **Die Maschine des Vereins** und **`api.mtb-bielefeld.de` im DNS**.
-- **Ein bezahltes Apple-Entwicklerkonto.** Das kostenlose Personal Team
-  stellt `associated-domains` so wenig aus wie `aps-environment`. Auf dem
-  Simulator ist der geteilte Link vollständig nachgewiesen, auf einem
-  echten iPhone nicht — und bis dahin auch nicht möglich. Dessen Team-ID
-  gehört danach in `AASA_APP_ID` auf dem Vereinsserver.
+- ~~Apple-Konto~~ **erledigt**: Team `755278A9P4`, siehe
+  [[testflight-und-eas]] — Universal Links am 12.08.2026 auf echtem
+  iPhone nachgewiesen.
 
 ## Die Hetzner-Maschine im Einzelnen
 

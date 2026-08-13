@@ -1,7 +1,7 @@
 - [TestFlight und EAS](testflight-und-eas.md) — Team 755278A9P4, EAS-Projekt, der Bauweg des dev-Builds
 - [Instagram erst mit Backend](instagram-erst-mit-backend.md) — vertagt; Meta verlangt Token, das nirgends sicher liegen kann
 - [iOS-Gerätebau: Push-Berechtigung](ios-geraetebau-push-berechtigung.md) — kostenloses Apple-Team scheitert an `aps-environment`, das die App gar nicht braucht
-- [Server: offene Punkte](mtb-server-offene-punkte.md) — Hetzner trägt allein (Contabo gekündigt); es fehlen SMTP, SFTP-Ziel, ein zweiter Zugang und die Vereinsmaschine
+- [Server: offene Punkte](mtb-server-offene-punkte.md) — Hetzner trägt allein und verschickt echte Mail; es fehlen SFTP-Ziel und Vereinsmaschine
 - [Simulator mit idb](simulator-mit-idb.md) — tippt und liest die Oberfläche; vier Fallen, die alle stumm falsche Ergebnisse liefern
 - [age-Schlüssel für Sicherungen](age-schluessel-fuer-sicherungen.md) — privater Teil nur lokal in ~/.ssh, bewusst nirgends im Repository
 - [Lokal grün ist nicht CI grün](lokal-gruen-ist-nicht-ci-gruen.md) — mehrfach „alles grün" gemeldet, während die CI seit Tagen rot war
