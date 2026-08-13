@@ -60,3 +60,4 @@ api/dist/
 
 # Zugangsdaten des Betriebsaufbaus — das Repository ist öffentlich.
 betrieb/.env
+docs/appstore-screenshots/

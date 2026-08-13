@@ -38,7 +38,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projektWurzel = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ausgabe = path.join(projektWurzel, 'docs/screenshots');
+// Für App Store Connect: exakt 1290x2796 (6,9-Zoll-Klasse) verlangt.
+// VORSCHAU_ASC=1 schaltet um; die normalen Doku-Screenshots bleiben unberührt.
+const fuerAsc = process.env.VORSCHAU_ASC === '1';
+const ausgabe = path.join(projektWurzel, fuerAsc ? 'docs/appstore-screenshots' : 'docs/screenshots');
 const adresse = process.env.VORSCHAU_URL ?? 'http://127.0.0.1:8099/';
 
 fs.mkdirSync(ausgabe, { recursive: true });
@@ -86,8 +89,8 @@ const browser = await chromium.launch(
   process.env.CHROMIUM_PFAD ? { executablePath: process.env.CHROMIUM_PFAD } : {},
 );
 const context = await browser.newContext({
-  viewport: { width: 414, height: 896 },
-  deviceScaleFactor: 2,
+  viewport: fuerAsc ? { width: 430, height: 932 } : { width: 414, height: 896 },
+  deviceScaleFactor: fuerAsc ? 3 : 2,
   locale: 'de-DE',
   timezoneId: 'Europe/Berlin',
   colorScheme: 'light',
