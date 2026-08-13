@@ -63,7 +63,7 @@ export function baueKonfiguration(umgebung) {
     expo: {
       name: u.name,
       slug: 'mtb-bielefeld-app',
-      version: '0.8.0',
+      version: '0.8.5',
       // Die Kennung des EAS-Projekts (Konto marco.bockelbrink) — EAS Build
       // findet darüber das Projekt, sie ist kein Geheimnis. Weil diese
       // Konfiguration eine Funktion ist, konnte `eas init` sie nicht selbst
