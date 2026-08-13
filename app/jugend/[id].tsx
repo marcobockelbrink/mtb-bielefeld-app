@@ -11,7 +11,7 @@
 
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { TEILEN_BASIS_URL } from '../../src/config';
 import { holeTraining, type TrainingDetails } from '../../src/data/jugend';
@@ -121,7 +121,21 @@ export default function TrainingDetailScreen() {
 
       <View style={styles.kopf}>
         <Text style={[styles.zeit, { color: palette.primary }]}>{formatiereTrainingszeit(training)}</Text>
-        <Text style={[styles.ort, { color: palette.text }]}>{training.ort}</Text>
+        {/* Wortgleich zum Termin (app/termin/[id].tsx): Apple Maps auf iOS,
+            geo: auf Android, Browser als Rückweg. Der Ort ist Freitext —
+            als Suche taugt er trotzdem, genau wie bei den Terminen. */}
+        <Pressable
+          onPress={() => {
+            const suche = encodeURIComponent(training.ort);
+            const url = Platform.OS === 'ios' ? `http://maps.apple.com/?q=${suche}` : `geo:0,0?q=${suche}`;
+            void Linking.canOpenURL(url).then((kann) =>
+              Linking.openURL(kann ? url : `https://www.google.com/maps/search/?api=1&query=${suche}`),
+            );
+          }}
+          accessibilityLabel="Treffpunkt in der Karten-App öffnen"
+        >
+          <Text style={[styles.ort, { color: palette.primary }]}>📍 {training.ort}</Text>
+        </Pressable>
       </View>
 
       {/*
@@ -155,7 +169,10 @@ export default function TrainingDetailScreen() {
         Guide antwortet. Diese Prüfung hier blendet den Abschnitt nur ein,
         sie ersetzt keine.
       */}
-      {rolle === 'guide' ? <GuideKarte training={training} onGeaendert={() => void laden(false)} /> : null}
+      {/* Auch für die Verwaltung — sie erbt die Guide-Rechte. Ohne diese
+          Karte konnte sie Trainings zwar anlegen, aber nie veröffentlichen:
+          Der Entwurf blieb stehen und nahm keine Kind-Anmeldungen an. */}
+      {rolle === 'guide' || rolle === 'verwaltung' ? <GuideKarte training={training} onGeaendert={() => void laden(false)} /> : null}
 
       <Card>
         <Label>Angemeldete Kinder</Label>

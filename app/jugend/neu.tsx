@@ -7,12 +7,11 @@
  * das schon in „Das dürfen nur Guides.". Ein zweites Türschloss hier wäre nur
  * eine Kopie derselben Anzeigehilfe, die `KontoContext.rolle` schon ist.
  *
- * Datum und Uhrzeit als zwei einfache Textfelder statt eines nativen
- * Pickers: Das Projekt bringt kein Datumspaket mit (`npx expo install`
- * bräuchte einen eigenen Grund dafür), und für ein Formular, das ein Guide
- * vielleicht einmal in der Woche ausfüllt, genügt die Texteingabe.
- * `leseZeitpunkt` rechnet dabei in Bielefelder Ortszeit, nicht in der
- * Zeitzone des Geräts (siehe dort).
+ * Datum und Uhrzeit kommen seit dem 13.08.2026 aus den nativen Wählern
+ * (`DatumsFeld`) — der Grund, den das Projekt für ein Datumspaket
+ * verlangte, kam von Marco: Tippen ist auf dem Telefon die
+ * fehleranfälligste Eingabe. Gerechnet wird in der Zeitzone des Geräts,
+ * was für einen Bielefelder Verein die Bielefelder Ortszeit ist.
  *
  * Nach dem Anlegen ersetzt eine Bestätigung mit dem Hinweis, dass die Guides
  * jetzt eine Mail bekommen, das Formular — der Knopf „Zur Liste" geht von da
@@ -26,11 +25,12 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { legeTrainingAn } from '../../src/data/jugend';
-import { leseOptionaleAnzahl, leseZeitpunkt } from '../../src/features/jugend/eingabe';
+import { leseOptionaleAnzahl } from '../../src/features/jugend/eingabe';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { useKonto } from '../../src/konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../../src/theme';
 import { ActionButton, Banner, Card, Label } from '../../src/ui/components';
+import { DatumsFeld } from '../../src/ui/DatumsFeld';
 import { useTheme } from '../../src/ui/theme';
 
 export default function NeuesTrainingScreen() {
@@ -38,8 +38,8 @@ export default function NeuesTrainingScreen() {
   const insets = useSafeAreaInsets();
   const { api } = useKonto();
 
-  const [datum, setDatum] = useState('');
-  const [uhrzeit, setUhrzeit] = useState('');
+  const [datum, setDatum] = useState<Date | null>(null);
+  const [uhrzeit, setUhrzeit] = useState<Date | null>(null);
   const [ort, setOrt] = useState('');
   const [hinweis, setHinweis] = useState('');
   const [plaetze, setPlaetze] = useState('');
@@ -61,7 +61,14 @@ export default function NeuesTrainingScreen() {
   async function anlegen() {
     setFehler(null);
 
-    const beginntAm = leseZeitpunkt(datum, uhrzeit);
+    // Datum und Uhrzeit kommen jetzt aus den nativen Wählern — beide in der
+    // Zeitzone des Geräts, was für einen Bielefelder Verein die Bielefelder
+    // Ortszeit ist. Das frühere leseZeitpunkt-Parsen entfällt mitsamt der
+    // Tippfehler, gegen die es schützte.
+    const beginntAm =
+      datum && uhrzeit
+        ? new Date(datum.getFullYear(), datum.getMonth(), datum.getDate(), uhrzeit.getHours(), uhrzeit.getMinutes())
+        : null;
     if (!beginntAm) {
       setFehler('Datum und Uhrzeit brauchen das Muster TT.MM.JJJJ und HH:MM.');
       return;
@@ -115,31 +122,11 @@ export default function NeuesTrainingScreen() {
         <Card>
           <Label>Entwurf</Label>
 
-          <Text style={[styles.feldLabel, { color: palette.textMuted }]}>Datum (TT.MM.JJJJ)</Text>
-          <TextInput
-            value={datum}
-            onChangeText={setDatum}
-            placeholder="10.08.2026"
-            placeholderTextColor={palette.textMuted}
-            keyboardType="numbers-and-punctuation"
-            style={[
-              styles.feld,
-              { color: palette.text, borderColor: palette.border, backgroundColor: palette.surface },
-            ]}
-          />
+          <Text style={[styles.feldLabel, { color: palette.textMuted }]}>Datum</Text>
+          <DatumsFeld wert={datum} beiAenderung={setDatum} modus="date" />
 
-          <Text style={[styles.feldLabel, { color: palette.textMuted }]}>Uhrzeit (HH:MM)</Text>
-          <TextInput
-            value={uhrzeit}
-            onChangeText={setUhrzeit}
-            placeholder="10:30"
-            placeholderTextColor={palette.textMuted}
-            keyboardType="numbers-and-punctuation"
-            style={[
-              styles.feld,
-              { color: palette.text, borderColor: palette.border, backgroundColor: palette.surface },
-            ]}
-          />
+          <Text style={[styles.feldLabel, { color: palette.textMuted }]}>Uhrzeit</Text>
+          <DatumsFeld wert={uhrzeit} beiAenderung={setUhrzeit} modus="time" />
 
           <Text style={[styles.feldLabel, { color: palette.textMuted }]}>Ort</Text>
           <TextInput

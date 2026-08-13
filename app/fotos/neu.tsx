@@ -3,8 +3,8 @@
  *
  * Dieselbe Haltung wie beim Trainings-Entwurf (`app/jugend/neu.tsx`): Der
  * Weg hierher steht nur den Berechtigten in der Übersicht; wer die Adresse
- * trotzdem aufruft, bekommt von der API ein 403. Datum als Textfeld, aus
- * demselben Grund wie dort.
+ * trotzdem aufruft, bekommt von der API ein 403. Das Datum kommt seit dem
+ * 13.08.2026 aus dem nativen Wähler (`DatumsFeld`).
  *
  * Die Sichtbarkeit ist ein Schalter mit zwei Werten, kein Freitext: Ob
  * freigegebene Bilder alle Mitglieder sehen oder nur die Jugend, ist eine
@@ -17,11 +17,12 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { legeAlbumAn, type Sichtbarkeit } from '../../src/data/fotos';
-import { leseZeitpunkt } from '../../src/features/jugend/eingabe';
+
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { useKonto } from '../../src/konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../../src/theme';
 import { ActionButton, Banner, Card, Label } from '../../src/ui/components';
+import { DatumsFeld } from '../../src/ui/DatumsFeld';
 import { useTheme } from '../../src/ui/theme';
 
 export default function NeuesAlbumScreen() {
@@ -30,16 +31,20 @@ export default function NeuesAlbumScreen() {
   const { api } = useKonto();
 
   const [titel, setTitel] = useState('');
-  const [datum, setDatum] = useState('');
+  const [datum, setDatum] = useState<Date | null>(null);
   const [beschreibung, setBeschreibung] = useState('');
   const [sichtbarkeit, setSichtbarkeit] = useState<Sichtbarkeit>('mitglieder');
   const [fehler, setFehler] = useState<string | null>(null);
   const [laeuft, setLaeuft] = useState(false);
 
   async function anlegen() {
-    const ereignisAm = leseZeitpunkt(datum, '12:00');
+    // Mittags statt Mitternacht, damit keine Zeitzonen-Rundung das Datum
+    // auf den Vortag kippt — dieselbe Vorsicht wie zuvor bei leseZeitpunkt.
+    const ereignisAm = datum
+      ? new Date(datum.getFullYear(), datum.getMonth(), datum.getDate(), 12, 0)
+      : null;
     if (titel.trim() === '' || !ereignisAm) {
-      setFehler('Titel und Datum (TT.MM.JJJJ) werden gebraucht.');
+      setFehler('Titel und Datum werden gebraucht.');
       return;
     }
 
@@ -82,14 +87,7 @@ export default function NeuesAlbumScreen() {
           />
 
           <Label>Datum des Ereignisses</Label>
-          <TextInput
-            style={[styles.feld, feldStil]}
-            value={datum}
-            onChangeText={setDatum}
-            placeholder="12.07.2026"
-            placeholderTextColor={palette.textMuted}
-            keyboardType="numbers-and-punctuation"
-          />
+          <DatumsFeld wert={datum} beiAenderung={setDatum} modus="date" />
 
           <Label>Beschreibung (optional)</Label>
           <TextInput
