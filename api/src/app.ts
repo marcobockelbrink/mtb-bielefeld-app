@@ -1047,7 +1047,6 @@ dein Kind auch anmelden.</p>
   app.patch('/jugendtraining/:id', async (anfrage, antwort) => {
     const erlaubnis = await holeGuide(anfrage);
     if ('fehler' in erlaubnis) return weiseAb(antwort, erlaubnis.fehler);
-    const guide = erlaubnis.ausweis;
 
     const { id } = anfrage.params as { id: string };
     const koerper = anfrage.body as Record<string, unknown>;
@@ -1079,7 +1078,6 @@ dein Kind auch anmelden.</p>
   app.post('/jugendtraining/:id/veroeffentlichen', async (anfrage, antwort) => {
     const erlaubnis = await holeGuide(anfrage);
     if ('fehler' in erlaubnis) return weiseAb(antwort, erlaubnis.fehler);
-    const guide = erlaubnis.ausweis;
 
     const { id } = anfrage.params as { id: string };
     const ergebnis = await jugend.veroeffentliche(pool, id, jetzt());
@@ -1097,7 +1095,6 @@ dein Kind auch anmelden.</p>
   app.post('/jugendtraining/:id/absage', async (anfrage, antwort) => {
     const erlaubnis = await holeGuide(anfrage);
     if ('fehler' in erlaubnis) return weiseAb(antwort, erlaubnis.fehler);
-    const guide = erlaubnis.ausweis;
 
     const { id } = anfrage.params as { id: string };
     const koerper = anfrage.body as Record<string, unknown>;
@@ -1549,8 +1546,18 @@ dein Kind auch anmelden.</p>
     const koerper = anfrage.body as Record<string, unknown>;
     const email = typeof koerper?.email === 'string' ? koerper.email.trim() : '';
     // Dieselbe bescheidene Prüfung wie beim Anmelden: ein @ mit etwas davor
-    // und dahinter. Alles Strengere weist echte Adressen ab.
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
+    // und dahinter, ein Punkt danach. Bewusst ohne regulären Ausdruck:
+    // `/^\S+@\S+\.\S+$/` backtrackt auf Eingaben wie "!@!@!@…" quadratisch
+    // (CodeQL js/polynomial-redos) — drei indexOf sagen dasselbe in
+    // linearer Zeit. Alles Strengere weist echte Adressen ab.
+    const at = email.indexOf('@');
+    const istAdresse =
+      email.length <= 254 &&
+      at > 0 &&
+      email.lastIndexOf('.') > at + 1 &&
+      !email.includes(' ') &&
+      !email.endsWith('.');
+    if (!istAdresse) {
       return antwort.code(400).send({ fehler: 'Das ist keine E-Mail-Adresse.' });
     }
 

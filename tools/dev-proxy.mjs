@@ -54,7 +54,10 @@ function zielBestimmen(url) {
 }
 
 const server = http.createServer(async (anfrage, antwort) => {
-  const pfad = (anfrage.url ?? '/').split('?')[0];
+  // Fürs Protokoll von Zeilenumbrüchen befreit: Eine Anfrage könnte sonst
+  // erfundene Protokollzeilen anhängen (CodeQL js/log-injection). Nur ein
+  // Entwicklungswerkzeug, aber der Fix kostet eine Zeile.
+  const pfad = (anfrage.url ?? '/').split('?')[0].replace(/[\r\n]/g, '');
   const ziel = zielBestimmen(anfrage.url);
 
   const corsKopf = {

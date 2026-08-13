@@ -36,6 +36,14 @@ const server = http.createServer((anfrage, antwort) => {
   const angefragt = decodeURIComponent((anfrage.url ?? '/').split('?')[0]);
   let datei = path.join(wurzel, angefragt);
 
+  // Erst die Grenze, dann das Dateisystem: Vorher stand die Wurzel-Prüfung
+  // **nach** existsSync/statSync — ein `../`-Pfad wurde also abgeklopft,
+  // bevor er abgewiesen wurde (CodeQL js/path-injection). Harmlos, aber
+  // falsche Reihenfolge.
+  if (!path.resolve(datei).startsWith(path.resolve(wurzel))) {
+    datei = path.join(wurzel, 'index.html');
+  }
+
   // Verzeichnisse und unbekannte Pfade auf die Startseite lenken — expo-router
   // löst die Adressen selbst auf.
   if (!fs.existsSync(datei) || fs.statSync(datei).isDirectory()) {

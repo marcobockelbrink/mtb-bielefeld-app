@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { ApiFehler, ApiZugang } from '../src/data/api';
 import { speicherImArbeitsspeicher } from '../src/data/tokenSpeicher';

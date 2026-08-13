@@ -3,8 +3,6 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { pool } from '../src/datenbank.ts';
 import {
   aendereTraining,
-  holeBelegungTraining,
-  holeElternAdressen,
   holeGuideAdressen,
   holeGuideAntworten,
   holeKinder,

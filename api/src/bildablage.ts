@@ -74,7 +74,7 @@ export class Bildablage {
       throw new AblageFehler(`Unbekannte Fassung: ${fassung}`);
     }
 
-    return path.join(this.#wurzel, albumId, `${fotoId}-${fassung}.${ENDUNGEN[fassung]}`);
+    return this.imVolume(path.join(this.#wurzel, albumId, `${fotoId}-${fassung}.${ENDUNGEN[fassung]}`));
   }
 
   async lege(
@@ -86,7 +86,7 @@ export class Bildablage {
     // gleichgültig — was zählt, ist, dass die Datenbankzeile **danach**
     // entsteht: Eine Zeile ohne Datei zeigt einen kaputten Platzhalter, eine
     // Datei ohne Zeile liegt nur herum.
-    await fs.mkdir(path.join(this.#wurzel, this.gepruefteKennung(albumId)), { recursive: true });
+    await fs.mkdir(this.imVolume(path.join(this.#wurzel, this.gepruefteKennung(albumId))), { recursive: true });
 
     await Promise.all(
       (Object.keys(ENDUNGEN) as Fassung[]).map((fassung) =>
@@ -116,7 +116,7 @@ export class Bildablage {
 
   /** Räumt den ganzen Ordner eines Albums ab — nach `DELETE /fotoalbum/:id`. */
   async loescheAlbum(albumId: string): Promise<void> {
-    await fs.rm(path.join(this.#wurzel, this.gepruefteKennung(albumId)), {
+    await fs.rm(this.imVolume(path.join(this.#wurzel, this.gepruefteKennung(albumId))), {
       recursive: true,
       force: true,
     });
@@ -124,7 +124,7 @@ export class Bildablage {
 
   /** Wie viel Platz ein Album belegt — für die Übersicht der Verwaltung. */
   async groesse(albumId: string): Promise<number> {
-    const ordner = path.join(this.#wurzel, this.gepruefteKennung(albumId));
+    const ordner = this.imVolume(path.join(this.#wurzel, this.gepruefteKennung(albumId)));
 
     let summe = 0;
     let eintraege: string[];
@@ -145,6 +145,20 @@ export class Bildablage {
   private gepruefteKennung(id: string): string {
     if (!istKennung(id)) throw new AblageFehler('Keine gültige Kennung.');
     return id;
+  }
+
+  /**
+   * Gürtel zur Hose: Die Kennungs-Prüfung macht einen Ausbruch bereits
+   * unmöglich — dieser Vergleich beweist es zusätzlich am fertigen Pfad,
+   * und statische Analyse (CodeQL js/path-injection) kann es ablesen,
+   * statt der Regex vertrauen zu müssen.
+   */
+  private imVolume(pfad: string): string {
+    const voll = path.resolve(pfad);
+    if (!voll.startsWith(path.resolve(this.#wurzel) + path.sep)) {
+      throw new AblageFehler('Pfad läge außerhalb der Ablage.');
+    }
+    return voll;
   }
 }
 
