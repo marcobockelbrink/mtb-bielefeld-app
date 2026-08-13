@@ -48,3 +48,11 @@ export async function aendereMitglied(
     aenderung,
   );
 }
+
+export function zieheEinladungZurueck(api: ApiZugang, email: string): Promise<void> {
+  return api.sende<void>(`/verwaltung/einladungen/${encodeURIComponent(email)}`, 'DELETE');
+}
+
+export function loescheMitglied(api: ApiZugang, id: string): Promise<void> {
+  return api.sende<void>(`/verwaltung/mitglieder/${id}`, 'DELETE');
+}

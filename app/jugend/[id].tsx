@@ -132,7 +132,7 @@ export default function TrainingDetailScreen() {
         Aufruf selbst, hier gibt es aber ohnehin keinen Aufruf, der geprüft
         werden müsste — nur ein Text und das System-Teilen.
       */}
-      {rolle === 'guide' && training.zustand === 'veroeffentlicht' ? (
+      {(rolle === 'guide' || rolle === 'verwaltung') && training.zustand === 'veroeffentlicht' ? (
         <View style={styles.teilen}>
           <ActionButton label="Für die WhatsApp-Gruppe teilen" tone="secondary" onPress={() => void teilen()} />
           {teilenFehler ? <Banner tone="danger" text={teilenFehler} /> : null}

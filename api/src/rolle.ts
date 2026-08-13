@@ -26,3 +26,16 @@ export async function setzeRolle(
   );
   return (rowCount ?? 0) > 0;
 }
+
+/**
+ * Verwaltung erbt die Guide-Rechte — Marcos Entscheidung vom 13.08.2026.
+ *
+ * Statt einer zweiten Rolle am selben Konto gilt: Verwaltung ⊇ Guide ⊇
+ * Mitglied. Im Verein sind die Verwaltenden dieselben aktiven Leute, die
+ * Trainings leiten; ein Konto, das verwalten darf, aber kein Training
+ * anlegen kann, wäre eine Hürde ohne Schutzwirkung — die Verwaltung
+ * könnte sich die Guide-Rolle ja selbst geben.
+ */
+export function hatGuideRechte(rolle: string): boolean {
+  return rolle === 'guide' || rolle === 'verwaltung';
+}

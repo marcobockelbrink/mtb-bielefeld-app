@@ -22,6 +22,8 @@ import {
   aendereMitglied,
   holeMitglieder,
   ladeEin,
+  loescheMitglied,
+  zieheEinladungZurueck,
   type MitgliedZeile,
   type Rolle,
 } from '../src/data/verwaltung';
@@ -137,9 +139,27 @@ export default function VerwaltungScreen() {
             </View>
 
             {zeile.id === null ? (
-              <Text style={[styles.hinweis, { color: palette.textMuted }]}>
-                Noch nie angemeldet — es gibt noch kein Konto.
-              </Text>
+              <>
+                <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+                  Noch nie angemeldet — es gibt noch kein Konto.
+                </Text>
+                <Pressable
+                  onPress={() =>
+                    Alert.alert('Einladung zurückziehen?', `Der verschickte Link für ${zeile.email} wird wertlos.`, [
+                      { text: 'Abbrechen', style: 'cancel' },
+                      {
+                        text: 'Zurückziehen',
+                        style: 'destructive',
+                        onPress: () => {
+                          void zieheEinladungZurueck(api, zeile.email).then(laden, (u: unknown) => setFehler(beschreibeJugendFehler(u)));
+                        },
+                      },
+                    ])
+                  }
+                >
+                  <Text style={[styles.loeschen, { color: palette.danger }]}>Einladung zurückziehen</Text>
+                </Pressable>
+              </>
             ) : (
               <>
                 <View style={styles.rollen}>
@@ -170,6 +190,22 @@ export default function VerwaltungScreen() {
                     {zeile.jugend ? 'Jugend-Zugehörigkeit entfernen' : 'Zur Jugend zählen'}
                   </Text>
                 </Pressable>
+                <Pressable
+                  onPress={() =>
+                    Alert.alert('Mitglied löschen?', `${zeile.email} verliert sofort den Zugang — das geht nicht zurück.`, [
+                      { text: 'Abbrechen', style: 'cancel' },
+                      {
+                        text: 'Löschen',
+                        style: 'destructive',
+                        onPress: () => {
+                          void loescheMitglied(api, zeile.id!).then(laden, (u: unknown) => setFehler(beschreibeJugendFehler(u)));
+                        },
+                      },
+                    ])
+                  }
+                >
+                  <Text style={[styles.loeschen, { color: palette.danger }]}>Mitglied löschen</Text>
+                </Pressable>
               </>
             )}
           </Card>
@@ -197,4 +233,5 @@ const styles = StyleSheet.create({
   rolle: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   rollentext: { fontFamily: font.semibold, fontSize: fontSize.sm },
   jugend: { fontFamily: font.semibold, fontSize: fontSize.sm, marginTop: spacing.sm },
+  loeschen: { fontFamily: font.semibold, fontSize: fontSize.sm, marginTop: spacing.sm },
 });

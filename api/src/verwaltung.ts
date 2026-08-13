@@ -176,3 +176,47 @@ export async function ladeEin(
 
   await mailer.sende(email, 'Deine Einladung zur Vereins-App', zeilen.join('\n'));
 }
+
+/**
+ * Zieht alle offenen Einladungen einer Adresse zurück.
+ *
+ * Der Fall dahinter: Adresse vertippt, falsche Person erwischt, jemand
+ * soll doch nicht dazukommen. Eingelöste bleiben stehen — sie sind
+ * Geschichte, kein offenes Tor; das Konto dahinter löscht man getrennt.
+ */
+export async function zieheEinladungZurueck(db: pg.Pool, email: string): Promise<number> {
+  const { rowCount } = await db.query(
+    'DELETE FROM einladung WHERE lower(ausgestellt_fuer) = lower($1) AND eingeloest_am IS NULL',
+    [email],
+  );
+  return rowCount ?? 0;
+}
+
+export type Loeschung = { ok: true } | { ok: false; grund: 'unbekannt' | 'letzte-verwaltung' };
+
+/**
+ * Löscht ein Mitglied — die Verwaltung räumt auf, wer nichts mehr sehen
+ * soll. Sitzungen hängen per ON DELETE CASCADE am Konto und sterben mit;
+ * das Gerät der Person ist damit sofort abgemeldet.
+ *
+ * Dieselbe Aussperr-Sicherung wie beim Rollenwechsel: Die letzte
+ * Verwaltung lässt sich nicht löschen — auch nicht von sich selbst. Wer
+ * sein eigenes Konto loswerden will, nimmt den Weg in den Einstellungen.
+ */
+export async function loescheMitglied(db: pg.Pool, id: string): Promise<Loeschung> {
+  if (!istKennung(id)) return { ok: false, grund: 'unbekannt' };
+
+  const { rowCount } = await db.query(
+    `DELETE FROM mitglied
+      WHERE id = $1
+        AND NOT (
+          rolle = 'verwaltung'
+          AND NOT EXISTS (SELECT 1 FROM mitglied a WHERE a.rolle = 'verwaltung' AND a.id <> $1)
+        )`,
+    [id],
+  );
+  if ((rowCount ?? 0) > 0) return { ok: true };
+
+  const { rowCount: gibtEs } = await db.query('SELECT 1 FROM mitglied WHERE id = $1', [id]);
+  return { ok: false, grund: (gibtEs ?? 0) > 0 ? 'letzte-verwaltung' : 'unbekannt' };
+}

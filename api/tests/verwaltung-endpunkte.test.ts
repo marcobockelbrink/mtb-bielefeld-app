@@ -269,3 +269,74 @@ describe('POST /anmeldung/einladung — der Ein-Klick-Weg', () => {
     expect(antwort.json().fehler).toBe('Der Link gilt nicht mehr.');
   });
 });
+
+describe('Löschen — Einladungen und Mitglieder', () => {
+  it('zieht eine offene Einladung zurück; danach ist der Code wertlos', async () => {
+    const mailer = new GemerkterMailer();
+    const app = baueApp({ pool, mailer, jetzt: () => jetzt });
+    const chef = await mitgliedMitToken('chef@example.org', 'verwaltung');
+    const kopf = { authorization: `Bearer ${chef.zugang}` };
+
+    await app.inject({ method: 'POST', url: '/verwaltung/einladungen', headers: kopf, payload: { email: 'falsch@example.org' } });
+    await new Promise((r) => setTimeout(r, 50));
+    const code = mailer.versendet[0]!.text.split('/e/')[1]!.split('\n')[0]!.trim();
+
+    const weg = await app.inject({
+      method: 'DELETE',
+      url: `/verwaltung/einladungen/${encodeURIComponent('falsch@example.org')}`,
+      headers: kopf,
+    });
+    expect(weg.statusCode).toBe(204);
+
+    // Der schon verschickte Ein-Klick-Link darf danach nicht mehr ziehen.
+    expect((await app.inject({ method: 'POST', url: '/anmeldung/einladung', payload: { code } })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'DELETE', url: '/verwaltung/einladungen/nie@example.org', headers: kopf })).statusCode).toBe(404);
+  });
+
+  it('löscht ein Mitglied samt Sitzung — das Gerät ist sofort abgemeldet', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    const chef = await mitgliedMitToken('chef@example.org', 'verwaltung');
+    const anna = await mitgliedMitToken('anna@example.org');
+
+    const weg = await app.inject({
+      method: 'DELETE',
+      url: `/verwaltung/mitglieder/${anna.id}`,
+      headers: { authorization: `Bearer ${chef.zugang}` },
+    });
+    expect(weg.statusCode).toBe(204);
+
+    const alsAnna = await app.inject({
+      method: 'GET',
+      url: '/konto',
+      headers: { authorization: `Bearer ${anna.zugang}` },
+    });
+    expect(alsAnna.statusCode).toBe(401);
+  });
+
+  it('verweigert das Löschen der letzten Verwaltung — auch sich selbst', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    const chef = await mitgliedMitToken('chef@example.org', 'verwaltung');
+
+    const antwort = await app.inject({
+      method: 'DELETE',
+      url: `/verwaltung/mitglieder/${chef.id}`,
+      headers: { authorization: `Bearer ${chef.zugang}` },
+    });
+    expect(antwort.statusCode).toBe(409);
+  });
+});
+
+describe('Verwaltung erbt Guide-Rechte', () => {
+  it('lässt die Verwaltung ein Training anlegen wie ein Guide', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    const chef = await mitgliedMitToken('chef@example.org', 'verwaltung');
+
+    const antwort = await app.inject({
+      method: 'POST',
+      url: '/jugendtraining',
+      headers: { authorization: `Bearer ${chef.zugang}` },
+      payload: { beginntAm: '2026-09-01T18:00:00Z', ort: 'Waldparkplatz' },
+    });
+    expect(antwort.statusCode).toBe(201);
+  });
+});

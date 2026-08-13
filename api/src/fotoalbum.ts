@@ -93,6 +93,7 @@ export function darfSehen(
   if (album.sichtbarkeit === 'mitglieder') return true;
 
   return betrachter.gehoertZurJugend || betrachter.rolle === 'guide';
+  // (verwaltung kam nie hierher — Fall 1 oben fängt sie ab.)
 }
 
 /**

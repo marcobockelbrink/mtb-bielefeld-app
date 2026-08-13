@@ -350,7 +350,9 @@ export async function holeGuideAdressen(
   ausfuehrer: pg.Pool | pg.PoolClient,
 ): Promise<string[]> {
   const { rows } = await ausfuehrer.query<{ email: string }>(
-    "SELECT email FROM mitglied WHERE rolle = 'guide' ORDER BY email",
+    // Verwaltung erbt die Guide-Rechte (rolle.ts) — und damit auch die
+    // Anfrage-Mails: Wer zusagen kann, muss gefragt werden.
+    "SELECT email FROM mitglied WHERE rolle IN ('guide', 'verwaltung') ORDER BY email",
   );
   return rows.map((z) => z.email);
 }

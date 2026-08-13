@@ -17,6 +17,7 @@ import { IpBegrenzung } from './ipbegrenzung.ts';
 import * as jugend from './jugendtraining.ts';
 import * as jugendmails from './jugendmails.ts';
 import { holeKontoAuskunft, loescheKonto } from './konto.ts';
+import { hatGuideRechte } from './rolle.ts';
 import type { Mailer } from './mailer.ts';
 import { serialisiereFehler, type Protokoll } from './protokoll.ts';
 import { beendeSitzung, erneuereSitzung, loeseEinladungEin, loeseMagicLinkEin, pruefeZugang, type Ausweis } from './sitzung.ts';
@@ -591,7 +592,7 @@ export function baueApp({
   ): Promise<{ ausweis: Ausweis } | { fehler: 401 | 403 }> {
     const ausweis = await holeAusweis(anfrage);
     if (!ausweis) return { fehler: 401 };
-    if (ausweis.rolle !== 'guide') return { fehler: 403 };
+    if (!hatGuideRechte(ausweis.rolle)) return { fehler: 403 };
     return { ausweis };
   }
 
@@ -666,7 +667,7 @@ export function baueApp({
     };
 
     const ausweis = await holeAusweis(anfrage);
-    if (ausweis?.rolle === 'guide') {
+    if (ausweis && hatGuideRechte(ausweis.rolle)) {
       return antwort.send({ ...grunddaten, teilnehmer: await holeTeilnehmer(pool, schluessel) });
     }
     return antwort.send(grunddaten);
@@ -1007,7 +1008,7 @@ dein Kind auch anmelden.</p>
     const ausweis = await holeAusweis(anfrage);
     if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
 
-    const trainings = await jugend.holeTrainings(pool, ausweis.rolle === 'guide', jetzt());
+    const trainings = await jugend.holeTrainings(pool, hatGuideRechte(ausweis.rolle), jetzt());
     const mitZahlen = await Promise.all(
       trainings.map(async (t) => ({
         ...t,
@@ -1023,7 +1024,7 @@ dein Kind auch anmelden.</p>
 
     const { id } = anfrage.params as { id: string };
     const training = await jugend.holeTraining(pool, id);
-    const istGuide = ausweis.rolle === 'guide';
+    const istGuide = hatGuideRechte(ausweis.rolle);
     // Ein Entwurf ist für alle anderen dasselbe wie ein Training, das es
     // nicht gibt — sonst verriete der Statuscode seine Existenz.
     if (!training || (training.zustand === 'entwurf' && !istGuide)) {
@@ -1603,6 +1604,35 @@ dein Kind auch anmelden.</p>
     }
 
     return antwort.send(ergebnis);
+  });
+
+  app.delete('/verwaltung/einladungen/:email', async (anfrage, antwort) => {
+    const erlaubnis = await holeVerwaltung(anfrage);
+    if ('fehler' in erlaubnis) return weiseVerwaltungAb(antwort, erlaubnis.fehler);
+
+    const { email } = anfrage.params as { email: string };
+    const weg = await verwaltung.zieheEinladungZurueck(pool, decodeURIComponent(email));
+    // 404 bei null Treffern: „Da war nichts offen" ist für die Verwaltung
+    // eine brauchbare Antwort — vielleicht schon eingelöst, dann steht das
+    // Konto in der Liste und wird dort gelöscht.
+    if (weg === 0) return antwort.code(404).send({ fehler: 'Keine offene Einladung zu dieser Adresse.' });
+    return antwort.code(204).send();
+  });
+
+  app.delete('/verwaltung/mitglieder/:id', async (anfrage, antwort) => {
+    const erlaubnis = await holeVerwaltung(anfrage);
+    if ('fehler' in erlaubnis) return weiseVerwaltungAb(antwort, erlaubnis.fehler);
+
+    const { id } = anfrage.params as { id: string };
+    const ergebnis = await verwaltung.loescheMitglied(pool, id);
+    if (!ergebnis.ok) {
+      return ergebnis.grund === 'unbekannt'
+        ? antwort.code(404).send({ fehler: 'Dieses Mitglied gibt es nicht.' })
+        : antwort.code(409).send({
+            fehler: 'Das ist die letzte Verwaltungsrolle — erst jemand anderem geben, dann löschen.',
+          });
+    }
+    return antwort.code(204).send();
   });
 
   return app;

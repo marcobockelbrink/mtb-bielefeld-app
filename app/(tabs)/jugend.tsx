@@ -55,7 +55,8 @@ export default function JugendScreen() {
     }, [angemeldet, laden]),
   );
 
-  const istGuide = rolle === 'guide';
+  // Verwaltung erbt die Guide-Rechte — dieselbe Hierarchie wie in der API.
+  const istGuide = rolle === 'guide' || rolle === 'verwaltung';
 
   // Vier Zustände, und alle vier müssen sichtbar sein. „Leer" ist der, den
   // man am leichtesten mit einem Fehler verwechselt.
