@@ -44,3 +44,5 @@ dev-testflight`, dann `… submit … --latest`. Verwandt:
 **0.8.8 ist in TestFlight angekommen** (13.08. abends, von Marco bestätigt) — der Stand auf den Geräten entspricht damit dem Repository.
 
 **0.8.9, 13.08. spät:** Gerätetest-Funde behoben — GuideKarte auch für Verwaltung (Entwürfe waren sonst unveröffentlichbar, Kind-Anmeldung schlug deshalb fehl), Ort öffnet die Karten-App, native Datumswähler (neues `src/ui/DatumsFeld.tsx`). Auf dem Server hängt ggf. noch der Entwurf „Griechenland Strand" — veröffentlichen kann ihn Marco per App ab 0.8.9 oder per SQL-Einzeiler.
+
+**Security-Seite leer seit 13.08. spät:** CodeQL 0 (Pfadprüfung des Vorschau-Servers in analysierbare Form gebracht — erst normalisieren, dann prüfen, dann denselben Wert benutzen), Dependabot 0 (beide image-size-Alerts als tolerable_risk geschlossen, Begründung am Alert, Wiedervorlage 01.11.2026 im Audit-Skript). 0.8.9 zu Apple hochgeladen.
