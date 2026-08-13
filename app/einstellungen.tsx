@@ -14,6 +14,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,7 +25,8 @@ import { AnmeldeKarte } from '../src/features/konto/AnmeldeKarte';
 import { useNotifications } from '../src/notifications/NotificationContext';
 import { LEAD_TIME_OPTIONS } from '../src/notifications/settings';
 import { categoryDisplay, font, fontSize, spacing } from '../src/theme';
-import { Banner, Card, Chip, LoadingState } from '../src/ui/components';
+import { useKonto } from '../src/konto/KontoContext';
+import { ActionButton, Banner, Card, Chip, LoadingState } from '../src/ui/components';
 import { useTheme } from '../src/ui/theme';
 
 const KATEGORIEN: EventCategory[] = [
@@ -40,6 +42,7 @@ const KATEGORIEN: EventCategory[] = [
 
 export default function EinstellungenScreen() {
   const { palette } = useTheme();
+  const { rolle } = useKonto();
   const insets = useSafeAreaInsets();
   const { settings, loading, permitted, backgroundAvailable, update } = useNotifications();
   const { events, news } = useAppData();
@@ -57,6 +60,18 @@ export default function EinstellungenScreen() {
       contentContainerStyle={[styles.inhalt, { paddingBottom: insets.bottom + spacing.xxl }]}
     >
       <AnmeldeKarte />
+
+      {/* Nur mit der Rolle sichtbar — reine Anzeigehilfe, die API prüft
+          bei jedem Aufruf selbst (dasselbe Muster wie die Guide-Knöpfe). */}
+      {rolle === 'verwaltung' ? (
+        <Card>
+          <Text style={[styles.titel, { color: palette.text }]}>Verwaltung</Text>
+          <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+            Mitglieder einladen, Rollen zuteilen, Jugend-Zugehörigkeit pflegen.
+          </Text>
+          <ActionButton label="Mitglieder verwalten" onPress={() => router.push('/verwaltung')} />
+        </Card>
+      ) : null}
 
       <Card>
         <View style={styles.schalterZeile}>
