@@ -34,25 +34,23 @@ const TYPEN = {
 
 const server = http.createServer((anfrage, antwort) => {
   const angefragt = decodeURIComponent((anfrage.url ?? '/').split('?')[0]);
-  let datei = path.join(wurzel, angefragt);
 
-  // Erst die Grenze, dann das Dateisystem: Vorher stand die Wurzel-Prüfung
-  // **nach** existsSync/statSync — ein `../`-Pfad wurde also abgeklopft,
-  // bevor er abgewiesen wurde (CodeQL js/path-injection). Harmlos, aber
-  // falsche Reihenfolge.
-  if (!path.resolve(datei).startsWith(path.resolve(wurzel))) {
-    datei = path.join(wurzel, 'index.html');
+  // Erst normalisieren, dann prüfen, dann **denselben** Wert benutzen.
+  // Die frühere Fassung prüfte einen frisch aufgelösten Zweitwert und
+  // reichte das unaufgelöste Original ans Dateisystem — inhaltlich dicht,
+  // aber eine Form, die statische Analyse zu Recht nicht als Absicherung
+  // durchgehen lässt (CodeQL js/path-injection). So ist der geprüfte Pfad
+  // der benutzte Pfad, und ein `../`-Ausbruch endet auf der Startseite.
+  const startseite = path.join(wurzel, 'index.html');
+  let datei = path.resolve(wurzel, '.' + path.posix.normalize('/' + angefragt));
+  if (!datei.startsWith(path.resolve(wurzel) + path.sep)) {
+    datei = startseite;
   }
 
   // Verzeichnisse und unbekannte Pfade auf die Startseite lenken — expo-router
   // löst die Adressen selbst auf.
   if (!fs.existsSync(datei) || fs.statSync(datei).isDirectory()) {
-    datei = path.join(wurzel, 'index.html');
-  }
-  // Kein Ausbruch aus dem Ausgabeverzeichnis.
-  if (!path.resolve(datei).startsWith(path.resolve(wurzel))) {
-    antwort.writeHead(403).end('verboten');
-    return;
+    datei = startseite;
   }
 
   antwort.writeHead(200, { 'Content-Type': TYPEN[path.extname(datei)] ?? 'application/octet-stream' });
