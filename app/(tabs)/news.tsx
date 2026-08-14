@@ -8,8 +8,10 @@
 
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppData } from '../../src/data/AppDataContext';
@@ -17,6 +19,7 @@ import type { NewsItem } from '../../src/domain/types';
 import { formatAge, formatDateWithYear } from '../../src/features/events/format';
 import { font, fontSize, labelType, radius, spacing } from '../../src/theme';
 import { ActionButton, Badge, Banner, Chip, EmptyState, LoadingState } from '../../src/ui/components';
+import { Blatt } from '../../src/ui/Blatt';
 import { useTheme } from '../../src/ui/theme';
 
 export default function NewsScreen() {
@@ -24,7 +27,13 @@ export default function NewsScreen() {
   const insets = useSafeAreaInsets();
   const { news, refresh, loadMoreNews } = useAppData();
 
-  const [thema, setThema] = useState<string | null>(null);
+  // Mehrfachauswahl statt Einzelthema — Design-Review vom 14.08.2026
+  // („2a"). Leer heißt: alle Beiträge.
+  const [gewaehlteThemen, setGewaehlteThemen] = useState<string[]>([]);
+  const [themenBlattOffen, setThemenBlattOffen] = useState(false);
+  // Die Auswahl im Blatt togglet sofort optisch, angewandt wird sie erst
+  // mit dem Bestätigen-Knopf — bis dahin lebt sie hier.
+  const [blattAuswahl, setBlattAuswahl] = useState<string[]>([]);
 
   /**
    * Die Themen der geladenen Beiträge, nach Häufigkeit sortiert.
@@ -40,14 +49,16 @@ export default function NewsScreen() {
     return [...zaehler.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
   }, [news.data]);
 
-  const sichtbar = useMemo(
-    () => (thema ? news.data.filter((beitrag) => beitrag.tags.includes(thema)) : news.data),
-    [news.data, thema],
-  );
+  const sichtbar = useMemo(() => {
+    if (gewaehlteThemen.length === 0) return news.data;
+    const menge = new Set(gewaehlteThemen);
+    return news.data.filter((beitrag) => beitrag.tags.some((tag) => menge.has(tag)));
+  }, [news.data, gewaehlteThemen]);
 
   if (news.loading) return <LoadingState label="Beiträge werden geladen …" />;
 
   return (
+    <>
     <FlatList
       data={sichtbar}
       keyExtractor={(item) => item.id}
@@ -74,16 +85,50 @@ export default function NewsScreen() {
           ) : null}
 
           {themen.length > 0 ? (
-            <View style={styles.themen}>
-              <Chip label="Alle" selected={thema === null} onPress={() => setThema(null)} />
-              {themen.map((name) => (
-                <Chip
-                  key={name}
-                  label={name}
-                  selected={thema === name}
-                  onPress={() => setThema(thema === name ? null : name)}
-                />
-              ))}
+            <View style={styles.zeileRahmen}>
+              {/* Eine scrollende Zeile statt drei umbrechender: Die Tags
+                  schoben den ersten Beitrag unter die Falte. Die Fade-Kante
+                  rechts sagt, dass es weitergeht. */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.zeile}
+              >
+                <Pressable
+                  onPress={() => {
+                    setBlattAuswahl(gewaehlteThemen);
+                    setThemenBlattOffen(true);
+                  }}
+                  accessibilityLabel="Themen wählen"
+                  style={({ pressed }) => [
+                    styles.themenKnopf,
+                    { borderColor: palette.primary, backgroundColor: pressed ? palette.surfaceMuted : palette.surface },
+                  ]}
+                >
+                  <Ionicons name="options-outline" size={16} color={palette.primary} />
+                  <Text style={[styles.themenKnopfText, { color: palette.primary }]}>Themen</Text>
+                </Pressable>
+                <Chip label="Alle" selected={gewaehlteThemen.length === 0} onPress={() => setGewaehlteThemen([])} />
+                {themen.map((name) => (
+                  <Chip
+                    key={name}
+                    label={name}
+                    selected={gewaehlteThemen.includes(name)}
+                    onPress={() =>
+                      setGewaehlteThemen((alt) =>
+                        alt.includes(name) ? alt.filter((t) => t !== name) : [...alt, name],
+                      )
+                    }
+                  />
+                ))}
+              </ScrollView>
+              <LinearGradient
+                colors={['transparent', palette.background]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                style={styles.fade}
+                pointerEvents="none"
+              />
             </View>
           ) : null}
         </View>
@@ -91,9 +136,9 @@ export default function NewsScreen() {
       renderItem={({ item }) => <NewsCard item={item} />}
       ListEmptyComponent={
         <EmptyState
-          title={thema ? `Nichts zum Thema „${thema}“` : 'Keine Beiträge'}
+          title={gewaehlteThemen.length > 0 ? `Nichts zu ${gewaehlteThemen.length === 1 ? `„${gewaehlteThemen[0]}“` : 'diesen Themen'}` : 'Keine Beiträge'}
           hint={
-            thema
+            gewaehlteThemen.length > 0
               ? 'Vielleicht steht dazu etwas weiter hinten im Archiv — lade weitere Beiträge nach.'
               : 'Sobald der Verein etwas veröffentlicht, erscheint es hier.'
           }
@@ -121,9 +166,41 @@ export default function NewsScreen() {
       // Erst nachladen, wenn wirklich bis ans Ende gescrollt wurde.
       onEndReachedThreshold={0.4}
       onEndReached={() => {
-        if (!thema) void loadMoreNews();
+        if (gewaehlteThemen.length === 0) void loadMoreNews();
       }}
     />
+    <Blatt offen={themenBlattOffen} beimSchliessen={() => setThemenBlattOffen(false)}>
+      <View style={styles.blattKopf}>
+        <Text style={[styles.blattTitel, { color: palette.text }]}>Themen wählen</Text>
+        <Pressable onPress={() => setBlattAuswahl([])} accessibilityLabel="Auswahl zurücksetzen">
+          <Text style={[styles.zuruecksetzen, { color: palette.textMuted }]}>Zurücksetzen</Text>
+        </Pressable>
+      </View>
+      <View style={styles.blattThemen}>
+        {themen.map((name) => (
+          <Chip
+            key={name}
+            label={name}
+            selected={blattAuswahl.includes(name)}
+            onPress={() =>
+              setBlattAuswahl((alt) => (alt.includes(name) ? alt.filter((t) => t !== name) : [...alt, name]))
+            }
+          />
+        ))}
+      </View>
+      <ActionButton
+        label={
+          blattAuswahl.length === 0
+            ? 'Alle Beiträge anzeigen'
+            : `${blattAuswahl.length} ${blattAuswahl.length === 1 ? 'Thema' : 'Themen'} anzeigen`
+        }
+        onPress={() => {
+          setGewaehlteThemen(blattAuswahl);
+          setThemenBlattOffen(false);
+        }}
+      />
+    </Blatt>
+    </>
   );
 }
 
@@ -192,10 +269,57 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.md,
   },
-  themen: {
+  zeileRahmen: {
+    // Rand-zu-Rand scrollen: Die Liste hat 16 Padding, die Zeile hebt es
+    // auf und bringt es innen wieder an — sonst schnitte der Rand die Chips.
+    marginHorizontal: -spacing.lg,
+  },
+  zeile: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  fade: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 36,
+  },
+  themenKnopf: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  themenKnopfText: {
+    fontFamily: font.medium,
+    fontSize: fontSize.md,
+  },
+  blattKopf: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  blattTitel: {
+    fontFamily: font.semibold,
+    fontSize: fontSize.lg,
+  },
+  zuruecksetzen: {
+    fontFamily: font.label,
+    fontSize: 11,
+    letterSpacing: 0.9,
+    textTransform: 'uppercase',
+  },
+  blattThemen: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   karte: {
     borderRadius: radius.lg,

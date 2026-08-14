@@ -77,16 +77,12 @@ function AppStack() {
           name="einstellungen"
           options={{
             title: 'Einstellungen',
-            // Als Blatt von unten und nicht als weiterer Bildschirm: Wer
-            // etwas einstellt, will danach dorthin zurück, wo er war — nicht
-            // eine Ebene tiefer stehen. `formSheet` gibt es seit expo-router
-            // in SDK 54 auf beiden Plattformen; ein natives Kontextmenü
-            // hätte eine Abhängigkeit gekostet, die Expo mitsegnen muss.
-            presentation: 'formSheet',
-            sheetGrabberVisible: true,
-            // Zwei Rastpunkte: Wer nur den Anmeldezustand sehen will, zieht
-            // nicht das ganze Blatt auf.
-            sheetAllowedDetents: [0.6, 1],
+            // Vollbild statt halbhohem Blatt — Design-Review vom 14.08.2026
+            // („3b"): Der Bereich ist inzwischen zu voll für einen
+            // Teilausschnitt (Konto, Verwaltung, Erinnerungen, Abo), und der
+            // durchscheinende Termine-Bildschirm dahinter lenkte nur ab.
+            // Der Zurück-Pfeil kommt vom Stack.
+            presentation: 'card',
           }}
         />
       </Stack>

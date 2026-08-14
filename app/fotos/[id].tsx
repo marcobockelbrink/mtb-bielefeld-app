@@ -25,15 +25,21 @@
  * Jedes ausgewählte Bild wird sofort ins App-Verzeichnis kopiert und als
  * Auftrag vermerkt (`warteschlangeSpeicher.ts`) — **vor** dem ersten
  * Sendeversuch. Scheitert der Upload im Wald, überlebt der Auftrag den
- * App-Neustart; beim nächsten Öffnen des Albums bietet der Knopf die
- * übrigen an. Erst der gelungene Upload löscht Kopie und Auftrag.
+ * App-Neustart; beim nächsten Öffnen des Albums steht er wieder da.
+ *
+ * Seit dem Design-Review vom 14.08.2026 ist sie **sichtbar** („4c"):
+ * Fortschrittskarte mit Balken und Pausieren, je Kachel ein Zustands-Badge
+ * (hochgeladen · lädt · wartet · kein Netz), und ein Banner erklärt, dass
+ * Wartendes gemerkt bleibt. Der Upload-Knopf sitzt in einer festen
+ * Fußleiste („4b") statt am Scrollende, und die Einwilligung steht in einem
+ * Blatt neben den gewählten Bildern statt in einem nüchternen System-Alert.
  */
 
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -47,7 +53,10 @@ import {
   type AlbumMitFotos,
   type Foto,
 } from '../../src/data/fotos';
+import { ApiFehler } from '../../src/data/api';
 import { formatiereEreignisdatum } from '../../src/features/fotos/AlbumKarte';
+import { UploadFortschritt, type UploadZustand } from '../../src/features/fotos/UploadFortschritt';
+import { Blatt } from '../../src/ui/Blatt';
 import { FotoRaster } from '../../src/features/fotos/FotoRaster';
 import { entferne, fuegeHinzu, fuerAlbum, vermerkeFehlschlag, type Auftrag } from '../../src/features/fotos/warteschlange';
 import { kopiereInsAppVerzeichnis, liesSchlange, loescheKopie, schreibSchlange } from '../../src/features/fotos/warteschlangeSpeicher';
@@ -70,6 +79,16 @@ export default function AlbumScreen() {
   /** Offene Aufträge dieses Albums — aus der persistenten Schlange. */
   const [stapel, setStapel] = useState<Auftrag[]>([]);
   const [laeuftHoch, setLaeuftHoch] = useState(false);
+  // Design „4b"/„4c" (Review vom 14.08.2026): Auswahl wartet in einem Blatt
+  // auf die Einwilligung, und die Warteschlange ist sichtbar — je Auftrag
+  // ein Zustand, dazu Pausieren. Der Ref spiegelt `pausiert` für die
+  // laufende Schleife, die den React-State nicht frisch sieht.
+  const [uploadBlattOffen, setUploadBlattOffen] = useState(false);
+  const [auswahlUris, setAuswahlUris] = useState<string[]>([]);
+  const [zustaende, setZustaende] = useState<Record<string, UploadZustand>>({});
+  const [erledigteRunde, setErledigteRunde] = useState<Auftrag[]>([]);
+  const [pausiert, setPausiert] = useState(false);
+  const pausiertRef = useRef(false);
   const [uebersprungen, setUebersprungen] = useState(0);
 
   /** Sichtung: leere Menge heißt kein Auswahlmodus. */
@@ -109,27 +128,31 @@ export default function AlbumScreen() {
     let schlange = await liesSchlange();
 
     for (const auftrag of auftraege) {
+      // Pausieren greift zwischen zwei Bildern — das laufende wird nicht
+      // abgebrochen, die übrigen bleiben als „wartet" stehen.
+      if (pausiertRef.current) break;
+      setZustaende((alt) => ({ ...alt, [auftrag.id]: 'laedt' }));
       try {
         const vorbereitet = await bereiteVor(auftrag.uri);
         const ergebnis = await ladeHoch(api, auftrag.albumId, vorbereitet.uri);
         if ('doppelt' in ergebnis) doppelte += 1;
         loescheKopie(auftrag);
         schlange = entferne(schlange, auftrag.id);
-      } catch {
+        setZustaende((alt) => ({ ...alt, [auftrag.id]: 'hochgeladen' }));
+        setErledigteRunde((alt) => (alt.some((a) => a.id === auftrag.id) ? alt : [...alt, auftrag]));
+      } catch (ursache) {
         schlange = vermerkeFehlschlag(schlange, auftrag.id);
+        // Status 0 heißt: keine Antwort vom Server — kein Netz. Alles
+        // andere ist ein Fehler, der einen neuen Versuch verdient.
+        const keinNetz = ursache instanceof ApiFehler && ursache.status === 0;
+        setZustaende((alt) => ({ ...alt, [auftrag.id]: keinNetz ? 'keinNetz' : 'wartet' }));
       }
       await schreibSchlange(schlange);
     }
 
-    const offen = fuerAlbum(schlange, id!);
-    setStapel(offen);
+    setStapel(fuerAlbum(schlange, id!));
     setUebersprungen(doppelte);
     setLaeuftHoch(false);
-    if (offen.length > 0) {
-      setFehler(
-        `${offen.length} ${offen.length === 1 ? 'Bild ist' : 'Bilder sind'} nicht angekommen — kein Netz? Sie bleiben gemerkt, auch über einen Neustart, und „Weiter versuchen" schickt nur die fehlenden.`,
-      );
-    }
     await laden();
   }
 
@@ -141,31 +164,35 @@ export default function AlbumScreen() {
     return auftraege;
   }
 
-  async function auswaehlenUndHochladen() {
+  async function bilderAuswaehlen() {
     const auswahl = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: 'images',
       allowsMultipleSelection: true,
       quality: 1,
     });
     if (auswahl.canceled || auswahl.assets.length === 0) return;
-    const uris = auswahl.assets.map((bild) => bild.uri);
+    // Kein System-Alert mehr: Das Blatt zeigt die gewählten Bilder neben
+    // dem Einwilligungssatz — wer bestätigt, sieht, was er bestätigt.
+    setAuswahlUris(auswahl.assets.map((bild) => bild.uri));
+    setUploadBlattOffen(true);
+  }
 
-    // Der Satz vor dem ersten Byte — und „Abbrechen" ist die erste Option.
-    Alert.alert(
-      'Kurz bestätigen',
-      'Ich habe die Bilder selbst aufgenommen, und die abgebildeten Personen sind mit der Verwendung im Verein einverstanden. Die Vereinsverwaltung sieht sie zuerst; sichtbar für andere werden sie erst nach Freigabe.',
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        {
-          text: 'Einverstanden, hochladen',
-          onPress: () => {
-            // Erst sichern, dann senden: Ab hier überlebt die Auswahl auch
-            // einen Absturz zwischen Kopieren und erstem Sendeversuch.
-            void inDieSchlange(uris).then((auftraege) => stapelHochladen(auftraege));
-          },
-        },
-      ],
-    );
+  function bestaetigtHochladen() {
+    const uris = auswahlUris;
+    setUploadBlattOffen(false);
+    setAuswahlUris([]);
+    pausiertRef.current = false;
+    setPausiert(false);
+    // Erst sichern, dann senden: Ab hier überlebt die Auswahl auch einen
+    // Absturz zwischen Kopieren und erstem Sendeversuch.
+    void inDieSchlange(uris).then((auftraege) => stapelHochladen(auftraege));
+  }
+
+  function pausierenUmschalten() {
+    const neu = !pausiertRef.current;
+    pausiertRef.current = neu;
+    setPausiert(neu);
+    if (!neu && !laeuftHoch && stapel.length > 0) void stapelHochladen(stapel);
   }
 
   function beimTippen(foto: Foto) {
@@ -262,6 +289,13 @@ export default function AlbumScreen() {
               />
             ) : null}
 
+            <UploadFortschritt
+              auftraege={[...erledigteRunde, ...stapel.filter((a) => !erledigteRunde.some((e) => e.id === a.id))]}
+              zustaende={zustaende}
+              pausiert={pausiert}
+              beimPausieren={pausierenUmschalten}
+            />
+
             {album.fotos.length === 0 ? (
               <EmptyState title="Noch keine Bilder" hint="Leg los — der Knopf unten nimmt auch mehrere auf einmal." />
             ) : (
@@ -305,22 +339,61 @@ export default function AlbumScreen() {
               </View>
             ) : null}
 
-            {laeuftHoch ? (
-              <View style={styles.laufend}>
-                <ActivityIndicator />
-                <Text style={[styles.laufendText, { color: palette.textMuted }]}>Lädt hoch …</Text>
-              </View>
-            ) : stapel.length > 0 ? (
-              <ActionButton
-                label={`${stapel.length} übrig — weiter versuchen`}
-                onPress={() => void stapelHochladen(stapel)}
-              />
-            ) : album.zustand === 'offen' && auswahl.size === 0 ? (
-              <ActionButton label="Bilder hochladen" onPress={() => void auswaehlenUndHochladen()} />
-            ) : null}
           </>
         ) : null}
       </ScrollView>
+
+      {/* Feste Fußleiste („4b"): Der Knopf gehört nicht ans Scrollende —
+          bei 120 Bildern fand ihn dort niemand. */}
+      {album && album.zustand === 'offen' && auswahl.size === 0 ? (
+        <View
+          style={[
+            styles.fussleiste,
+            { backgroundColor: palette.surface, borderTopColor: palette.border, paddingBottom: insets.bottom + 20 },
+          ]}
+        >
+          <Pressable
+            onPress={() => void bilderAuswaehlen()}
+            accessibilityLabel="Bilder hochladen"
+            style={({ pressed }) => [
+              styles.uploadKnopf,
+              { backgroundColor: pressed ? '#1b587a' : palette.primary },
+            ]}
+          >
+            <Ionicons name="images-outline" size={18} color={palette.onPrimary} />
+            <Text style={[styles.uploadKnopfText, { color: palette.onPrimary }]}>Bilder hochladen</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {/* Upload-Blatt („4b"): Die gewählten Bilder neben dem
+          Einwilligungssatz — wer bestätigt, sieht, was er bestätigt. */}
+      <Blatt offen={uploadBlattOffen} beimSchliessen={() => setUploadBlattOffen(false)}>
+        <Text style={[styles.blattTitel, { color: palette.text }]}>
+          {auswahlUris.length} {auswahlUris.length === 1 ? 'Bild' : 'Bilder'} hochladen
+        </Text>
+        <View style={styles.vorschauZeile}>
+          {auswahlUris.slice(0, auswahlUris.length > 5 ? 4 : 5).map((uri) => (
+            <Image key={uri} source={{ uri }} style={styles.vorschau} />
+          ))}
+          {auswahlUris.length > 5 ? (
+            <View style={[styles.vorschau, styles.mehrKachel, { backgroundColor: palette.surfaceMuted }]}>
+              <Text style={[styles.mehrText, { color: palette.textMuted }]}>+{auswahlUris.length - 4}</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={[styles.einwilligung, { backgroundColor: palette.background }]}>
+          <Text style={[styles.einwilligungText, { color: palette.text }]}>
+            Ich habe die Bilder selbst aufgenommen, und die abgebildeten Personen sind mit der
+            Verwendung im Verein einverstanden. Die Vereinsverwaltung sieht sie zuerst; sichtbar für
+            andere werden sie erst nach Freigabe.
+          </Text>
+        </View>
+        <ActionButton label="Einverstanden, hochladen" onPress={bestaetigtHochladen} />
+        <Pressable onPress={() => setUploadBlattOffen(false)} style={styles.abbrechen} accessibilityLabel="Abbrechen">
+          <Text style={[styles.abbrechenText, { color: palette.textMuted }]}>Abbrechen</Text>
+        </Pressable>
+      </Blatt>
     </>
   );
 }
@@ -342,13 +415,64 @@ const styles = StyleSheet.create({
     fontFamily: font.semibold,
     fontSize: fontSize.md,
   },
-  laufend: {
+  fussleiste: {
+    borderTopWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 10,
+  },
+  uploadKnopf: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
+    minHeight: 48,
+    borderRadius: 6,
   },
-  laufendText: {
-    fontFamily: font.regular,
+  uploadKnopfText: {
+    fontFamily: font.semibold,
+    fontSize: fontSize.md,
+  },
+  blattTitel: {
+    fontFamily: font.semibold,
+    fontSize: fontSize.lg,
+    marginBottom: spacing.md,
+  },
+  vorschauZeile: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: spacing.md,
+  },
+  vorschau: {
+    width: 64,
+    height: 64,
+    borderRadius: 6,
+  },
+  mehrKachel: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mehrText: {
+    fontFamily: font.semibold,
     fontSize: fontSize.sm,
+  },
+  einwilligung: {
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: spacing.lg,
+  },
+  einwilligungText: {
+    fontFamily: font.regular,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  abbrechen: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+  },
+  abbrechenText: {
+    fontFamily: font.semibold,
+    fontSize: 15,
   },
 });

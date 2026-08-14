@@ -265,7 +265,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 40,
+    // 44 statt 40 — Mindest-Tippziel aus dem Design-Review vom 14.08.2026.
+    minHeight: 44,
     paddingHorizontal: spacing.md,
   },
   chipText: {
