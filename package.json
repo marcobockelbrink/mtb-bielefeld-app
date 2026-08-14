@@ -1,6 +1,6 @@
 {
   "name": "mtb-bielefeld-app",
-  "version": "0.8.9",
+  "version": "0.9.0",
   "main": "expo-router/entry",
   "type": "module",
   "dependencies": {
