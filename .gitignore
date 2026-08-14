@@ -61,3 +61,8 @@ api/dist/
 # Zugangsdaten des Betriebsaufbaus — das Repository ist öffentlich.
 betrieb/.env
 docs/appstore-screenshots/
+
+# Design-Handoffs: Referenz-Prototypen (HTML + fremde Laufzeit-JS), kein
+# Projektcode. Sie gehoerten nie ins Repository — mit 4c67a8c versehentlich
+# per `git add -A` hineingeraten und mit dem Folgecommit wieder entfernt.
+design_handoff_*/
