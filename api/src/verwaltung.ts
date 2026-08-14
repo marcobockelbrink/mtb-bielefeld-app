@@ -22,6 +22,7 @@ export interface MitgliedZeile {
   email: string;
   rolle: Rolle;
   jugend: boolean;
+  jugendGuide: boolean;
   angelegtAm: Date | null;
   gesehenAm: Date | null;
   /** Zur Adresse liegt eine uneingelöste, nicht abgelaufene Einladung. */
@@ -47,9 +48,10 @@ export async function holeMitglieder(db: pg.Pool, jetzt: Date): Promise<Mitglied
     email: string;
     rolle: Rolle;
     jugend: boolean;
+    jugend_guide: boolean;
     angelegt_am: Date;
     gesehen_am: Date | null;
-  }>('SELECT id, email, rolle, jugend, angelegt_am, gesehen_am FROM mitglied');
+  }>('SELECT id, email, rolle, jugend, jugend_guide, angelegt_am, gesehen_am FROM mitglied');
 
   const offene = await db.query<{ ausgestellt_fuer: string }>(
     'SELECT DISTINCT ausgestellt_fuer FROM einladung WHERE eingeloest_am IS NULL AND gueltig_bis > $1',
@@ -63,6 +65,7 @@ export async function holeMitglieder(db: pg.Pool, jetzt: Date): Promise<Mitglied
     email: z.email,
     rolle: z.rolle,
     jugend: z.jugend,
+    jugendGuide: z.jugend_guide,
     angelegtAm: z.angelegt_am,
     gesehenAm: z.gesehen_am,
     offeneEinladung: offeneAdressen.has(z.email.toLowerCase()),
@@ -75,6 +78,7 @@ export async function holeMitglieder(db: pg.Pool, jetzt: Date): Promise<Mitglied
       email: zeile.ausgestellt_fuer,
       rolle: 'mitglied',
       jugend: false,
+      jugendGuide: false,
       angelegtAm: null,
       gesehenAm: null,
       offeneEinladung: true,
@@ -85,7 +89,7 @@ export async function holeMitglieder(db: pg.Pool, jetzt: Date): Promise<Mitglied
 }
 
 export type Aenderung =
-  | { ok: true; rolle: Rolle; jugend: boolean }
+  | { ok: true; rolle: Rolle; jugend: boolean; jugendGuide: boolean }
   | { ok: false; grund: 'unbekannt' | 'letzte-verwaltung' };
 
 /**
@@ -100,18 +104,19 @@ export type Aenderung =
 export async function aendereMitglied(
   db: pg.Pool,
   id: string,
-  aenderung: { rolle?: Rolle; jugend?: boolean },
+  aenderung: { rolle?: Rolle; jugend?: boolean; jugendGuide?: boolean },
 ): Promise<Aenderung> {
   if (!istKennung(id)) return { ok: false, grund: 'unbekannt' };
 
-  const { rows } = await db.query<{ rolle: Rolle; jugend: boolean }>(
+  const { rows } = await db.query<{ rolle: Rolle; jugend: boolean; jugend_guide: boolean }>(
     // Die ::-Casts sind Pflicht, nicht Zier: Ein Platzhalter, der sowohl in
     // COALESCE als auch in einem Vergleich steht, lässt Postgres den Typ
     // nicht ableiten — die Anfrage scheitert dann als 500 zur Laufzeit,
     // während jeder Test mit nur einem der beiden Felder grün bliebe.
     `UPDATE mitglied SET
        rolle  = COALESCE($2::text, rolle),
-       jugend = COALESCE($3::boolean, jugend)
+       jugend = COALESCE($3::boolean, jugend),
+       jugend_guide = COALESCE($4::boolean, jugend_guide)
      WHERE id = $1
        AND NOT (
          rolle = 'verwaltung' AND $2::text IS NOT NULL AND $2::text <> 'verwaltung'
@@ -119,11 +124,12 @@ export async function aendereMitglied(
            SELECT 1 FROM mitglied a WHERE a.rolle = 'verwaltung' AND a.id <> $1
          )
        )
-     RETURNING rolle, jugend`,
-    [id, aenderung.rolle ?? null, aenderung.jugend ?? null],
+     RETURNING rolle, jugend, jugend_guide`,
+    [id, aenderung.rolle ?? null, aenderung.jugend ?? null, aenderung.jugendGuide ?? null],
   );
 
-  if (rows[0]) return { ok: true, ...rows[0] };
+  const zeile = rows[0];
+  if (zeile) return { ok: true, rolle: zeile.rolle, jugend: zeile.jugend, jugendGuide: zeile.jugend_guide };
 
   const { rowCount } = await db.query('SELECT 1 FROM mitglied WHERE id = $1', [id]);
   return { ok: false, grund: (rowCount ?? 0) > 0 ? 'letzte-verwaltung' : 'unbekannt' };

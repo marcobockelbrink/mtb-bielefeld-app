@@ -39,3 +39,15 @@ export async function setzeRolle(
 export function hatGuideRechte(rolle: string): boolean {
   return rolle === 'guide' || rolle === 'verwaltung';
 }
+
+/**
+ * Darf jemand Jugendtrainings leiten?
+ *
+ * Guide-Rechte **oder** das Jugend-Guide-Häkchen — und die Verwaltung erbt
+ * auch hier, wie überall. Ein reiner Jugend-Guide führt keine Touren und
+ * braucht dafür keine Guide-Rolle; umgekehrt soll ein Touren-Guide nicht
+ * ausgesperrt sein, nur weil ihm jemand das Häkchen nicht gesetzt hat.
+ */
+export function hatJugendGuideRechte(rolle: string, jugendGuide: boolean): boolean {
+  return hatGuideRechte(rolle) || jugendGuide;
+}

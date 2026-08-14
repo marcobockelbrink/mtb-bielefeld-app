@@ -13,6 +13,7 @@ export interface MitgliedZeile {
   email: string;
   rolle: Rolle;
   jugend: boolean;
+  jugendGuide: boolean;
   gesehenAm: Date | null;
   offeneEinladung: boolean;
 }
@@ -22,6 +23,7 @@ interface Roh {
   email: string;
   rolle: Rolle;
   jugend: boolean;
+  jugendGuide: boolean;
   gesehenAm: string | null;
   offeneEinladung: boolean;
 }
@@ -40,9 +42,9 @@ export function ladeEin(api: ApiZugang, email: string): Promise<{ eingeladen: st
 export async function aendereMitglied(
   api: ApiZugang,
   id: string,
-  aenderung: { rolle?: Rolle; jugend?: boolean },
-): Promise<{ rolle: Rolle; jugend: boolean }> {
-  return api.sende<{ rolle: Rolle; jugend: boolean }>(
+  aenderung: { rolle?: Rolle; jugend?: boolean; jugendGuide?: boolean },
+): Promise<{ rolle: Rolle; jugend: boolean; jugendGuide: boolean }> {
+  return api.sende<{ rolle: Rolle; jugend: boolean; jugendGuide: boolean }>(
     `/verwaltung/mitglieder/${id}`,
     'PATCH',
     aenderung,

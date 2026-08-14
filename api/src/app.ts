@@ -1590,11 +1590,12 @@ dein Kind auch anmelden.</p>
         ? koerper.rolle
         : undefined;
     const jugend = typeof koerper?.jugend === 'boolean' ? koerper.jugend : undefined;
-    if (rolle === undefined && jugend === undefined) {
+    const jugendGuide = typeof koerper?.jugendGuide === 'boolean' ? koerper.jugendGuide : undefined;
+    if (rolle === undefined && jugend === undefined && jugendGuide === undefined) {
       return antwort.code(400).send({ fehler: 'Nichts zu ändern.' });
     }
 
-    const ergebnis = await verwaltung.aendereMitglied(pool, id, { rolle, jugend });
+    const ergebnis = await verwaltung.aendereMitglied(pool, id, { rolle, jugend, jugendGuide });
     if (!ergebnis.ok) {
       return ergebnis.grund === 'unbekannt'
         ? antwort.code(404).send({ fehler: 'Dieses Mitglied gibt es nicht.' })

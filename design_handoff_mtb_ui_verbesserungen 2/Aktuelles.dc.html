@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@600&display=swap">
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+a{color:#25749e}a:hover{color:#1b587a}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-intro{max-width:720px;font:400 12.5px/1.55 system-ui,sans-serif;color:rgba(0,0,0,.6);margin:0 0 24px}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.4 system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:393px}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.phone{width:393px;height:780px;background:#dfe4e7;border:1px solid rgba(0,0,0,.14);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 28px rgba(17,28,34,.14)}
+.phdr{display:flex;align-items:center;justify-content:space-between;background:#fbfcfd;padding:16px 16px 10px}
+.ptitle{font-family:'Barlow Condensed';font-weight:700;font-size:27px;color:#111c22}
+.icn{width:24px;height:24px;background:#495b65;display:inline-block}
+.chip{display:flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;border-radius:6px;background:#fbfcfd;border:1px solid #b7c2c8;font-family:Barlow;font-weight:500;font-size:15px;color:#111c22}
+.chip.on{background:#25749e;border-color:#25749e;color:#fff}
+.card{background:#fbfcfd;border:1px solid rgba(183,194,200,.65);border-radius:10px;overflow:hidden;flex:none}
+.meta{font-family:'Barlow Semi Condensed';font-weight:600;font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:#495b65}
+.ctitle{font-family:Barlow;font-weight:600;font-size:18px;line-height:23px;color:#111c22}
+.excerpt{font-family:Barlow;font-size:13px;line-height:20px;color:#495b65}
+.tag{background:#d0d8dc;border-radius:3px;padding:3px 8px;font-family:'Barlow Semi Condensed';font-weight:600;font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:#495b65}
+.tabbar{display:flex;background:#fbfcfd;border-top:1px solid #b7c2c8;padding:8px 0 14px}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.tlbl{font-family:'Barlow Semi Condensed';font-weight:600;font-size:10px;letter-spacing:.9px;text-transform:uppercase;color:#495b65}
+.tab.on .tlbl{color:#25749e}
+.tab.on .icn{background:#25749e}
+.m-settings{-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/settings-outline.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/settings-outline.svg') center/contain no-repeat}
+.m-cal{-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/calendar-outline.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/calendar-outline.svg') center/contain no-repeat}
+.m-news{-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/newspaper.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/newspaper.svg') center/contain no-repeat}
+.m-people{-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/people-outline.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/people-outline.svg') center/contain no-repeat}
+.m-bike{-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/bicycle-outline.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/bicycle-outline.svg') center/contain no-repeat}
+.m-chev{-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-down.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-down.svg') center/contain no-repeat}
+.m-close{-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/close-circle.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/close-circle.svg') center/contain no-repeat}
+.m-opt{-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/options-outline.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/options-outline.svg') center/contain no-repeat}
+</style>
+</helmet>
+<section class="dv-turn" id="t5" data-screen-label="Mitgliederverwaltung — Runde 5">
+<div class="dv-thd"><a class="dv-tid" href="#t5">5</a><span class="dv-tname">Mitgliederverwaltung — Rollen als Tags</span></div>
+<p class="dv-intro">Ist-Zustand (<a class="dv-oid" href="#5a">5a</a>, app/verwaltung.tsx): Rolle als Entweder-oder-Chips (mitglied/guide/verwaltung), Jugend nur als Textlink, „Jugend-Guide" gibt es gar nicht. <a class="dv-oid" href="#5b">5b</a> (Empfehlung): pro Mitglied mehrfach anklickbare Tags — <b>Guide</b>, <b>Jugend-Guide</b>, <b>Jugend</b>, <b>Verwaltung</b>. Einer kann Guide UND Jugend-Guide sein; ein Tipp togglet, gefährliche Aktionen (Verwaltung, Löschen) fragen weiter nach. Die Karte zeigt die aktiven Tags direkt neben der Adresse — man sieht auf einen Blick, wer was macht.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="5a"><div class="dv-olabel"><a class="dv-oid" href="#5a">5a</a>Ist-Zustand — Rolle als Entweder-oder, Jugend als Textlink, kein Jugend-Guide</div>
+<div class="phone">
+  <div class="phdr" style="gap:10px;justify-content:flex-start">
+    <span class="icn" style="width:26px;height:26px;background:#25749e;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat"></span>
+    <div class="ptitle">Verwaltung</div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px">
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:8px">
+      <div class="meta">Mitglied einladen</div>
+      <div style="display:flex;align-items:center;min-height:40px;padding:0 12px;border:1px solid #b7c2c8;border-radius:6px;background:#fbfcfd;font-family:Barlow;font-size:15px;color:#495b65">anna@example.org</div>
+      <div style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:6px;background:#25749e;font-family:Barlow;font-weight:600;font-size:15px;color:#fff">Einladen — Code kommt per Mail</div>
+    </div>
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div class="ctitle" style="font-size:16px">basti@mtb-bielefeld.de</div>
+        <div class="tag" style="background:#25749e;color:#fff">Jugend</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div class="chip" style="min-height:36px;font-size:14px">mitglied</div>
+        <div class="chip on" style="min-height:36px;font-size:14px">guide</div>
+        <div class="chip" style="min-height:36px;font-size:14px">verwaltung</div>
+      </div>
+      <div style="font-family:Barlow;font-weight:600;font-size:14px;color:#25749e">Jugend-Zugehörigkeit entfernen</div>
+      <div style="font-family:Barlow;font-weight:600;font-size:14px;color:#a33b2e">Mitglied löschen</div>
+    </div>
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px;border-bottom:none;border-radius:10px 10px 0 0">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div class="ctitle" style="font-size:16px">traute@example.org</div>
+        <div class="tag" style="background:#8c5a16;color:#fff">Eingeladen</div>
+      </div>
+      <div class="excerpt">Noch nie angemeldet — es gibt noch kein Konto.</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="5b"><div class="dv-olabel"><a class="dv-oid" href="#5b">5b</a>Empfehlung — mehrfach anklickbare Rollen-Tags pro Mitglied: Guide + Jugend-Guide gleichzeitig möglich</div>
+<div class="phone">
+  <div class="phdr" style="gap:10px;justify-content:flex-start">
+    <span class="icn" style="width:26px;height:26px;background:#25749e;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat"></span>
+    <div class="ptitle">Verwaltung</div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px">
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:8px">
+      <div class="meta">Mitglied einladen</div>
+      <div style="display:flex;align-items:center;min-height:44px;padding:0 12px;border:1px solid #b7c2c8;border-radius:6px;background:#fbfcfd;font-family:Barlow;font-size:15px;color:#495b65">anna@example.org</div>
+      <div style="display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:6px;background:#25749e;font-family:Barlow;font-weight:600;font-size:15px;color:#fff">Einladen — Code kommt per Mail</div>
+    </div>
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="ctitle" style="font-size:16px">basti@mtb-bielefeld.de</div>
+        <span class="icn" style="width:20px;height:20px;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/ellipsis-horizontal.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/ellipsis-horizontal.svg') center/contain no-repeat"></span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <div class="chip on" style="min-height:44px;gap:6px"><span class="icn" style="width:14px;height:14px;background:#fff;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/checkmark.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/checkmark.svg') center/contain no-repeat"></span>Guide</div>
+        <div class="chip on" style="min-height:44px;gap:6px"><span class="icn" style="width:14px;height:14px;background:#fff;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/checkmark.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/checkmark.svg') center/contain no-repeat"></span>Jugend-Guide</div>
+        <div class="chip" style="min-height:44px">Jugend</div>
+        <div class="chip" style="min-height:44px">Verwaltung</div>
+      </div>
+      <div class="excerpt">Zuletzt gesehen: gestern</div>
+    </div>
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="ctitle" style="font-size:16px">janosch@example.org</div>
+        <span class="icn" style="width:20px;height:20px;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/ellipsis-horizontal.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/ellipsis-horizontal.svg') center/contain no-repeat"></span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <div class="chip" style="min-height:44px">Guide</div>
+        <div class="chip" style="min-height:44px">Jugend-Guide</div>
+        <div class="chip on" style="min-height:44px;gap:6px"><span class="icn" style="width:14px;height:14px;background:#fff;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/checkmark.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/checkmark.svg') center/contain no-repeat"></span>Jugend</div>
+        <div class="chip" style="min-height:44px">Verwaltung</div>
+      </div>
+    </div>
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:8px;border-bottom:none;border-radius:10px 10px 0 0">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div class="ctitle" style="font-size:16px">traute@example.org</div>
+        <div class="tag" style="background:#8c5a16;color:#fff">Eingeladen</div>
+      </div>
+      <div class="excerpt">Noch nie angemeldet. Löschen &amp; Co. liegen im „…"-Menü.</div>
+    </div>
+  </div>
+</div></div>
+
+</div>
+</section>
+<section class="dv-turn" id="t4" data-screen-label="Fotoalbum Upload — Runde 4">
+<div class="dv-thd"><a class="dv-tid" href="#t4">4</a><span class="dv-tname">Fotoalbum — Upload verbessern</span></div>
+<p class="dv-intro">Drei Schwächen im Ist-Zustand (<a class="dv-oid" href="#4a">4a</a>): der Upload-Knopf hängt am Scrollende unter dem Raster, die Einwilligung kommt als nüchterner System-Alert ohne Blick auf die gewählten Bilder, und während des Hochladens dreht nur ein Spinner. Vorschlag <a class="dv-oid" href="#4b">4b</a>: fester Upload-Knopf unten, der immer sichtbar bleibt, und statt des Alerts ein eigenes Blatt mit Vorschau der gewählten Bilder + Einwilligung. <a class="dv-oid" href="#4c">4c</a>: der Fortschritt läuft sichtbar im Raster mit — jedes Bild zeigt seinen Zustand, die Warteschlange aus dem Code wird endlich sichtbar.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="4a"><div class="dv-olabel"><a class="dv-oid" href="#4a">4a</a>Ist-Zustand — Knopf am Scrollende, Einwilligung als System-Alert, Fortschritt nur ein Spinner</div>
+<div class="phone" style="position:relative">
+  <div class="phdr" style="gap:10px;justify-content:flex-start">
+    <span class="icn" style="width:26px;height:26px;background:#25749e;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat"></span>
+    <div class="ptitle">Sommertour 2026</div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px">
+    <div class="meta">26. Juli 2026</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">
+      <div style="aspect-ratio:1;background:#c3ccd1"></div><div style="aspect-ratio:1;background:#aebac1"></div><div style="aspect-ratio:1;background:#c3ccd1;position:relative"><div style="position:absolute;top:0;right:0;background:#8c5a16;color:#fff;font-family:'Barlow Semi Condensed';font-weight:600;font-size:9px;letter-spacing:.6px;padding:2px 6px">NEU</div></div>
+      <div style="aspect-ratio:1;background:#aebac1"></div><div style="aspect-ratio:1;background:#c3ccd1"></div><div style="aspect-ratio:1;background:#aebac1"></div>
+      <div style="aspect-ratio:1;background:#c3ccd1"></div><div style="aspect-ratio:1;background:#aebac1"></div><div style="aspect-ratio:1;background:#c3ccd1"></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:6px;background:#25749e;font-family:Barlow;font-weight:600;font-size:16px;color:#fff;opacity:.5">Bilder hochladen&nbsp;<span style="font-weight:400;font-size:13px">(erst nach Scrollen sichtbar)</span></div>
+  </div>
+  <div style="position:absolute;inset:0;background:rgba(17,28,34,.45);display:flex;align-items:center;justify-content:center;padding:32px">
+    <div style="background:#eceff1;border-radius:14px;padding:18px 16px 0;display:flex;flex-direction:column;gap:8px;text-align:center;width:100%">
+      <div style="font-family:Barlow;font-weight:600;font-size:16px;color:#111c22">Kurz bestätigen</div>
+      <div style="font-family:Barlow;font-size:13px;line-height:18px;color:#495b65">Ich habe die Bilder selbst aufgenommen, und die abgebildeten Personen sind mit der Verwendung im Verein einverstanden. …</div>
+      <div style="border-top:1px solid #b7c2c8;display:flex;margin-top:8px">
+        <div style="flex:1;padding:12px;font-family:Barlow;font-size:15px;color:#25749e;border-right:1px solid #b7c2c8">Abbrechen</div>
+        <div style="flex:1;padding:12px;font-family:Barlow;font-weight:600;font-size:15px;color:#25749e">Einverstanden, hochladen</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="4b"><div class="dv-olabel"><a class="dv-oid" href="#4b">4b</a>Empfehlung — fester Upload-Knopf unten + eigenes Blatt: gewählte Bilder als Vorschau, Einwilligung im Kontext</div>
+<div class="phone" style="position:relative">
+  <div class="phdr" style="gap:10px;justify-content:flex-start">
+    <span class="icn" style="width:26px;height:26px;background:#25749e;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat"></span>
+    <div class="ptitle">Sommertour 2026</div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px">
+    <div class="meta">26. Juli 2026</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">
+      <div style="aspect-ratio:1;background:#c3ccd1"></div><div style="aspect-ratio:1;background:#aebac1"></div><div style="aspect-ratio:1;background:#c3ccd1"></div>
+      <div style="aspect-ratio:1;background:#aebac1"></div><div style="aspect-ratio:1;background:#c3ccd1"></div><div style="aspect-ratio:1;background:#aebac1"></div>
+    </div>
+  </div>
+  <div style="position:absolute;inset:0;background:rgba(17,28,34,.38);display:flex;flex-direction:column;justify-content:flex-end">
+    <div style="background:#fbfcfd;border-radius:16px 16px 0 0;padding:16px 16px 28px;display:flex;flex-direction:column;gap:14px">
+      <div style="width:36px;height:4px;border-radius:2px;background:#b7c2c8;align-self:center"></div>
+      <div style="font-family:Barlow;font-weight:600;font-size:18px;color:#111c22">5 Bilder hochladen</div>
+      <div style="display:flex;gap:6px">
+        <div style="width:64px;height:64px;border-radius:6px;background:#c3ccd1"></div>
+        <div style="width:64px;height:64px;border-radius:6px;background:#aebac1"></div>
+        <div style="width:64px;height:64px;border-radius:6px;background:#c3ccd1"></div>
+        <div style="width:64px;height:64px;border-radius:6px;background:#aebac1"></div>
+        <div style="width:64px;height:64px;border-radius:6px;background:#d0d8dc;display:flex;align-items:center;justify-content:center;font-family:Barlow;font-weight:600;font-size:14px;color:#495b65">+1</div>
+      </div>
+      <div style="background:#dfe4e7;border-radius:8px;padding:12px;font-family:Barlow;font-size:13px;line-height:19px;color:#111c22">Ich habe die Bilder selbst aufgenommen, und die abgebildeten Personen sind einverstanden. Die Vereinsverwaltung sichtet zuerst — sichtbar für andere erst nach Freigabe.</div>
+      <div style="display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:6px;background:#25749e;font-family:Barlow;font-weight:600;font-size:16px;color:#fff">Einverstanden, hochladen</div>
+      <div style="display:flex;align-items:center;justify-content:center;min-height:44px;font-family:Barlow;font-weight:600;font-size:15px;color:#495b65">Abbrechen</div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="4c"><div class="dv-olabel"><a class="dv-oid" href="#4c">4c</a>Fortschritt sichtbar — jedes Bild zeigt seinen Zustand im Raster, die Warteschlange bekommt ein Gesicht</div>
+<div class="phone">
+  <div class="phdr" style="gap:10px;justify-content:flex-start">
+    <span class="icn" style="width:26px;height:26px;background:#25749e;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat"></span>
+    <div class="ptitle">Sommertour 2026</div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:10px;background:#fbfcfd;border:1px solid rgba(183,194,200,.65);border-radius:8px;padding:10px 12px">
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+        <div style="font-family:Barlow;font-weight:600;font-size:14px;color:#111c22">3 von 5 hochgeladen</div>
+        <div style="height:4px;border-radius:2px;background:#d0d8dc;overflow:hidden"><div style="width:60%;height:100%;background:#25749e"></div></div>
+      </div>
+      <span style="font-family:'Barlow Semi Condensed';font-weight:600;font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:#25749e">Pausieren</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px">
+      <div style="aspect-ratio:1;background:#c3ccd1;position:relative"><div style="position:absolute;top:0;right:0;background:#2e7d4f;color:#fff;font-family:'Barlow Semi Condensed';font-weight:600;font-size:9px;letter-spacing:.6px;padding:2px 6px">HOCHGELADEN</div></div>
+      <div style="aspect-ratio:1;background:#aebac1;position:relative"><div style="position:absolute;top:0;right:0;background:#2e7d4f;color:#fff;font-family:'Barlow Semi Condensed';font-weight:600;font-size:9px;letter-spacing:.6px;padding:2px 6px">HOCHGELADEN</div></div>
+      <div style="aspect-ratio:1;background:#c3ccd1;position:relative;outline:2px solid #25749e;outline-offset:-2px"><div style="position:absolute;top:0;right:0;background:#25749e;color:#fff;font-family:'Barlow Semi Condensed';font-weight:600;font-size:9px;letter-spacing:.6px;padding:2px 6px">LÄDT …</div></div>
+      <div style="aspect-ratio:1;background:#aebac1;opacity:.55;position:relative"><div style="position:absolute;top:0;right:0;background:#495b65;color:#fff;font-family:'Barlow Semi Condensed';font-weight:600;font-size:9px;letter-spacing:.6px;padding:2px 6px">WARTET</div></div>
+      <div style="aspect-ratio:1;background:#c3ccd1;opacity:.55;position:relative"><div style="position:absolute;top:0;right:0;background:#8c5a16;color:#fff;font-family:'Barlow Semi Condensed';font-weight:600;font-size:9px;letter-spacing:.6px;padding:2px 6px">KEIN NETZ</div></div>
+      <div style="aspect-ratio:1;background:#aebac1"></div>
+    </div>
+    <div style="background:#d0d8dc;border-left:3px solid #8c5a16;border-radius:3px;padding:8px 12px;font-family:Barlow;font-size:13px;line-height:19px;color:#111c22">1 Bild wartet auf Netz — es bleibt gemerkt, auch nach einem Neustart.</div>
+  </div>
+  <div style="padding:10px 16px 20px;background:#fbfcfd;border-top:1px solid #b7c2c8">
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:6px;background:#25749e;font-family:Barlow;font-weight:600;font-size:16px;color:#fff"><span style="width:18px;height:18px;background:#fff;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/images-outline.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/images-outline.svg') center/contain no-repeat"></span>Bilder hochladen</div>
+  </div>
+</div></div>
+
+</div>
+</section>
+<section class="dv-turn" id="t3" data-screen-label="Einstellungen — Runde 3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">Einstellungen — Blatt vs. eigene Seite</span></div>
+<p class="dv-intro">Heute öffnen die Einstellungen als halbhohes Blatt über „Termine" (<a class="dv-oid" href="#3a">3a</a>) — man scrollt viel Inhalt in einem Teilausschnitt, und der dahinter durchscheinende Screen lenkt ab. <a class="dv-oid" href="#3b">3b</a> (Empfehlung): eine eigene Vollbild-Seite mit Zurück-Pfeil — voller Platz zum Scrollen, ruhiger Hintergrund, auf Android wie iOS das vertraute Muster. <a class="dv-oid" href="#3c">3c</a>: das Blatt bleibt, öffnet aber auf voller Höhe.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="3a"><div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>Ist-Zustand — halbhohes Blatt über „Termine", viel Inhalt im Teilausschnitt</div>
+<div class="phone" style="position:relative">
+  <div class="phdr"><div class="ptitle">Termine</div><span class="icn m-settings"></span></div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border-radius:8px;background:#d0d8dc;font-family:Barlow;font-size:15px;color:#495b65">Termin, Ort oder Guide suchen</div>
+    <div class="card" style="padding:14px 16px">
+      <div class="ctitle" style="font-size:17px">MittwochsRudel</div>
+      <div class="excerpt" style="margin-top:2px">18:00 · Johannisberg info point</div>
+    </div>
+  </div>
+  <div style="position:absolute;inset:0;background:rgba(17,28,34,.32);display:flex;flex-direction:column;justify-content:flex-end">
+    <div style="height:66%;background:#dfe4e7;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 16px 10px;background:#fbfcfd">
+        <div style="width:36px;height:4px;border-radius:2px;background:#b7c2c8"></div>
+        <div style="font-family:'Barlow Condensed';font-weight:700;font-size:22px;color:#111c22">Einstellungen</div>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:12px">
+        <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:6px">
+          <div class="meta">Mein Konto</div>
+          <div class="ctitle">Du bist angemeldet.</div>
+          <div class="excerpt">Damit kannst du dich in der Terminansicht zu Touren an- und abmelden.</div>
+          <div style="display:flex;align-items:center;justify-content:center;min-height:44px;border:1px solid #b7c2c8;border-radius:6px;font-family:Barlow;font-weight:600;font-size:15px;color:#111c22;margin-top:6px">Abmelden</div>
+        </div>
+        <div class="card" style="padding:16px;display:flex;gap:14px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+            <div class="ctitle">Termin-Erinnerungen</div>
+            <div class="excerpt">Das Handy erinnert dich rechtzeitig vor einem Termin. Die Erinnerungen entstehen auf dem Gerät …</div>
+          </div>
+          <div style="flex:none;width:48px;height:28px;border-radius:14px;background:#25749e;position:relative"><div style="position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:12px;background:#fff"></div></div>
+        </div>
+        <div class="card" style="padding:16px;border-bottom:none;border-radius:10px 10px 0 0">
+          <div class="ctitle">Wann erinnern?</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="3b"><div class="dv-olabel"><a class="dv-oid" href="#3b">3b</a>Empfehlung — eigene Vollbild-Seite mit Zurück-Pfeil: voller Platz, ruhiger Hintergrund</div>
+<div class="phone">
+  <div class="phdr" style="gap:10px;justify-content:flex-start">
+    <span class="icn" style="width:26px;height:26px;background:#25749e;-webkit-mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat;mask:url('https://unpkg.com/ionicons@7.1.0/dist/svg/chevron-back.svg') center/contain no-repeat"></span>
+    <div class="ptitle">Einstellungen</div>
+  </div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px">
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:6px">
+      <div class="meta">Mein Konto</div>
+      <div class="ctitle">Du bist angemeldet.</div>
+      <div class="excerpt">Damit kannst du dich in der Terminansicht zu Touren an- und abmelden.</div>
+      <div style="display:flex;align-items:center;justify-content:center;min-height:44px;border:1px solid #b7c2c8;border-radius:6px;font-family:Barlow;font-weight:600;font-size:15px;color:#111c22;margin-top:6px">Abmelden</div>
+    </div>
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;gap:14px">
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+          <div class="ctitle">Termin-Erinnerungen</div>
+          <div class="excerpt">Das Handy erinnert dich rechtzeitig vor einem Termin. Es wird nichts an den Verein oder Dritte übertragen.</div>
+        </div>
+        <div style="flex:none;width:48px;height:28px;border-radius:14px;background:#25749e;position:relative"><div style="position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:12px;background:#fff"></div></div>
+      </div>
+    </div>
+    <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div class="ctitle">Wann erinnern?</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <div class="chip" style="min-height:44px">1 Stunde</div>
+        <div class="chip on" style="min-height:44px">2 Stunden</div>
+        <div class="chip" style="min-height:44px">3 Stunden</div>
+        <div class="chip" style="min-height:44px">Am Tag vorher</div>
+      </div>
+    </div>
+    <div class="card" style="padding:16px;border-bottom:none;border-radius:10px 10px 0 0">
+      <div class="ctitle">Wofür erinnern?</div>
+      <div class="excerpt" style="margin-top:4px">Ohne Auswahl wird an alle Termine erinnert.</div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab on"><span class="icn m-cal"></span><span class="tlbl">Termine</span></div>
+    <div class="tab"><span class="icn m-news"></span><span class="tlbl">Aktuelles</span></div>
+    <div class="tab"><span class="icn m-people"></span><span class="tlbl">Verein</span></div>
+    <div class="tab"><span class="icn m-bike"></span><span class="tlbl">Jugend</span></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="3c"><div class="dv-olabel"><a class="dv-oid" href="#3c">3c</a>Alternative — Blatt bleibt, öffnet aber auf voller Höhe: kaum Ablenkung, Wisch-zum-Schließen bleibt</div>
+<div class="phone" style="position:relative">
+  <div class="phdr"><div class="ptitle">Termine</div><span class="icn m-settings"></span></div>
+  <div style="position:absolute;inset:0;background:rgba(17,28,34,.32);display:flex;flex-direction:column;justify-content:flex-end">
+    <div style="height:94%;background:#dfe4e7;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 16px 10px;background:#fbfcfd">
+        <div style="width:36px;height:4px;border-radius:2px;background:#b7c2c8"></div>
+        <div style="font-family:'Barlow Condensed';font-weight:700;font-size:22px;color:#111c22">Einstellungen</div>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:12px">
+        <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:6px">
+          <div class="meta">Mein Konto</div>
+          <div class="ctitle">Du bist angemeldet.</div>
+          <div class="excerpt">Damit kannst du dich in der Terminansicht zu Touren an- und abmelden.</div>
+          <div style="display:flex;align-items:center;justify-content:center;min-height:44px;border:1px solid #b7c2c8;border-radius:6px;font-family:Barlow;font-weight:600;font-size:15px;color:#111c22;margin-top:6px">Abmelden</div>
+        </div>
+        <div class="card" style="padding:16px;display:flex;gap:14px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+            <div class="ctitle">Termin-Erinnerungen</div>
+            <div class="excerpt">Das Handy erinnert dich rechtzeitig vor einem Termin. Es wird nichts an den Verein oder Dritte übertragen.</div>
+          </div>
+          <div style="flex:none;width:48px;height:28px;border-radius:14px;background:#25749e;position:relative"><div style="position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:12px;background:#fff"></div></div>
+        </div>
+        <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+          <div class="ctitle">Wann erinnern?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <div class="chip" style="min-height:44px">1 Stunde</div>
+            <div class="chip on" style="min-height:44px">2 Stunden</div>
+            <div class="chip" style="min-height:44px">3 Stunden</div>
+            <div class="chip" style="min-height:44px">Am Tag vorher</div>
+          </div>
+        </div>
+        <div class="card" style="padding:16px;border-bottom:none;border-radius:10px 10px 0 0">
+          <div class="ctitle">Wofür erinnern?</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></div>
+
+</div>
+</section>
+<section class="dv-turn" id="t2" data-screen-label="Aktuelles — Empfehlung Runde 2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Die Mischung — Scroll-Zeile + Themen-Blatt</span></div>
+<p class="dv-intro">Kombination aus <a class="dv-oid" href="#1c">1c</a> und <a class="dv-oid" href="#1b">1b</a>: eine horizontal scrollbare Chip-Zeile (ein Tipp für die häufigen Themen, funktioniert auf jeder Displaybreite — schmale Androids wie große iPhones/Tablets zeigen einfach mehr oder weniger Chips) plus ein „Themen"-Knopf, der das vollständige Blatt öffnet (Überblick + Mehrfachauswahl). Alle Tippziele mindestens 44px. Blatt per Tweak öffnen/schließen.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a"><div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Empfehlung — Scroll-Zeile, „Themen"-Knopf vorn, Blatt mit Mehrfachauswahl</div>
+<div class="phone" style="position:relative">
+  <div class="phdr"><div class="ptitle">Aktuelles</div><span class="icn m-settings"></span></div>
+  <div style="flex:1;overflow:hidden;padding:12px 0 0;display:flex;flex-direction:column;gap:12px">
+    <div style="position:relative">
+      <div style="display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;scrollbar-width:none;padding:0 16px">
+        <div class="chip" style="flex:none;min-height:44px;gap:6px;color:#25749e;border-color:#25749e"><span class="icn m-opt" style="width:16px;height:16px;background:#25749e"></span>Themen</div>
+        <div class="chip on" style="flex:none;min-height:44px">Alle</div>
+        <div class="chip" style="flex:none;min-height:44px">Jugend</div>
+        <div class="chip" style="flex:none;min-height:44px">Racing</div>
+        <div class="chip" style="flex:none;min-height:44px">Biken</div>
+        <div class="chip" style="flex:none;min-height:44px">Fahrtechnik</div>
+        <div class="chip" style="flex:none;min-height:44px">Naturschutz</div>
+        <div class="chip" style="flex:none;min-height:44px">Verein</div>
+      </div>
+      <div style="position:absolute;top:0;right:0;bottom:0;width:36px;background:linear-gradient(to right,rgba(223,228,231,0),#dfe4e7);pointer-events:none"></div>
+    </div>
+    <div class="card" style="margin:0 16px">
+      <image-slot id="news-farchant" shape="rect" style="width:100%;height:176px" placeholder="Beitragsbild — VPACE Kids Cup"></image-slot>
+      <div style="display:flex;flex-direction:column;gap:4px;padding:16px">
+        <div class="meta">23.07.2026 · Basti</div>
+        <div class="ctitle">Pilgerreise nach Farchant zum VPACE Kids Cup</div>
+        <div class="excerpt">Autorin: Traute Simon (Mutter von Janosch) Fotos: Copyright Kim Oppermann Wo geht's hier nach Farchant?! Ist das ein Ort in der Bretagne, mit gleichnamigem edlen Käse? …</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px"><div class="tag">Jugend</div><div class="tag">Racing</div></div>
+      </div>
+    </div>
+    <div class="card" style="margin:0 16px;border-radius:10px 10px 0 0;border-bottom:none">
+      <image-slot id="news-stoneman" shape="rect" style="width:100%;height:150px" placeholder="Beitragsbild — Stoneman"></image-slot>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><span class="icn m-cal"></span><span class="tlbl">Termine</span></div>
+    <div class="tab on"><span class="icn m-news"></span><span class="tlbl">Aktuelles</span></div>
+    <div class="tab"><span class="icn m-people"></span><span class="tlbl">Verein</span></div>
+    <div class="tab"><span class="icn m-bike"></span><span class="tlbl">Jugend</span></div>
+  </div>
+  <sc-if value="{{ themenBlattOffen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(17,28,34,.38);display:flex;flex-direction:column;justify-content:flex-end">
+      <div style="background:#fbfcfd;border-radius:16px 16px 0 0;padding:16px 16px 28px;display:flex;flex-direction:column;gap:14px">
+        <div style="width:36px;height:4px;border-radius:2px;background:#b7c2c8;align-self:center"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-family:Barlow;font-weight:600;font-size:18px;color:#111c22">Themen wählen</div>
+          <span style="font-family:'Barlow Semi Condensed';font-weight:600;font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:#495b65">Zurücksetzen</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <div class="chip on" style="min-height:44px">Jugend</div>
+          <div class="chip on" style="min-height:44px">Racing</div>
+          <div class="chip" style="min-height:44px">Aktionen</div>
+          <div class="chip" style="min-height:44px">Biken</div>
+          <div class="chip" style="min-height:44px">Fahrtechnik</div>
+          <div class="chip" style="min-height:44px">Naturschutz</div>
+          <div class="chip" style="min-height:44px">Partner</div>
+          <div class="chip" style="min-height:44px">Trainer</div>
+          <div class="chip" style="min-height:44px">Verein</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:6px;background:#25749e;font-family:Barlow;font-weight:600;font-size:16px;color:#fff">2 Themen anzeigen</div>
+      </div>
+    </div>
+  </sc-if>
+</div></div>
+
+</div>
+</section>
+<section class="dv-turn" id="t1" data-screen-label="Aktuelles — Optionen Runde 1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Aktuelles — Themenfilter entrümpeln</span></div>
+<p class="dv-intro">Basis: das App-Theme aus src/theme.ts (Vereinsblau #25749e, Barlow-Familie, helles Schema). <a class="dv-oid" href="#1a">1a</a> ist der Ist-Zustand aus app/(tabs)/news.tsx — die dynamischen Themen brechen in drei Zeilen um und schieben den ersten Beitrag unter die Falte. <a class="dv-oid" href="#1b">1b</a>–<a class="dv-oid" href="#1e">1e</a> zeigen die vier Lösungen; die Beitragskarten bleiben unangetastet. Die Bild-Platzhalter kannst du per Drag-and-drop mit echten Fotos füllen.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a"><div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Ist-Zustand — 10 Themen als umbrechende Chips, 3 Zeilen Filter vor dem ersten Beitrag</div>
+<div class="phone">
+  <div class="phdr"><div class="ptitle">Aktuelles</div><span class="icn m-settings"></span></div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <div class="chip on">Alle</div><div class="chip">Jugend</div><div class="chip">Racing</div><div class="chip">Aktionen</div><div class="chip">Biken</div><div class="chip">Fahrtechnik</div><div class="chip">Naturschutz</div><div class="chip">Partner</div><div class="chip">Trainer</div><div class="chip">Verein</div>
+    </div>
+    <div class="card">
+      <image-slot id="news-farchant" shape="rect" style="width:100%;height:176px" placeholder="Beitragsbild — VPACE Kids Cup"></image-slot>
+      <div style="display:flex;flex-direction:column;gap:4px;padding:16px">
+        <div class="meta">23.07.2026 · Basti</div>
+        <div class="ctitle">Pilgerreise nach Farchant zum VPACE Kids Cup</div>
+        <div class="excerpt">Autorin: Traute Simon (Mutter von Janosch) Fotos: Copyright Kim Oppermann Wo geht's hier nach Farchant?! Ist das ein Ort in der Bretagne, mit gleichnamigem edlen Käse? …</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px"><div class="tag">Jugend</div><div class="tag">Racing</div></div>
+      </div>
+    </div>
+    <div class="card" style="border-radius:10px 10px 0 0;border-bottom:none">
+      <image-slot id="news-stoneman" shape="rect" style="width:100%;height:110px" placeholder="Beitragsbild — Stoneman"></image-slot>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><span class="icn m-cal"></span><span class="tlbl">Termine</span></div>
+    <div class="tab on"><span class="icn m-news"></span><span class="tlbl">Aktuelles</span></div>
+    <div class="tab"><span class="icn m-people"></span><span class="tlbl">Verein</span></div>
+    <div class="tab"><span class="icn m-bike"></span><span class="tlbl">Jugend</span></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1b"><div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Top-Themen + „Mehr" — die 3 häufigsten bleiben antippbar, der Rest liegt im Blatt (per Tweak öffnen/schließen)</div>
+<div class="phone" style="position:relative">
+  <div class="phdr"><div class="ptitle">Aktuelles</div><span class="icn m-settings"></span></div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;flex-wrap:nowrap;gap:8px">
+      <div class="chip on">Alle</div><div class="chip">Jugend</div><div class="chip">Racing</div><div class="chip">Biken</div>
+      <div class="chip" style="color:#25749e">Mehr<span class="icn m-chev" style="width:14px;height:14px;background:#25749e"></span></div>
+    </div>
+    <div class="card">
+      <image-slot id="news-farchant" shape="rect" style="width:100%;height:176px" placeholder="Beitragsbild — VPACE Kids Cup"></image-slot>
+      <div style="display:flex;flex-direction:column;gap:4px;padding:16px">
+        <div class="meta">23.07.2026 · Basti</div>
+        <div class="ctitle">Pilgerreise nach Farchant zum VPACE Kids Cup</div>
+        <div class="excerpt">Autorin: Traute Simon (Mutter von Janosch) Fotos: Copyright Kim Oppermann Wo geht's hier nach Farchant?! Ist das ein Ort in der Bretagne, mit gleichnamigem edlen Käse? …</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px"><div class="tag">Jugend</div><div class="tag">Racing</div></div>
+      </div>
+    </div>
+    <div class="card" style="border-radius:10px 10px 0 0;border-bottom:none">
+      <image-slot id="news-stoneman" shape="rect" style="width:100%;height:176px" placeholder="Beitragsbild — Stoneman"></image-slot>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><span class="icn m-cal"></span><span class="tlbl">Termine</span></div>
+    <div class="tab on"><span class="icn m-news"></span><span class="tlbl">Aktuelles</span></div>
+    <div class="tab"><span class="icn m-people"></span><span class="tlbl">Verein</span></div>
+    <div class="tab"><span class="icn m-bike"></span><span class="tlbl">Jugend</span></div>
+  </div>
+  <sc-if value="{{ blattOffen }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;background:rgba(17,28,34,.38);display:flex;flex-direction:column;justify-content:flex-end">
+      <div style="background:#fbfcfd;border-radius:16px 16px 0 0;padding:16px 16px 28px;display:flex;flex-direction:column;gap:14px">
+        <div style="width:36px;height:4px;border-radius:2px;background:#b7c2c8;align-self:center"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-family:Barlow;font-weight:600;font-size:18px;color:#111c22">Alle Themen</div>
+          <span class="icn m-close" style="width:22px;height:22px"></span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <div class="chip">Aktionen</div><div class="chip">Fahrtechnik</div><div class="chip">Naturschutz</div><div class="chip">Partner</div><div class="chip">Trainer</div><div class="chip">Verein</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div></div>
+
+<div class="dv-opt" id="1c"><div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Scroll-Zeile — alle Themen in einer horizontal scrollbaren Zeile, Kante blendet aus (meine Empfehlung)</div>
+<div class="phone">
+  <div class="phdr"><div class="ptitle">Aktuelles</div><span class="icn m-settings"></span></div>
+  <div style="flex:1;overflow:hidden;padding:12px 0 0;display:flex;flex-direction:column;gap:12px">
+    <div style="position:relative">
+      <div style="display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;scrollbar-width:none;padding:0 16px">
+        <div class="chip on" style="flex:none">Alle</div><div class="chip" style="flex:none">Jugend</div><div class="chip" style="flex:none">Racing</div><div class="chip" style="flex:none">Aktionen</div><div class="chip" style="flex:none">Biken</div><div class="chip" style="flex:none">Fahrtechnik</div><div class="chip" style="flex:none">Naturschutz</div><div class="chip" style="flex:none">Partner</div><div class="chip" style="flex:none">Trainer</div><div class="chip" style="flex:none">Verein</div>
+      </div>
+      <div style="position:absolute;top:0;right:0;bottom:0;width:36px;background:linear-gradient(to right,rgba(223,228,231,0),#dfe4e7);pointer-events:none"></div>
+    </div>
+    <div class="card" style="margin:0 16px">
+      <image-slot id="news-farchant" shape="rect" style="width:100%;height:176px" placeholder="Beitragsbild — VPACE Kids Cup"></image-slot>
+      <div style="display:flex;flex-direction:column;gap:4px;padding:16px">
+        <div class="meta">23.07.2026 · Basti</div>
+        <div class="ctitle">Pilgerreise nach Farchant zum VPACE Kids Cup</div>
+        <div class="excerpt">Autorin: Traute Simon (Mutter von Janosch) Fotos: Copyright Kim Oppermann Wo geht's hier nach Farchant?! Ist das ein Ort in der Bretagne, mit gleichnamigem edlen Käse? …</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px"><div class="tag">Jugend</div><div class="tag">Racing</div></div>
+      </div>
+    </div>
+    <div class="card" style="margin:0 16px;border-radius:10px 10px 0 0;border-bottom:none">
+      <image-slot id="news-stoneman" shape="rect" style="width:100%;height:160px" placeholder="Beitragsbild — Stoneman"></image-slot>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><span class="icn m-cal"></span><span class="tlbl">Termine</span></div>
+    <div class="tab on"><span class="icn m-news"></span><span class="tlbl">Aktuelles</span></div>
+    <div class="tab"><span class="icn m-people"></span><span class="tlbl">Verein</span></div>
+    <div class="tab"><span class="icn m-bike"></span><span class="tlbl">Jugend</span></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1d"><div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Filter-Kopfzeile wie bei Terminen — Themen eingeklappt hinter „Themen (1)", aktive Wahl als lösbarer Chip</div>
+<div class="phone">
+  <div class="phdr"><div class="ptitle">Aktuelles</div><span class="icn m-settings"></span></div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="icn m-opt" style="width:15px;height:15px;background:#25749e"></span>
+        <span class="meta" style="color:#25749e">Themen (1)</span>
+      </div>
+      <span class="meta">Zurücksetzen</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <div class="chip on">Racing<span class="icn m-close" style="width:15px;height:15px;background:#fff"></span></div>
+    </div>
+    <div class="card">
+      <image-slot id="news-farchant" shape="rect" style="width:100%;height:176px" placeholder="Beitragsbild — VPACE Kids Cup"></image-slot>
+      <div style="display:flex;flex-direction:column;gap:4px;padding:16px">
+        <div class="meta">23.07.2026 · Basti</div>
+        <div class="ctitle">Pilgerreise nach Farchant zum VPACE Kids Cup</div>
+        <div class="excerpt">Autorin: Traute Simon (Mutter von Janosch) Fotos: Copyright Kim Oppermann Wo geht's hier nach Farchant?! Ist das ein Ort in der Bretagne, mit gleichnamigem edlen Käse? …</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px"><div class="tag">Jugend</div><div class="tag">Racing</div></div>
+      </div>
+    </div>
+    <div class="card" style="border-radius:10px 10px 0 0;border-bottom:none">
+      <image-slot id="news-stoneman" shape="rect" style="width:100%;height:120px" placeholder="Beitragsbild — Stoneman"></image-slot>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><span class="icn m-cal"></span><span class="tlbl">Termine</span></div>
+    <div class="tab on"><span class="icn m-news"></span><span class="tlbl">Aktuelles</span></div>
+    <div class="tab"><span class="icn m-people"></span><span class="tlbl">Verein</span></div>
+    <div class="tab"><span class="icn m-bike"></span><span class="tlbl">Jugend</span></div>
+  </div>
+</div></div>
+
+<div class="dv-opt" id="1e"><div class="dv-olabel"><a class="dv-oid" href="#1e">1e</a>Kuratierte Hauptthemen — feste Auswahl, seltene Themen sammeln sich unter „Sonstiges"</div>
+<div class="phone">
+  <div class="phdr"><div class="ptitle">Aktuelles</div><span class="icn m-settings"></span></div>
+  <div style="flex:1;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <div class="chip on">Alle</div><div class="chip">Jugend</div><div class="chip">Racing</div><div class="chip">Fahrtechnik</div><div class="chip">Verein</div>
+      <div class="chip" style="border-style:dashed;color:#495b65">Sonstiges</div>
+    </div>
+    <div class="card">
+      <image-slot id="news-farchant" shape="rect" style="width:100%;height:176px" placeholder="Beitragsbild — VPACE Kids Cup"></image-slot>
+      <div style="display:flex;flex-direction:column;gap:4px;padding:16px">
+        <div class="meta">23.07.2026 · Basti</div>
+        <div class="ctitle">Pilgerreise nach Farchant zum VPACE Kids Cup</div>
+        <div class="excerpt">Autorin: Traute Simon (Mutter von Janosch) Fotos: Copyright Kim Oppermann Wo geht's hier nach Farchant?! Ist das ein Ort in der Bretagne, mit gleichnamigem edlen Käse? …</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px"><div class="tag">Jugend</div><div class="tag">Racing</div></div>
+      </div>
+    </div>
+    <div class="card" style="border-radius:10px 10px 0 0;border-bottom:none">
+      <image-slot id="news-stoneman" shape="rect" style="width:100%;height:130px" placeholder="Beitragsbild — Stoneman"></image-slot>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><span class="icn m-cal"></span><span class="tlbl">Termine</span></div>
+    <div class="tab on"><span class="icn m-news"></span><span class="tlbl">Aktuelles</span></div>
+    <div class="tab"><span class="icn m-people"></span><span class="tlbl">Verein</span></div>
+    <div class="tab"><span class="icn m-bike"></span><span class="tlbl">Jugend</span></div>
+  </div>
+</div></div>
+
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;themenBlattOffen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;2a — Empfehlung&quot;},&quot;blattOffen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;1b — Themen-Blatt&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return { blattOffen: this.props.blattOffen ?? true, themenBlattOffen: this.props.themenBlattOffen ?? false };
+  }
+}
+</script>
+</body>
+</html>

@@ -340,3 +340,58 @@ describe('Verwaltung erbt Guide-Rechte', () => {
     expect(antwort.statusCode).toBe(201);
   });
 });
+
+describe('Jugend-Guide als eigenes Feld (5b)', () => {
+  it('setzt Guide-Rolle und Jugend-Guide unabhängig voneinander', async () => {
+    // Im Verein macht einer oft beides — deshalb ein Feld neben der Rolle
+    // statt eines Umbaus des Rollenmodells.
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    const chef = await mitgliedMitToken('chef@example.org', 'verwaltung');
+    const anna = await mitgliedMitToken('anna@example.org');
+
+    const antwort = await app.inject({
+      method: 'PATCH',
+      url: `/verwaltung/mitglieder/${anna.id}`,
+      headers: { authorization: `Bearer ${chef.zugang}` },
+      payload: { rolle: 'guide', jugendGuide: true },
+    });
+
+    expect(antwort.statusCode).toBe(200);
+    expect(antwort.json()).toMatchObject({ rolle: 'guide', jugendGuide: true });
+
+    // Und wieder ab, ohne die Rolle anzufassen.
+    const zurueck = await app.inject({
+      method: 'PATCH',
+      url: `/verwaltung/mitglieder/${anna.id}`,
+      headers: { authorization: `Bearer ${chef.zugang}` },
+      payload: { jugendGuide: false },
+    });
+    expect(zurueck.json()).toMatchObject({ rolle: 'guide', jugendGuide: false });
+  });
+
+  it('führt jugendGuide in der Mitgliederliste mit', async () => {
+    const app = baueApp({ pool, mailer: new GemerkterMailer(), jetzt: () => jetzt });
+    const chef = await mitgliedMitToken('chef@example.org', 'verwaltung');
+
+    const liste = (
+      await app.inject({
+        method: 'GET',
+        url: '/verwaltung/mitglieder',
+        headers: { authorization: `Bearer ${chef.zugang}` },
+      })
+    ).json() as Array<{ email: string; jugendGuide: boolean }>;
+
+    expect(liste.find((z) => z.email === 'chef@example.org')?.jugendGuide).toBe(false);
+  });
+});
+
+describe('hatJugendGuideRechte', () => {
+  it('gilt für Jugend-Guides, Guides und die Verwaltung', async () => {
+    const { hatJugendGuideRechte } = await import('../src/rolle.ts');
+
+    expect(hatJugendGuideRechte('mitglied', true)).toBe(true);
+    expect(hatJugendGuideRechte('guide', false)).toBe(true);
+    expect(hatJugendGuideRechte('verwaltung', false)).toBe(true);
+    expect(hatJugendGuideRechte('mitglied', false)).toBe(false);
+  });
+});
