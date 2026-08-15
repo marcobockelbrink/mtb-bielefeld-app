@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
 
-import { font, fontSize, labelType, spacing } from '../../src/theme';
+import { font, fontSize, labelType } from '../../src/theme';
+import { KopfLeiste } from '../../src/ui/KopfLeiste';
 import { useTheme } from '../../src/ui/theme';
 
 export default function TabsLayout() {
@@ -41,24 +41,12 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: palette.textMuted,
         // Auf jedem Reiter erreichbar: Wer etwas einstellen will, soll nicht
         // erst einen bestimmten Bildschirm suchen müssen.
-        headerRight: () => (
-          <Link href="/einstellungen" asChild>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Einstellungen"
-              hitSlop={12}
-              style={{ paddingHorizontal: spacing.md }}
-            >
-              {({ pressed }) => (
-                <Ionicons
-                  name="settings-outline"
-                  size={24}
-                  color={pressed ? palette.primary : palette.textMuted}
-                />
-              )}
-            </Pressable>
-          </Link>
-        ),
+        //
+        // Seit dem 15.08.2026 steht dort statt des Zahnrads der
+        // Anmeldestatus („9a"/„9b"): Man sah nirgends, ob man angemeldet
+        // ist. Der Avatar ist beides — Anzeige und Weg in die
+        // Einstellungen.
+        headerRight: () => <KopfLeiste />,
       }}
     >
       <Tabs.Screen

@@ -29,6 +29,7 @@ import { formatAge } from '../src/features/events/format';
 import { AnmeldeKarte } from '../src/features/konto/AnmeldeKarte';
 import { useNotifications } from '../src/notifications/NotificationContext';
 import { LEAD_TIME_OPTIONS } from '../src/notifications/settings';
+import { FamilienGruppe } from '../src/features/familie/FamilienGruppe';
 import { FREIGRENZEN } from '../src/features/fotos/netz';
 import { useUploadEinstellungen } from '../src/features/fotos/uploadEinstellungen';
 import { beschreibeJugendFehler } from '../src/features/jugend/jugendFehler';
@@ -71,6 +72,8 @@ export default function EinstellungenScreen() {
       {/* Reihenfolge nach „6b": Benachrichtigungen zuerst — das ist, was
           man hier wirklich einstellt. Konto und Daten stehen unten, weil
           man sie einmal ansieht und dann nie wieder. */}
+      <FamilienGruppe />
+
       {/* Über den Benachrichtigungen: Wer Bilder von einer Tour mitbringt,
           stellt das einmal ein und will es dann gefunden haben. */}
       <Gruppe>Uploads</Gruppe>

@@ -12,6 +12,7 @@ import type pg from 'pg';
 import { fordereMagicLinkAn } from './anmeldung.ts';
 import { Bildablage, INHALTSTYPEN, etag } from './bildablage.ts';
 import { BildFehler, HOECHSTGROESSE_BYTES, verarbeite } from './bildverarbeitung.ts';
+import * as familie from './familie.ts';
 import * as fotos from './fotoalbum.ts';
 import { IpBegrenzung } from './ipbegrenzung.ts';
 import * as jugend from './jugendtraining.ts';
@@ -150,6 +151,7 @@ const IP_GESCHUETZTE_PFAD_PRAEFIXE = [
   '/gast/',
   '/jugendtraining',
   '/verwaltung',
+  '/familie',
 ];
 
 /**
@@ -1338,6 +1340,13 @@ dein Kind auch anmelden.</p>
       return antwort.code(409).send({ fehler: 'Dieses Album nimmt keine Bilder mehr an.' });
     }
 
+    // **Serverseitig, nicht nur im UI.** Ein Kinderprofil, bei dem der
+    // Knopf nur versteckt ist, lädt trotzdem hoch, sobald jemand den
+    // Endpunkt direkt aufruft.
+    if (!(await familie.darfBilderHochladen(pool, betrachter.id))) {
+      return antwort.code(403).send({ fehler: 'Dieses Profil darf keine Bilder hochladen.' });
+    }
+
     const datei = await anfrage.file();
     if (!datei) return antwort.code(400).send({ fehler: 'Es kam keine Datei an.' });
 
@@ -1633,6 +1642,89 @@ dein Kind auch anmelden.</p>
             fehler: 'Das ist die letzte Verwaltungsrolle — erst jemand anderem geben, dann löschen.',
           });
     }
+    return antwort.code(204).send();
+  });
+
+  // --- Familienprofile ------------------------------------------------------
+
+  app.get('/familie', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    return antwort.send(await familie.holeProfile(pool, ausweis.mitgliedId));
+  });
+
+  app.post('/familie', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const koerper = anfrage.body as Record<string, unknown>;
+    const art = koerper?.art === 'erwachsen' ? 'erwachsen' : 'kind';
+    const name = typeof koerper?.name === 'string' ? koerper.name.trim() : '';
+    if (name === '') return antwort.code(400).send({ fehler: 'Ein Name wird gebraucht.' });
+
+    const auskunft = await holeKontoAuskunft(pool, ausweis.mitgliedId, jetzt());
+    if (!auskunft) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const ergebnis = await familie.legeProfilAn(
+      pool,
+      mailer,
+      { id: ausweis.mitgliedId, email: auskunft.email },
+      {
+        art,
+        name,
+        geburtsjahr: liesAnzahl(koerper?.geburtsjahr) ?? null,
+        email: typeof koerper?.email === 'string' ? koerper.email.trim() : null,
+        kannBilderHochladen:
+          typeof koerper?.kannBilderHochladen === 'boolean' ? koerper.kannBilderHochladen : undefined,
+      },
+      jetzt(),
+      process.env.API_BASIS_URL ?? 'https://api.mtb-bielefeld.de',
+    );
+
+    if (!ergebnis.ok) {
+      const texte: Record<typeof ergebnis.grund, [number, string]> = {
+        'zu-viele': [
+          409,
+          `Mehr als ${familie.HOECHSTENS_PROFILE} Profile gehen über ein Konto nicht.`,
+        ],
+        'email-fehlt': [400, 'Für Erwachsene wird eine E-Mail-Adresse gebraucht.'],
+        'adresse-vergeben': [409, 'Diese E-Mail-Adresse gehört schon zu einem Konto.'],
+      };
+      const [code, text] = texte[ergebnis.grund];
+      return antwort.code(code).send({ fehler: text });
+    }
+
+    return antwort.code(201).send({ profil: ergebnis.profil, bestaetigungAn: ergebnis.bestaetigungAn });
+  });
+
+  app.patch('/familie/:id', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    const koerper = anfrage.body as Record<string, unknown>;
+
+    const geaendert = await familie.aendereProfil(pool, ausweis.mitgliedId, id, {
+      name: typeof koerper?.name === 'string' ? koerper.name : undefined,
+      geburtsjahr: liesAnzahl(koerper?.geburtsjahr) ?? undefined,
+      kannBilderHochladen:
+        typeof koerper?.kannBilderHochladen === 'boolean' ? koerper.kannBilderHochladen : undefined,
+    });
+
+    // 404 auch für ein fremdes Profil: „gibt es nicht" und „gehört dir
+    // nicht" dürfen sich für den Anfragenden nicht unterscheiden.
+    if (!geaendert) return antwort.code(404).send({ fehler: 'Dieses Profil gibt es nicht.' });
+    return antwort.code(204).send();
+  });
+
+  app.delete('/familie/:id', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    const weg = await familie.loescheProfil(pool, ausweis.mitgliedId, id);
+    if (!weg) return antwort.code(404).send({ fehler: 'Dieses Profil gibt es nicht.' });
     return antwort.code(204).send();
   });
 
