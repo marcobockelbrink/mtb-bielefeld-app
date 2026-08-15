@@ -18,13 +18,29 @@ import { font, fontSize, spacing } from '../../theme';
 import { useTheme } from '../../ui/theme';
 import type { Auftrag } from './warteschlange';
 
-export type UploadZustand = 'laedt' | 'wartet' | 'keinNetz' | 'hochgeladen';
+/**
+ * `wartet` heißt seit dem 15.08.2026 **nur noch**: noch nicht versucht.
+ *
+ * Vorher war es der Anzeige-Standard für alles Unbekannte — und damit sah
+ * ein echter Fehler (413 zu groß, 403, Album geschlossen) genauso aus wie
+ * „steht in der Schlange". Wer wartete, wartete auf nichts. Deshalb jetzt
+ * `fehlgeschlagen` als eigener Zustand mit Text.
+ */
+export type UploadZustand =
+  | 'laedt'
+  | 'wartet'
+  | 'wartetAufWlan'
+  | 'keinNetz'
+  | 'fehlgeschlagen'
+  | 'hochgeladen';
 
 const BADGE: Record<UploadZustand, { text: string; farbe: string }> = {
   hochgeladen: { text: 'Hochgeladen', farbe: '#2e7d4f' },
   laedt: { text: 'Lädt …', farbe: '#25749e' },
   wartet: { text: 'Wartet', farbe: '#495b65' },
+  wartetAufWlan: { text: 'Wartet auf WLAN', farbe: '#8c5a16' },
   keinNetz: { text: 'Kein Netz', farbe: '#8c5a16' },
+  fehlgeschlagen: { text: 'Fehler', farbe: '#a33b2e' },
 };
 
 const SPALTEN = 3;
@@ -34,11 +50,20 @@ export function UploadFortschritt({
   zustaende,
   pausiert,
   beimPausieren,
+  beimErneutVersuchen,
+  fehlertext,
+  beimUeberMobilfunk,
+  beimEinstellungen,
 }: {
   auftraege: Auftrag[];
   zustaende: Record<string, UploadZustand>;
   pausiert: boolean;
   beimPausieren: () => void;
+  beimErneutVersuchen: () => void;
+  /** Der Satz zum letzten Fehlschlag — sonst steht dort nur ein Badge. */
+  fehlertext: string | null;
+  beimUeberMobilfunk: () => void;
+  beimEinstellungen: () => void;
 }) {
   const { palette } = useTheme();
   const { width } = useWindowDimensions();
@@ -48,6 +73,9 @@ export function UploadFortschritt({
   const kante = (width - spacing.lg * 2 - spacing.xs * (SPALTEN - 1)) / SPALTEN;
   const fertig = auftraege.filter((a) => zustaende[a.id] === 'hochgeladen').length;
   const ohneNetz = auftraege.filter((a) => zustaende[a.id] === 'keinNetz').length;
+  const aufWlan = auftraege.filter((a) => zustaende[a.id] === 'wartetAufWlan').length;
+  const gescheitert = auftraege.filter((a) => zustaende[a.id] === 'fehlgeschlagen').length;
+  const offen = auftraege.length - fertig;
 
   return (
     <View style={styles.bereich}>
@@ -56,11 +84,21 @@ export function UploadFortschritt({
           <Text style={[styles.stand, { color: palette.text }]}>
             {fertig} von {auftraege.length} hochgeladen
           </Text>
-          <Pressable onPress={beimPausieren} accessibilityLabel={pausiert ? 'Upload fortsetzen' : 'Upload pausieren'}>
-            <Text style={[styles.pausieren, { color: palette.primary }]}>
-              {pausiert ? 'Fortsetzen' : 'Pausieren'}
-            </Text>
-          </Pressable>
+          <View style={styles.aktionen}>
+            {/* „Erneut versuchen" statt des versteckten Umwegs über
+                Pausieren/Fortsetzen, der bisher der einzige Weg war, einen
+                liegengebliebenen Stapel wieder anzustoßen. */}
+            {offen > 0 && !pausiert ? (
+              <Pressable onPress={beimErneutVersuchen} accessibilityLabel="Erneut versuchen">
+                <Text style={[styles.pausieren, { color: palette.primary }]}>Erneut versuchen</Text>
+              </Pressable>
+            ) : null}
+            <Pressable onPress={beimPausieren} accessibilityLabel={pausiert ? 'Upload fortsetzen' : 'Upload pausieren'}>
+              <Text style={[styles.pausieren, { color: palette.primary }]}>
+                {pausiert ? 'Fortsetzen' : 'Pausieren'}
+              </Text>
+            </Pressable>
+          </View>
         </View>
         <View style={[styles.balkenSpur, { backgroundColor: palette.surfaceMuted }]}>
           <View
@@ -102,6 +140,48 @@ export function UploadFortschritt({
             {ohneNetz === 1 ? 'Ein Bild wartet' : `${ohneNetz} Bilder warten`} auf Netz — sie bleiben
             gemerkt, auch nach einem Neustart.
           </Text>
+        </View>
+      ) : null}
+
+      {/* Eine Regel, die Uploads stoppt, muss sagen, dass sie es tut — und
+          einen Ausweg bieten. Ohne den ersten Knopf sitzt jemand am Ende
+          einer Tour fest und weiß nicht, warum. */}
+      {aufWlan > 0 ? (
+        <View style={[styles.hinweis, { backgroundColor: palette.surfaceMuted, borderLeftColor: '#8c5a16' }]}>
+          <Text style={[styles.hinweisText, { color: palette.text }]}>
+            {aufWlan === 1 ? 'Ein Bild wartet' : `${aufWlan} Bilder warten`} auf WLAN — so
+            eingestellt, um deinen Datentarif zu schonen. Sie bleiben gemerkt, auch nach einem
+            Neustart.
+          </Text>
+          <View style={styles.hinweisKnoepfe}>
+            <Pressable
+              onPress={beimUeberMobilfunk}
+              style={({ pressed }) => [
+                styles.knopf,
+                { backgroundColor: pressed ? '#1b587a' : palette.primary },
+              ]}
+            >
+              <Text style={[styles.knopfText, { color: palette.onPrimary }]}>
+                Jetzt über Mobilfunk laden
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={beimEinstellungen}
+              style={({ pressed }) => [
+                styles.knopf,
+                styles.knopfUmriss,
+                { borderColor: palette.border, backgroundColor: pressed ? palette.surface : 'transparent' },
+              ]}
+            >
+              <Text style={[styles.knopfText, { color: palette.text }]}>Einstellung ändern</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
+      {gescheitert > 0 && fehlertext ? (
+        <View style={[styles.hinweis, { backgroundColor: palette.surfaceMuted, borderLeftColor: '#a33b2e' }]}>
+          <Text style={[styles.hinweisText, { color: palette.text }]}>{fehlertext}</Text>
         </View>
       ) : null}
     </View>
@@ -156,4 +236,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   hinweisText: { fontFamily: font.regular, fontSize: 13, lineHeight: 19 },
+  hinweisKnoepfe: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+  knopf: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: 6,
+  },
+  knopfUmriss: { borderWidth: 1 },
+  knopfText: { fontFamily: font.semibold, fontSize: fontSize.sm },
+  aktionen: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
 });

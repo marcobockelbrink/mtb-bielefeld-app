@@ -332,3 +332,46 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
   },
 });
+
+/**
+ * Überschrift über einer Gruppe von Karten — Design „6b" (15.08.2026).
+ *
+ * Steht **über** der Karte, nicht darin: So liest sich die Seite wie die
+ * Systemeinstellungen von iOS und Android, und zusammengehörige Zeilen
+ * brauchen keine eigenen Kästen mehr.
+ */
+export function Gruppe({ children }: { children: ReactNode }) {
+  const { palette } = useTheme();
+  return <Text style={[gruppenStil.titel, { color: palette.textMuted }]}>{children}</Text>;
+}
+
+/**
+ * Eine Zeile in einer Karte, oben durch eine Haarlinie abgesetzt.
+ *
+ * `erste` lässt die Linie weg — die oberste Zeile braucht keine, sonst
+ * doppelte sie den Kartenrand.
+ */
+export function Zeile({ children, erste }: { children: ReactNode; erste?: boolean }) {
+  return (
+    <View style={[gruppenStil.zeile, erste ? undefined : gruppenStil.mitLinie]}>{children}</View>
+  );
+}
+
+const gruppenStil = StyleSheet.create({
+  titel: {
+    fontFamily: font.label,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    paddingHorizontal: 4,
+    marginBottom: spacing.sm,
+    marginTop: spacing.md,
+  },
+  zeile: {
+    paddingVertical: 14,
+  },
+  mitLinie: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(183, 194, 200, 0.55)',
+  },
+});

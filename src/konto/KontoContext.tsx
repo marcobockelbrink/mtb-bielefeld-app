@@ -43,6 +43,8 @@ export interface KontoZustand {
    * einem manipulierten Client umgehen lässt.
    */
   rolle: string | null;
+  /** Die eigene Adresse — für die Konto-Zeile in den Einstellungen. */
+  email: string | null;
   /**
    * Abonnement für „neues Jugendtraining veröffentlicht" — `null`, solange
    * niemand angemeldet ist oder `GET /konto` noch nicht zurück ist. Kommt aus
@@ -93,6 +95,7 @@ export function KontoProvider({
   const [laedt, setLaedt] = useState(true);
   const [rolle, setRolle] = useState<string | null>(null);
   const [jugendBenachrichtigung, setJugendBenachrichtigung] = useState<boolean | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [zuletztEingeloest, setZuletztEingeloest] = useState<number | null>(null);
   const [einloesenFehlgeschlagen, setEinloesenFehlgeschlagen] = useState<string | null>(null);
   // `Linking.getInitialURL()` und das `url`-Ereignis liefern je nach
@@ -134,11 +137,12 @@ export function KontoProvider({
     }
     let abgebrochen = false;
     void api
-      .hole<{ rolle: string; jugendBenachrichtigung: boolean }>('/konto')
+      .hole<{ email: string; rolle: string; jugendBenachrichtigung: boolean }>('/konto')
       .then((auskunft) => {
         if (!abgebrochen) {
           setRolle(auskunft.rolle);
           setJugendBenachrichtigung(auskunft.jugendBenachrichtigung);
+          setEmail(auskunft.email);
         }
       })
       .catch((fehler) => {
@@ -220,6 +224,7 @@ export function KontoProvider({
       laedt,
       api,
       rolle,
+      email,
       jugendBenachrichtigung,
       setzeJugendBenachrichtigung: setzeJugendBenachrichtigungAn,
       zuletztEingeloest,
@@ -241,6 +246,7 @@ export function KontoProvider({
       laedt,
       api,
       rolle,
+      email,
       jugendBenachrichtigung,
       setzeJugendBenachrichtigungAn,
       zuletztEingeloest,

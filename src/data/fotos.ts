@@ -11,6 +11,7 @@
  * Datei liefert nur die Pfade dazu.
  */
 
+import { File } from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 
 import type { ApiZugang } from './api';
@@ -130,6 +131,22 @@ export async function bereiteVor(uri: string): Promise<{ uri: string }> {
     compress: 0.9,
   });
   return { uri: ergebnis.uri };
+}
+
+/**
+ * Wie groß die vorbereitete Datei ist — für die WLAN-Regel.
+ *
+ * Gemessen wird die **verkleinerte** Fassung, nicht das Original aus der
+ * Mediathek. Scheitert die Messung, gilt 0: Dann lädt die App hoch, statt
+ * ein Bild wegen einer misslungenen Messung liegen zu lassen.
+ */
+export async function groesseVon(uri: string): Promise<number> {
+  try {
+    const datei = new File(uri);
+    return datei.size ?? 0;
+  } catch {
+    return 0;
+  }
 }
 
 export type UploadErgebnis = { doppelt: true } | Foto;

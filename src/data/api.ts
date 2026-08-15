@@ -40,18 +40,31 @@ export class ApiFehler extends Error {
    * durchreichen" (dann gehen die guten Sätze der API mit verloren).
    */
   readonly vonDerApi: boolean;
+  /**
+   * Kam gar keine Antwort an, weil das Gerät nicht ins Netz kam?
+   *
+   * Status 0 allein reicht als Unterscheidung **nicht**: Auch eine
+   * vorübergehend gescheiterte Token-Erneuerung (429 durch die
+   * Ratenbegrenzung, 5xx) wirft hier einen Fehler mit Status 0. Beides sieht
+   * gleich aus und braucht doch verschiedene Ratschläge — „prüf dein Netz"
+   * gegenüber „der Verein ist gerade überlastet, warte kurz". Nur der
+   * `catch` um `fetch` setzt dieses Feld.
+   */
+  readonly ohneNetz: boolean;
 
   constructor(
     status: number,
     nachricht: string,
     feld?: ApiFehler['feld'],
     vonDerApi = false,
+    ohneNetz = false,
   ) {
     super(nachricht);
     this.name = 'ApiFehler';
     this.status = status;
     this.feld = feld;
     this.vonDerApi = vonDerApi;
+    this.ohneNetz = ohneNetz;
   }
 }
 
@@ -158,6 +171,9 @@ export class ApiZugang {
         abgebrochen
           ? 'Die Anfrage hat zu lange gedauert. Bitte prüfe deine Verbindung.'
           : 'Keine Verbindung zum Server. Bitte prüfe deine Verbindung.',
+        undefined,
+        false,
+        true,
       );
     } finally {
       clearTimeout(timer);

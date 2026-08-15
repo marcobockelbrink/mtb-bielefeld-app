@@ -23,7 +23,7 @@
  */
 
 import { useRef, useState } from 'react';
-import { StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { beschreibeAnfordernFehler } from '../../konto/anfordernFehler';
 import { useKonto } from '../../konto/KontoContext';
@@ -39,6 +39,9 @@ export function AnmeldeKarte() {
     laedt,
     anmeldungAnfordern,
     abmelden,
+    // Umbenannt, weil `email` in dieser Datei schon das Formularfeld ist —
+    // zwei Bedeutungen für ein Wort in einer Komponente.
+    email: kontoEmail,
     zuletztEingeloest,
     einloesenFehlgeschlagen,
     jugendBenachrichtigung,
@@ -78,42 +81,30 @@ export function AnmeldeKarte() {
   }
 
   if (angemeldet) {
+    // Design „6b": eine ruhige Zeile — Adresse links, Abmelden rechts als
+    // Umriss-Knopf. Der Schalter für neue Jugendtrainings ist von hier in
+    // die Gruppe „Benachrichtigungen" gezogen, wo er inhaltlich hingehört.
     return (
       <Card>
-        <Label>Mein Konto</Label>
-        <Text style={[styles.zustand, { color: palette.text }]}>
-          {geradeEingeloggt ? 'Angemeldet.' : 'Du bist angemeldet.'}
-        </Text>
-        <Text style={[styles.hinweis, { color: palette.textMuted }]}>
-          Damit kannst du dich in der Terminansicht zu Touren an- und abmelden.
-        </Text>
-
-        {jugendBenachrichtigung !== null ? (
-          <View style={styles.schalterZeile}>
-            <View style={styles.schalterText}>
-              <Text style={[styles.titel, { color: palette.text }]}>Neue Jugendtrainings</Text>
-              <Text style={[styles.hinweis, { color: palette.textMuted }]}>
-                Jugendtrainings entstehen oft kurzfristig. Wenn du das einschaltest, bekommst du
-                eine Mail, sobald ein neues veröffentlicht wird.
-              </Text>
-            </View>
-            <Switch
-              value={jugendBenachrichtigung}
-              onValueChange={(an) => void schalteJugendBenachrichtigung(an)}
-              trackColor={{ true: palette.primary }}
-              accessibilityLabel="Benachrichtigung über neue Jugendtrainings"
-            />
+        <View style={styles.kontoZeile}>
+          <View style={styles.kontoText}>
+            <Text style={[styles.zustand, { color: palette.text }]}>
+              {kontoEmail ?? (geradeEingeloggt ? 'Angemeldet.' : 'Du bist angemeldet.')}
+            </Text>
+            <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+              Angemeldet — du kannst dich zu Touren an- und abmelden.
+            </Text>
           </View>
-        ) : null}
-
-        {jugendFehler ? (
-          <View style={styles.banner}>
-            <Banner tone="danger" text={jugendFehler} />
-          </View>
-        ) : null}
-
-        <View style={styles.knopf}>
-          <ActionButton label="Abmelden" tone="secondary" onPress={() => void abmelden()} />
+          <Pressable
+            onPress={() => void abmelden()}
+            accessibilityLabel="Abmelden"
+            style={({ pressed }) => [
+              styles.abmelden,
+              { borderColor: palette.border, backgroundColor: pressed ? palette.surfaceMuted : 'transparent' },
+            ]}
+          >
+            <Text style={[styles.abmeldenText, { color: palette.text }]}>Abmelden</Text>
+          </Pressable>
         </View>
       </Card>
     );
@@ -250,6 +241,20 @@ const styles = StyleSheet.create({
   banner: {
     marginTop: spacing.md,
   },
+  kontoZeile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  kontoText: { flex: 1 },
+  abmelden: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderRadius: radius.sm,
+  },
+  abmeldenText: { fontFamily: font.semibold, fontSize: fontSize.sm },
   knopf: {
     marginTop: spacing.lg,
   },

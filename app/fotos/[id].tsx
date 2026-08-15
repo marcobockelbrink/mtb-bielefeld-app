@@ -37,7 +37,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,6 +45,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   bereiteVor,
   entscheide,
+  groesseVon,
   holeAlbum,
   ladeHoch,
   loescheFoto,
@@ -58,6 +59,9 @@ import { formatiereEreignisdatum } from '../../src/features/fotos/AlbumKarte';
 import { UploadFortschritt, type UploadZustand } from '../../src/features/fotos/UploadFortschritt';
 import { Blatt } from '../../src/ui/Blatt';
 import { FotoRaster } from '../../src/features/fotos/FotoRaster';
+import { darfJetztHochladen } from '../../src/features/fotos/netz';
+import { useImWlan } from '../../src/features/fotos/netzZustand';
+import { useUploadEinstellungen } from '../../src/features/fotos/uploadEinstellungen';
 import { entferne, fuegeHinzu, fuerAlbum, vermerkeFehlschlag, type Auftrag } from '../../src/features/fotos/warteschlange';
 import { kopiereInsAppVerzeichnis, liesSchlange, loescheKopie, schreibSchlange } from '../../src/features/fotos/warteschlangeSpeicher';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
@@ -89,6 +93,13 @@ export default function AlbumScreen() {
   const [erledigteRunde, setErledigteRunde] = useState<Auftrag[]>([]);
   const [pausiert, setPausiert] = useState(false);
   const pausiertRef = useRef(false);
+  // Spiegel von `laeuftHoch` für `wiederAufnehmen`: Der Aufruf kommt aus
+  // `laden()` und sähe den React-State sonst veraltet — und startete den
+  // Stapel ein zweites Mal, während er schon läuft.
+  const laeuftHochRef = useRef(false);
+  // Einmaliger Ausweg aus der WLAN-Regel: gilt für genau diesen Stapel und
+  // ändert die Einstellung nicht.
+  const mobilfunkErlaubtRef = useRef(false);
   const [uebersprungen, setUebersprungen] = useState(0);
 
   /** Sichtung: leere Menge heißt kein Auswahlmodus. */
@@ -96,6 +107,25 @@ export default function AlbumScreen() {
   const [sichtungLaeuft, setSichtungLaeuft] = useState(false);
 
   const istVerwaltung = rolle === 'verwaltung';
+  const imWlan = useImWlan();
+  const { werte: uploadRegeln } = useUploadEinstellungen();
+
+  /**
+   * Stößt liegengebliebene Aufträge an — beim Öffnen des Albums und wenn
+   * das Netz zurückkommt.
+   *
+   * Ohne das war das Versprechen des Banners nur zur Hälfte eingelöst:
+   * gemerkt wurden die Bilder, nachgelaufen sind sie nie. Der einzige Weg
+   * zurück war Pausieren/Fortsetzen — ein Umweg, den niemand findet.
+   */
+  const wiederAufnehmen = useCallback(
+    (auftraege: Auftrag[]) => {
+      if (pausiertRef.current || laeuftHochRef.current || auftraege.length === 0) return;
+      void stapelHochladen(auftraege);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   const laden = useCallback(async () => {
     if (!id) return;
@@ -103,8 +133,11 @@ export default function AlbumScreen() {
     try {
       setAlbum(await holeAlbum(api, id));
       // Liegengebliebene Aufträge dieses Albums — vom letzten Mal, auch
-      // über einen Neustart hinweg.
-      setStapel(fuerAlbum(await liesSchlange(), id));
+      // über einen Neustart hinweg. Sie werden hier nicht nur gelesen,
+      // sondern auch wieder angestoßen (siehe `wiederAufnehmen`).
+      const offen = fuerAlbum(await liesSchlange(), id);
+      setStapel(offen);
+      wiederAufnehmen(offen);
     } catch (ursache) {
       setFehler(beschreibeJugendFehler(ursache));
     }
@@ -122,6 +155,7 @@ export default function AlbumScreen() {
    * Abbruch mittendrin nur die wirklich offenen übrig lässt.
    */
   async function stapelHochladen(auftraege: Auftrag[]) {
+    laeuftHochRef.current = true;
     setLaeuftHoch(true);
     setFehler(null);
     let doppelte = 0;
@@ -134,6 +168,26 @@ export default function AlbumScreen() {
       setZustaende((alt) => ({ ...alt, [auftrag.id]: 'laedt' }));
       try {
         const vorbereitet = await bereiteVor(auftrag.uri);
+
+        // Erst nach dem Verkleinern messen: Ein 48-Megapixel-Foto, das als
+        // JPEG zwei Megabyte wiegt, soll nicht auf WLAN warten, weil das
+        // Original zwanzig hat.
+        const bytes = await groesseVon(vorbereitet.uri);
+        if (
+          !darfJetztHochladen(
+            {
+              nurUeberWlan: uploadRegeln.nurUeberWlan,
+              freigrenze: uploadRegeln.freigrenze,
+              imWlan,
+              mobilfunkErlaubt: mobilfunkErlaubtRef.current,
+            },
+            bytes,
+          )
+        ) {
+          setZustaende((alt) => ({ ...alt, [auftrag.id]: 'wartetAufWlan' }));
+          continue;
+        }
+
         const ergebnis = await ladeHoch(api, auftrag.albumId, vorbereitet.uri);
         if ('doppelt' in ergebnis) doppelte += 1;
         loescheKopie(auftrag);
@@ -142,16 +196,21 @@ export default function AlbumScreen() {
         setErledigteRunde((alt) => (alt.some((a) => a.id === auftrag.id) ? alt : [...alt, auftrag]));
       } catch (ursache) {
         schlange = vermerkeFehlschlag(schlange, auftrag.id);
-        // Status 0 heißt: keine Antwort vom Server — kein Netz. Alles
-        // andere ist ein Fehler, der einen neuen Versuch verdient.
-        const keinNetz = ursache instanceof ApiFehler && ursache.status === 0;
-        setZustaende((alt) => ({ ...alt, [auftrag.id]: keinNetz ? 'keinNetz' : 'wartet' }));
+        // `ohneNetz` statt `status === 0`: Auch eine gescheiterte
+        // Token-Erneuerung wirft mit Status 0, und die heißt „der Verein ist
+        // gerade überlastet", nicht „prüf dein Netz".
+        const keinNetz = ursache instanceof ApiFehler && ursache.ohneNetz;
+        setZustaende((alt) => ({ ...alt, [auftrag.id]: keinNetz ? 'keinNetz' : 'fehlgeschlagen' }));
+        // Ohne diesen Satz sah ein 413 („Bild zu groß") aus wie „steht in
+        // der Schlange" — der Fehler aus dem Bericht vom 15.08.2026.
+        if (!keinNetz) setFehler(beschreibeJugendFehler(ursache));
       }
       await schreibSchlange(schlange);
     }
 
     setStapel(fuerAlbum(schlange, id!));
     setUebersprungen(doppelte);
+    laeuftHochRef.current = false;
     setLaeuftHoch(false);
     await laden();
   }
@@ -294,6 +353,13 @@ export default function AlbumScreen() {
               zustaende={zustaende}
               pausiert={pausiert}
               beimPausieren={pausierenUmschalten}
+              beimErneutVersuchen={() => void stapelHochladen(stapel)}
+              fehlertext={fehler}
+              beimUeberMobilfunk={() => {
+                mobilfunkErlaubtRef.current = true;
+                void stapelHochladen(stapel);
+              }}
+              beimEinstellungen={() => router.push('/einstellungen')}
             />
 
             {album.fotos.length === 0 ? (

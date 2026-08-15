@@ -7,15 +7,20 @@
  * den vier Plätzen führten zwei an Orte, die man einmal besucht — und
  * Einstellungen ist der, den man am seltensten braucht.
  *
- * Hier ist auch der Platz für Vereinsverwaltung, sobald es sie gibt: Guides
- * ernennen und Einladungscodes ausgeben laufen heute über die Kommandozeile
- * auf dem Server. In eine Reiterleiste, die jedes Mitglied sieht, gehören
- * sie nicht.
+ * Hier liegt auch der Weg zur Mitgliederverwaltung — in eine Reiterleiste,
+ * die jedes Mitglied sieht, gehört er nicht.
+ *
+ * Seit dem 15.08.2026 gruppiert („6b"): Abschnittsüberschriften über den
+ * Karten, alles zu Benachrichtigungen in **einer** Karte statt in drei, und
+ * der Vorlauf eingerückt unter seinem Schalter — die Tönung sagt, dass er
+ * daran hängt. Reihenfolge: Benachrichtigungen, Verein, Konto, Daten. Was
+ * man täglich stellt, steht oben; was man einmal ansieht, unten.
  */
 
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppData } from '../src/data/AppDataContext';
@@ -24,9 +29,13 @@ import { formatAge } from '../src/features/events/format';
 import { AnmeldeKarte } from '../src/features/konto/AnmeldeKarte';
 import { useNotifications } from '../src/notifications/NotificationContext';
 import { LEAD_TIME_OPTIONS } from '../src/notifications/settings';
-import { categoryDisplay, font, fontSize, spacing } from '../src/theme';
+import { FREIGRENZEN } from '../src/features/fotos/netz';
+import { useUploadEinstellungen } from '../src/features/fotos/uploadEinstellungen';
+import { beschreibeJugendFehler } from '../src/features/jugend/jugendFehler';
 import { useKonto } from '../src/konto/KontoContext';
-import { ActionButton, Banner, Card, Chip, LoadingState } from '../src/ui/components';
+import { categoryDisplay, font, fontSize, spacing } from '../src/theme';
+import { Blatt } from '../src/ui/Blatt';
+import { ActionButton, Banner, Card, Chip, Gruppe, LoadingState, Zeile } from '../src/ui/components';
 import { useTheme } from '../src/ui/theme';
 
 const KATEGORIEN: EventCategory[] = [
@@ -42,68 +51,106 @@ const KATEGORIEN: EventCategory[] = [
 
 export default function EinstellungenScreen() {
   const { palette } = useTheme();
-  const { rolle } = useKonto();
+  const { rolle, jugendBenachrichtigung, setzeJugendBenachrichtigung } = useKonto();
   const insets = useSafeAreaInsets();
   const { settings, loading, permitted, backgroundAvailable, update } = useNotifications();
   const { events, news } = useAppData();
 
+  const { werte: uploads, aendere: aendereUploads } = useUploadEinstellungen();
+  const [kategorienBlatt, setKategorienBlatt] = useState(false);
+  const [jugendFehler, setJugendFehler] = useState<string | null>(null);
+
   if (loading) return <LoadingState />;
 
   return (
+    <>
     <ScrollView
-      // `contentInsetAdjustmentBehavior` statt fester Abstände: Als Blatt
-      // liegt hier eine Titelleiste über dem Inhalt, als Vollbild nicht.
-      // Ohne das stand „Du bist angemeldet." halb hinter dem Titel — auf dem
-      // Gerät gesehen, in der Web-Vorschau unsichtbar, weil es dort gar kein
-      // Blatt gibt.
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={[styles.inhalt, { paddingBottom: insets.bottom + spacing.xxl }]}
     >
-      <AnmeldeKarte />
-
-      {/* Nur mit der Rolle sichtbar — reine Anzeigehilfe, die API prüft
-          bei jedem Aufruf selbst (dasselbe Muster wie die Guide-Knöpfe). */}
-      {rolle === 'verwaltung' ? (
-        <Card>
-          <Text style={[styles.titel, { color: palette.text }]}>Verwaltung</Text>
-          <Text style={[styles.hinweis, { color: palette.textMuted }]}>
-            Mitglieder einladen, Rollen zuteilen, Jugend-Zugehörigkeit pflegen.
-          </Text>
-          <ActionButton label="Mitglieder verwalten" onPress={() => router.push('/verwaltung')} />
-        </Card>
-      ) : null}
-
+      {/* Reihenfolge nach „6b": Benachrichtigungen zuerst — das ist, was
+          man hier wirklich einstellt. Konto und Daten stehen unten, weil
+          man sie einmal ansieht und dann nie wieder. */}
+      {/* Über den Benachrichtigungen: Wer Bilder von einer Tour mitbringt,
+          stellt das einmal ein und will es dann gefunden haben. */}
+      <Gruppe>Uploads</Gruppe>
       <Card>
-        <View style={styles.schalterZeile}>
-          <View style={styles.schalterText}>
-            <Text style={[styles.titel, { color: palette.text }]}>Termin-Erinnerungen</Text>
-            <Text style={[styles.hinweis, { color: palette.textMuted }]}>
-              Das Handy erinnert dich rechtzeitig vor einem Termin. Die Erinnerungen entstehen auf
-              dem Gerät — es wird nichts an den Verein oder an Dritte übertragen.
-            </Text>
-          </View>
-          <Switch
-            value={settings.enabled}
-            onValueChange={(enabled) => void update({ enabled })}
-            trackColor={{ true: palette.primary }}
-            accessibilityLabel="Termin-Erinnerungen einschalten"
-          />
-        </View>
-
-        {settings.enabled && !permitted ? (
-          <View style={styles.bannerAbstand}>
-            <Banner
-              tone="warning"
-              text="Mitteilungen sind für diese App in den Systemeinstellungen abgeschaltet. Ohne Erlaubnis erscheinen keine Erinnerungen."
+        <Zeile erste>
+          <View style={styles.schalterZeile}>
+            <View style={styles.schalterText}>
+              <Text style={[styles.titel, { color: palette.text }]}>Nur über WLAN hochladen</Text>
+              <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+                Fotos und Videos warten, bis du im WLAN bist — schont den Datentarif. Du kannst
+                einzelne Uploads trotzdem sofort starten.
+              </Text>
+            </View>
+            <Switch
+              value={uploads.nurUeberWlan}
+              onValueChange={(nurUeberWlan) => void aendereUploads({ nurUeberWlan })}
+              trackColor={{ true: palette.primary }}
+              accessibilityLabel="Nur über WLAN hochladen"
             />
+          </View>
+        </Zeile>
+
+        {uploads.nurUeberWlan ? (
+          <View style={[styles.unterbereich, { backgroundColor: palette.surfaceMuted }]}>
+            <Text style={[styles.unterLabel, { color: palette.text }]}>
+              Über Mobilfunk trotzdem erlauben bis
+            </Text>
+            <View style={styles.chips}>
+              {FREIGRENZEN.map((grenze) => (
+                <Chip
+                  key={grenze.wert}
+                  label={grenze.label}
+                  selected={uploads.freigrenze === grenze.wert}
+                  onPress={() => void aendereUploads({ freigrenze: grenze.wert })}
+                />
+              ))}
+            </View>
+            <Text style={[styles.hinweis, { color: palette.textMuted, marginTop: spacing.sm }]}>
+              Kleine Bilder gehen sofort raus, große warten aufs WLAN.
+            </Text>
           </View>
         ) : null}
       </Card>
 
-      {settings.enabled ? (
-        <>
-          <Card>
-            <Text style={[styles.titel, { color: palette.text }]}>Wann erinnern?</Text>
+      <Gruppe>Benachrichtigungen</Gruppe>
+      <Card>
+        <Zeile erste>
+          <View style={styles.schalterZeile}>
+            <View style={styles.schalterText}>
+              <Text style={[styles.titel, { color: palette.text }]}>Termin-Erinnerungen</Text>
+              <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+                Das Handy erinnert dich rechtzeitig vor einem Termin. Die Erinnerungen entstehen auf
+                dem Gerät — es wird nichts an den Verein oder an Dritte übertragen.
+              </Text>
+            </View>
+            <Switch
+              value={settings.enabled}
+              onValueChange={(enabled) => void update({ enabled })}
+              trackColor={{ true: palette.primary }}
+              accessibilityLabel="Termin-Erinnerungen einschalten"
+            />
+          </View>
+
+          {settings.enabled && !permitted ? (
+            <View style={styles.bannerAbstand}>
+              <Banner
+                tone="warning"
+                text="Mitteilungen sind für diese App in den Systemeinstellungen abgeschaltet. Ohne Erlaubnis erscheinen keine Erinnerungen."
+              />
+            </View>
+          ) : null}
+        </Zeile>
+
+        {/* Eingerückt und getönt: Die Tönung sagt, dass alles hier am
+            Schalter darüber hängt. Ist er aus, verschwindet der Bereich —
+            ausgegraut stehen zu lassen hieße, etwas anzubieten, das nicht
+            wirkt. */}
+        {settings.enabled ? (
+          <View style={[styles.unterbereich, { backgroundColor: palette.surfaceMuted }]}>
+            <Text style={[styles.unterLabel, { color: palette.text }]}>Vorlauf</Text>
             <View style={styles.chips}>
               {LEAD_TIME_OPTIONS.map((option) => (
                 <Chip
@@ -114,34 +161,24 @@ export default function EinstellungenScreen() {
                 />
               ))}
             </View>
-          </Card>
 
-          <Card>
-            <Text style={[styles.titel, { color: palette.text }]}>Wofür erinnern?</Text>
-            <Text style={[styles.hinweis, { color: palette.textMuted }]}>
-              Ohne Auswahl wird an alle Termine erinnert.
-            </Text>
-            <View style={styles.chips}>
-              {KATEGORIEN.map((kategorie) => (
-                <Chip
-                  key={kategorie}
-                  icon={categoryDisplay[kategorie].icon}
-                  label={categoryDisplay[kategorie].label}
-                  selected={settings.categories.includes(kategorie)}
-                  onPress={() =>
-                    void update({
-                      categories: settings.categories.includes(kategorie)
-                        ? settings.categories.filter((eintrag) => eintrag !== kategorie)
-                        : [...settings.categories, kategorie],
-                    })
-                  }
-                />
-              ))}
-            </View>
-          </Card>
+            <Pressable
+              onPress={() => setKategorienBlatt(true)}
+              accessibilityLabel="Wofür erinnern?"
+              style={styles.navZeile}
+            >
+              <View style={styles.navText}>
+                <Text style={[styles.titel, { color: palette.text }]}>Wofür erinnern?</Text>
+                <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+                  {settings.categories.length === 0
+                    ? 'Alle Termine'
+                    : settings.categories.map((k) => categoryDisplay[k].label).join(', ')}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
+            </Pressable>
 
-          <Card>
-            <View style={styles.schalterZeile}>
+            <View style={styles.absagenZeile}>
               <View style={styles.schalterText}>
                 <Text style={[styles.titel, { color: palette.text }]}>Bei Absagen melden</Text>
                 <Text style={[styles.hinweis, { color: palette.textMuted }]}>
@@ -175,12 +212,72 @@ export default function EinstellungenScreen() {
                 />
               </View>
             ) : null}
+          </View>
+        ) : null}
+
+        {/* Aus der Konto-Karte hierher gezogen: Es ist eine
+            Benachrichtigung, keine Kontoeinstellung. */}
+        {jugendBenachrichtigung !== null ? (
+          <Zeile>
+            <View style={styles.schalterZeile}>
+              <View style={styles.schalterText}>
+                <Text style={[styles.titel, { color: palette.text }]}>Neue Jugendtrainings</Text>
+                <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+                  Per Mail, sobald ein neues Training veröffentlicht wird — die entstehen oft
+                  kurzfristig.
+                </Text>
+              </View>
+              <Switch
+                value={jugendBenachrichtigung}
+                onValueChange={(an) => {
+                  setJugendFehler(null);
+                  void setzeJugendBenachrichtigung(an).catch((ursache: unknown) =>
+                    setJugendFehler(beschreibeJugendFehler(ursache)),
+                  );
+                }}
+                trackColor={{ true: palette.primary }}
+                accessibilityLabel="Benachrichtigung über neue Jugendtrainings"
+              />
+            </View>
+            {jugendFehler ? (
+              <View style={styles.bannerAbstand}>
+                <Banner tone="danger" text={jugendFehler} />
+              </View>
+            ) : null}
+          </Zeile>
+        ) : null}
+      </Card>
+
+      {/* Nur mit der Rolle sichtbar — reine Anzeigehilfe, die API prüft
+          bei jedem Aufruf selbst (dasselbe Muster wie die Guide-Knöpfe).
+          Als Navigationszeile statt großem Knopf: Es führt woandershin,
+          es tut nichts. */}
+      {rolle === 'verwaltung' ? (
+        <>
+          <Gruppe>Verein</Gruppe>
+          <Card>
+            <Pressable
+              onPress={() => router.push('/verwaltung')}
+              accessibilityLabel="Mitglieder verwalten"
+              style={styles.navZeile}
+            >
+              <View style={styles.navText}>
+                <Text style={[styles.titel, { color: palette.text }]}>Mitglieder verwalten</Text>
+                <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+                  Einladen, Rollen vergeben, Jugend-Zugehörigkeit pflegen.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={palette.primary} />
+            </Pressable>
           </Card>
         </>
       ) : null}
 
+      <Gruppe>Mein Konto</Gruppe>
+      <AnmeldeKarte />
+
+      <Gruppe>Daten</Gruppe>
       <Card>
-        <Text style={[styles.titel, { color: palette.text }]}>Daten</Text>
         <View style={styles.datenZeile}>
           <Ionicons name="calendar-outline" size={15} color={palette.textMuted} />
           <Text style={[styles.hinweis, { color: palette.textMuted }]}>
@@ -200,10 +297,59 @@ export default function EinstellungenScreen() {
         </Text>
       </Card>
     </ScrollView>
+
+    {/* Die Kategorien im Blatt statt auf einer eigenen Seite: dieselbe
+        Mehrfachauswahl wie beim Themenfilter, und die Zeile davor zeigt
+        schon, was gewählt ist. */}
+    <Blatt offen={kategorienBlatt} beimSchliessen={() => setKategorienBlatt(false)}>
+      <Text style={[styles.blattTitel, { color: palette.text }]}>Wofür erinnern?</Text>
+      <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+        Ohne Auswahl wird an alle Termine erinnert.
+      </Text>
+      <View style={[styles.chips, styles.blattChips]}>
+        {KATEGORIEN.map((kategorie) => (
+          <Chip
+            key={kategorie}
+            icon={categoryDisplay[kategorie].icon}
+            label={categoryDisplay[kategorie].label}
+            selected={settings.categories.includes(kategorie)}
+            onPress={() =>
+              void update({
+                categories: settings.categories.includes(kategorie)
+                  ? settings.categories.filter((eintrag) => eintrag !== kategorie)
+                  : [...settings.categories, kategorie],
+              })
+            }
+          />
+        ))}
+      </View>
+      <ActionButton label="Fertig" onPress={() => setKategorienBlatt(false)} />
+    </Blatt>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  unterbereich: {
+    marginHorizontal: -spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: 12,
+    paddingBottom: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(183, 194, 200, 0.55)',
+  },
+  unterLabel: { fontFamily: font.semibold, fontSize: 13, marginBottom: spacing.sm },
+  navZeile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+  },
+  navText: { flex: 1 },
+  absagenZeile: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.sm },
+  blattTitel: { fontFamily: font.semibold, fontSize: fontSize.lg, marginBottom: spacing.xs },
+  blattChips: { marginTop: spacing.md, marginBottom: spacing.lg },
   inhalt: {
     gap: spacing.lg,
     padding: spacing.lg,
