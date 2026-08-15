@@ -159,3 +159,40 @@ export async function verarbeite(eingabe: Buffer): Promise<VerarbeitetesBild> {
     fassungen: { vorschau, anzeige, original: original.data },
   };
 }
+
+/** Kantenlänge eines Profilbilds. Klein, quadratisch, immer gleich. */
+export const AVATAR_KANTE = 256;
+
+/**
+ * Ein Profilbild: quadratisch zugeschnitten, 256×256, ohne Metadaten.
+ *
+ * `fit: 'cover'` schneidet die lange Seite ab, statt zu verzerren — ein
+ * gestauchtes Gesicht wäre schlimmer als ein knapper Ausschnitt. `position:
+ * 'attention'` sucht dabei die interessanteste Stelle statt stur die Mitte;
+ * bei Porträts trifft das meist den Kopf.
+ *
+ * Dieselbe Reihenfolge wie bei den Albumbildern: drehen, dann zuschneiden,
+ * dann Metadaten fallen lassen. Auch hier gilt: Handyfotos tragen GPS.
+ */
+export async function verarbeiteAvatar(eingabe: Buffer): Promise<Buffer> {
+  if (eingabe.length === 0) throw new BildFehler('Die Datei ist leer.');
+  if (eingabe.length > HOECHSTGROESSE_BYTES) {
+    throw new BildFehler('Das Bild ist zu groß.');
+  }
+
+  let kopf;
+  try {
+    kopf = await sharp(eingabe).metadata();
+  } catch {
+    throw new BildFehler('Das ist kein Bild, das wir lesen können.');
+  }
+  if (!kopf.format || !ERLAUBTE_FORMATE.has(kopf.format)) {
+    throw new BildFehler('Dieses Format nehmen wir nicht an.');
+  }
+
+  return sharp(eingabe)
+    .rotate()
+    .resize(AVATAR_KANTE, AVATAR_KANTE, { fit: 'cover', position: 'attention' })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+}

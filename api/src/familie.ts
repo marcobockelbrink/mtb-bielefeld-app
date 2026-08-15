@@ -250,3 +250,41 @@ export async function darfBilderHochladen(db: pg.Pool, mitgliedId: string): Prom
 
   return rows[0]?.kann_bilder_hochladen ?? false;
 }
+
+/**
+ * Darf ich das Profilbild dieses Kontos setzen?
+ *
+ * Das eigene immer; ein fremdes nur, wenn ich es verwalte. **Nicht** an
+ * `kann_bilder_hochladen` gekoppelt: Ein Kind ohne Album-Recht bekommt
+ * trotzdem ein Profilbild — das sind zwei verschiedene Dinge, und der
+ * Handoff sagt das ausdrücklich.
+ */
+export async function darfAvatarSetzen(
+  db: pg.Pool,
+  ichId: string,
+  zielId: string,
+): Promise<boolean> {
+  if (ichId === zielId) return true;
+  if (!istKennung(zielId)) return false;
+
+  const { rowCount } = await db.query(
+    'SELECT 1 FROM mitglied WHERE id = $1 AND verwaltet_von = $2',
+    [zielId, ichId],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/** Trägt den Pfad ein — mit Zeitstempel, damit kein alter Stand hängenbleibt. */
+export async function setzeAvatar(
+  db: pg.Pool,
+  mitgliedId: string,
+  jetzt: Date,
+): Promise<string> {
+  const pfad = `/avatar/${mitgliedId}?v=${jetzt.getTime()}`;
+  await db.query('UPDATE mitglied SET avatar_url = $2 WHERE id = $1', [mitgliedId, pfad]);
+  return pfad;
+}
+
+export async function entferneAvatar(db: pg.Pool, mitgliedId: string): Promise<void> {
+  await db.query('UPDATE mitglied SET avatar_url = NULL WHERE id = $1', [mitgliedId]);
+}

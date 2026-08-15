@@ -23,12 +23,15 @@
  */
 
 import { useRef, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { beschreibeAnfordernFehler } from '../../konto/anfordernFehler';
 import { useKonto } from '../../konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../../theme';
+import { Avatar } from '../../ui/Avatar';
 import { ActionButton, Banner, Card, Label } from '../../ui/components';
+import { AvatarBlatt } from './AvatarBlatt';
 import { useTheme } from '../../ui/theme';
 import { beschreibeJugendFehler } from '../jugend/jugendFehler';
 
@@ -42,6 +45,11 @@ export function AnmeldeKarte() {
     // Umbenannt, weil `email` in dieser Datei schon das Formularfeld ist —
     // zwei Bedeutungen für ein Wort in einer Komponente.
     email: kontoEmail,
+    mitgliedId,
+    name: kontoName,
+    avatarUrl,
+    kontoNeuLaden,
+    api,
     zuletztEingeloest,
     einloesenFehlgeschlagen,
     jugendBenachrichtigung,
@@ -51,6 +59,7 @@ export function AnmeldeKarte() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [laeuft, setLaeuft] = useState(false);
+  const [avatarBlatt, setAvatarBlatt] = useState(false);
   const [angefordert, setAngefordert] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   // Eigene Fehlerzeile für den Abonnement-Schalter: Er lebt in derselben
@@ -87,8 +96,34 @@ export function AnmeldeKarte() {
     return (
       <Card>
         <View style={styles.kontoZeile}>
+          {/* Der Kreis mit Kamera-Abzeichen ist der Weg zum Profilbild
+              („8a"): Ein eigener Knopf daneben wäre ein Bedienelement mehr
+              für dieselbe Sache. */}
+          <Pressable
+            onPress={() => setAvatarBlatt(true)}
+            disabled={!mitgliedId}
+            accessibilityLabel="Profilbild ändern"
+            style={styles.avatarKnopf}
+          >
+            <Avatar
+              name={kontoName ?? kontoEmail ?? '?'}
+              uri={avatarUrl ? api.bildQuelle(avatarUrl).uri : null}
+              size={56}
+            />
+            <View style={[styles.kamera, { backgroundColor: palette.primary, borderColor: palette.surface }]}>
+              <Ionicons name="camera" size={12} color={palette.onPrimary} />
+            </View>
+          </Pressable>
           <View style={styles.kontoText}>
-            <Text style={[styles.zustand, { color: palette.text }]}>
+            {kontoName ? (
+              <Text style={[styles.zustand, { color: palette.text }]}>{kontoName}</Text>
+            ) : null}
+            <Text
+              style={[
+                kontoName ? styles.hinweis : styles.zustand,
+                { color: kontoName ? palette.textMuted : palette.text },
+              ]}
+            >
               {kontoEmail ?? (geradeEingeloggt ? 'Angemeldet.' : 'Du bist angemeldet.')}
             </Text>
             <Text style={[styles.hinweis, { color: palette.textMuted }]}>
@@ -106,6 +141,17 @@ export function AnmeldeKarte() {
             <Text style={[styles.abmeldenText, { color: palette.text }]}>Abmelden</Text>
           </Pressable>
         </View>
+
+        {mitgliedId ? (
+          <AvatarBlatt
+            offen={avatarBlatt}
+            beimSchliessen={() => setAvatarBlatt(false)}
+            mitgliedId={mitgliedId}
+            name={kontoName ?? kontoEmail ?? '?'}
+            avatarUrl={avatarUrl}
+            beimAendern={kontoNeuLaden}
+          />
+        ) : null}
       </Card>
     );
   }
@@ -240,6 +286,18 @@ const styles = StyleSheet.create({
   },
   banner: {
     marginTop: spacing.md,
+  },
+  avatarKnopf: { position: 'relative' },
+  kamera: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   kontoZeile: {
     flexDirection: 'row',

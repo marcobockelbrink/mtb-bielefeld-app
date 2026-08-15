@@ -11,7 +11,7 @@ import type pg from 'pg';
 
 import { fordereMagicLinkAn } from './anmeldung.ts';
 import { Bildablage, INHALTSTYPEN, etag } from './bildablage.ts';
-import { BildFehler, HOECHSTGROESSE_BYTES, verarbeite } from './bildverarbeitung.ts';
+import { BildFehler, HOECHSTGROESSE_BYTES, verarbeite, verarbeiteAvatar } from './bildverarbeitung.ts';
 import * as familie from './familie.ts';
 import * as fotos from './fotoalbum.ts';
 import { IpBegrenzung } from './ipbegrenzung.ts';
@@ -152,6 +152,7 @@ const IP_GESCHUETZTE_PFAD_PRAEFIXE = [
   '/jugendtraining',
   '/verwaltung',
   '/familie',
+  '/avatar',
 ];
 
 /**
@@ -1726,6 +1727,73 @@ dein Kind auch anmelden.</p>
     const weg = await familie.loescheProfil(pool, ausweis.mitgliedId, id);
     if (!weg) return antwort.code(404).send({ fehler: 'Dieses Profil gibt es nicht.' });
     return antwort.code(204).send();
+  });
+
+  // --- Profilbilder ---------------------------------------------------------
+  //
+  // Ein eigener Weg neben den Fotoalben, nicht derselbe: Avatare sind
+  // 256×256 klein, gehören keinem Album, und wer keine Bilder hochladen
+  // darf, bekommt trotzdem ein Profilbild.
+
+  app.post('/avatar/:id', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    if (!(await familie.darfAvatarSetzen(pool, ausweis.mitgliedId, id))) {
+      return antwort.code(404).send({ fehler: 'Dieses Profil gibt es nicht.' });
+    }
+
+    const datei = await anfrage.file();
+    if (!datei) return antwort.code(400).send({ fehler: 'Es kam keine Datei an.' });
+
+    let bild: Buffer;
+    try {
+      bild = await verarbeiteAvatar(await datei.toBuffer());
+    } catch (fehler) {
+      if (fehler instanceof BildFehler) return antwort.code(400).send({ fehler: fehler.message });
+      throw fehler;
+    }
+
+    await bildablage.legeAvatar(id, bild);
+    const pfad = await familie.setzeAvatar(pool, id, jetzt());
+    return antwort.code(201).send({ avatarUrl: pfad });
+  });
+
+  app.delete('/avatar/:id', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    if (!(await familie.darfAvatarSetzen(pool, ausweis.mitgliedId, id))) {
+      return antwort.code(404).send({ fehler: 'Dieses Profil gibt es nicht.' });
+    }
+
+    await familie.entferneAvatar(pool, id);
+    await bildablage.loescheAvatar(id);
+    // 204, kein Fehler: „Initialen behalten" ist ein gültiger Dauerzustand.
+    return antwort.code(204).send();
+  });
+
+  app.get('/avatar/:id', async (anfrage, antwort) => {
+    // Jedes angemeldete Mitglied darf jedes Profilbild sehen — sie stehen
+    // ohnehin neben Namen in Listen, Teilnehmern und Beiträgen. Etwas
+    // anderes wäre ein Recht, das die Oberfläche gar nicht abbilden kann.
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    let daten;
+    try {
+      daten = await bildablage.liesAvatar(id);
+    } catch {
+      return antwort.code(404).send({ fehler: 'Kein Profilbild.' });
+    }
+
+    return antwort
+      .header('content-type', 'image/jpeg')
+      .header('cache-control', 'private, max-age=86400')
+      .send(daten);
   });
 
   return app;

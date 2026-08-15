@@ -45,6 +45,12 @@ export interface KontoZustand {
   rolle: string | null;
   /** Die eigene Adresse — für die Konto-Zeile in den Einstellungen. */
   email: string | null;
+  /** Eigene Kennung, Name und Profilbild — für Avatar und Kopfleiste. */
+  mitgliedId: string | null;
+  name: string | null;
+  avatarUrl: string | null;
+  /** Nach dem Setzen eines Profilbilds die Auskunft neu holen. */
+  kontoNeuLaden(): Promise<void>;
   /**
    * Abonnement für „neues Jugendtraining veröffentlicht" — `null`, solange
    * niemand angemeldet ist oder `GET /konto` noch nicht zurück ist. Kommt aus
@@ -96,6 +102,9 @@ export function KontoProvider({
   const [rolle, setRolle] = useState<string | null>(null);
   const [jugendBenachrichtigung, setJugendBenachrichtigung] = useState<boolean | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [mitgliedId, setMitgliedId] = useState<string | null>(null);
+  const [name, setName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [zuletztEingeloest, setZuletztEingeloest] = useState<number | null>(null);
   const [einloesenFehlgeschlagen, setEinloesenFehlgeschlagen] = useState<string | null>(null);
   // `Linking.getInitialURL()` und das `url`-Ereignis liefern je nach
@@ -122,6 +131,18 @@ export function KontoProvider({
     };
   }, [api]);
 
+  /**
+   * Holt die Kontoauskunft erneut — etwa nach einem neuen Profilbild.
+   *
+   * Ein Zähler statt eines eigenen Abrufpfads: Der Effekt darunter kennt
+   * die Abfrage schon, und zwei Stellen, die dasselbe holen, laufen
+   * irgendwann auseinander.
+   */
+  const [kontoStand, setKontoStand] = useState(0);
+  const kontoNeuLaden = useCallback(async () => {
+    setKontoStand((n) => n + 1);
+  }, []);
+
   // Rolle und Abonnement hängen an der Sitzung, nicht an einer eigenen
   // Aktion — sie folgen deshalb `angemeldet`, statt dass jeder Aufrufer sie
   // selbst holen muss. Das deckt beide Wege ab, auf denen `angemeldet` `true`
@@ -137,12 +158,15 @@ export function KontoProvider({
     }
     let abgebrochen = false;
     void api
-      .hole<{ email: string; rolle: string; jugendBenachrichtigung: boolean }>('/konto')
+      .hole<{ id: string; email: string; name: string | null; avatarUrl: string | null; rolle: string; jugendBenachrichtigung: boolean }>('/konto')
       .then((auskunft) => {
         if (!abgebrochen) {
           setRolle(auskunft.rolle);
           setJugendBenachrichtigung(auskunft.jugendBenachrichtigung);
           setEmail(auskunft.email);
+          setMitgliedId(auskunft.id);
+          setName(auskunft.name);
+          setAvatarUrl(auskunft.avatarUrl);
         }
       })
       .catch((fehler) => {
@@ -156,7 +180,7 @@ export function KontoProvider({
     return () => {
       abgebrochen = true;
     };
-  }, [angemeldet, api]);
+  }, [angemeldet, api, kontoStand]);
 
   const setzeJugendBenachrichtigungAn = useCallback(
     async (an: boolean) => {
@@ -225,6 +249,10 @@ export function KontoProvider({
       api,
       rolle,
       email,
+      mitgliedId,
+      name,
+      avatarUrl,
+      kontoNeuLaden,
       jugendBenachrichtigung,
       setzeJugendBenachrichtigung: setzeJugendBenachrichtigungAn,
       zuletztEingeloest,
@@ -247,6 +275,10 @@ export function KontoProvider({
       api,
       rolle,
       email,
+      mitgliedId,
+      name,
+      avatarUrl,
+      kontoNeuLaden,
       jugendBenachrichtigung,
       setzeJugendBenachrichtigungAn,
       zuletztEingeloest,

@@ -142,6 +142,30 @@ export class Bildablage {
     return summe;
   }
 
+  /**
+   * Profilbilder liegen flach in einem eigenen Ordner: `avatare/<id>.jpg`.
+   *
+   * Nicht im Albumbaum, weil sie keinem Album gehören und ein anderes
+   * Recht haben — wer keine Fotos hochladen darf, darf trotzdem ein
+   * Profilbild bekommen.
+   */
+  avatarPfad(mitgliedId: string): string {
+    return this.imVolume(path.join(this.#wurzel, 'avatare', `${this.gepruefteKennung(mitgliedId)}.jpg`));
+  }
+
+  async legeAvatar(mitgliedId: string, daten: Buffer): Promise<void> {
+    await fs.mkdir(this.imVolume(path.join(this.#wurzel, 'avatare')), { recursive: true });
+    await fs.writeFile(this.avatarPfad(mitgliedId), daten);
+  }
+
+  async liesAvatar(mitgliedId: string): Promise<Buffer> {
+    return fs.readFile(this.avatarPfad(mitgliedId));
+  }
+
+  async loescheAvatar(mitgliedId: string): Promise<void> {
+    await fs.rm(this.avatarPfad(mitgliedId), { force: true });
+  }
+
   private gepruefteKennung(id: string): string {
     if (!istKennung(id)) throw new AblageFehler('Keine gültige Kennung.');
     return id;
@@ -155,6 +179,7 @@ export class Bildablage {
    */
   private imVolume(pfad: string): string {
     const voll = path.resolve(pfad);
+    if (voll === path.resolve(this.#wurzel)) return voll;
     if (!voll.startsWith(path.resolve(this.#wurzel) + path.sep)) {
       throw new AblageFehler('Pfad läge außerhalb der Ablage.');
     }

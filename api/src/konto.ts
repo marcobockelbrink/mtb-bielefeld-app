@@ -11,7 +11,11 @@
 import type pg from 'pg';
 
 export interface KontoAuskunft {
+  /** Die eigene Kennung — die App braucht sie, um ihr Profilbild zu setzen. */
+  id: string;
   email: string;
+  name: string | null;
+  avatarUrl: string | null;
   rolle: string;
   angelegtAm: Date;
   sitzungen: number;
@@ -26,7 +30,10 @@ export async function holeKontoAuskunft(
   jetzt: Date,
 ): Promise<KontoAuskunft | null> {
   const { rows } = await pool.query<{
+    id: string;
     email: string;
+    name: string | null;
+    avatar_url: string | null;
     rolle: string;
     angelegt_am: Date;
     sitzungen: string;
@@ -38,7 +45,7 @@ export async function holeKontoAuskunft(
     // da, keine nutzbare Sitzung mehr. Eine mit abgelaufener
     // Erneuerungsfrist ebenso wenig — nur noch nicht aufgeräumt. Bei den
     // Anmeldungen zählt entsprechend nur, was nicht storniert ist.
-    `SELECT m.email, m.rolle, m.angelegt_am, m.jugend_benachrichtigung,
+    `SELECT m.id, m.email, m.name, m.avatar_url, m.rolle, m.angelegt_am, m.jugend_benachrichtigung,
             (SELECT count(*) FROM sitzung s
               WHERE s.mitglied_id = m.id
                 AND s.ersetzt_am IS NULL
@@ -53,7 +60,10 @@ export async function holeKontoAuskunft(
   if (!zeile) return null;
 
   return {
+    id: zeile.id,
     email: zeile.email,
+    name: zeile.name,
+    avatarUrl: zeile.avatar_url,
     rolle: zeile.rolle,
     angelegtAm: zeile.angelegt_am,
     sitzungen: Number(zeile.sitzungen),

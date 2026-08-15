@@ -64,3 +64,21 @@ export function statusZeile(profil: Profil): string {
   }
   return profil.kannBilderHochladen ? 'Aktiv' : 'Aktiv · kann keine Bilder hochladen';
 }
+
+/**
+ * Setzt das Profilbild — eigenes Konto oder ein verwaltetes Profil.
+ *
+ * Verkleinert wird **vor** dem Senden (wie bei den Albumbildern), den
+ * quadratischen Zuschnitt auf 256×256 macht der Server.
+ */
+export async function setzeAvatar(api: ApiZugang, mitgliedId: string, uri: string): Promise<string> {
+  const formular = new FormData();
+  formular.append('datei', { uri, name: 'avatar.jpg', type: 'image/jpeg' } as unknown as Blob);
+  const antwort = await api.sendeDatei<{ avatarUrl: string }>(`/avatar/${mitgliedId}`, formular);
+  return antwort.avatarUrl;
+}
+
+/** „Initialen behalten" — ein gültiger Dauerzustand, kein Zurücksetzen. */
+export function entferneAvatar(api: ApiZugang, mitgliedId: string): Promise<void> {
+  return api.sende<void>(`/avatar/${mitgliedId}`, 'DELETE');
+}
