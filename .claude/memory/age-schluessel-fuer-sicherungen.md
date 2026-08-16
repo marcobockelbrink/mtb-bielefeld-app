@@ -23,6 +23,11 @@ obendrauf. Der Preis ist, dass ein verlorener privater Schlüssel jede
 Sicherung wertlos macht. Das Repository ist öffentlich, dort kann er nicht
 stehen; also steht nirgends im Projekt, wo er ist.
 
+**Seit dem 16.08.2026 wird tatsächlich gesichert** (Hetzner Storage Box,
+alle zwei Stunden). Damit ist dieser Schlüssel nicht mehr Theorie: Ohne ihn
+sind die Sicherungen, die dort jetzt anwachsen, wertlos. Er liegt weiterhin
+nur auf einem Rechner und **nicht** in der Passwortverwaltung des Vereins.
+
 **How to apply:** Bei Fragen zu Rücksicherung, Serverumzug oder Laptopwechsel
 zuerst darauf hinweisen, dass dieser Schlüssel mitmuss und **noch nicht** in
 der Passwortverwaltung des Vereins liegt — Stand 05.08.2026 war das eine

@@ -52,9 +52,16 @@ Der Vereinsserver (`api.mtb-bielefeld.de`) existiert noch nicht.
   dieselbe Adresse umgestellt (Absender muss zum Postfach passen). Mailpit
   läuft im Compose noch mit, wird aber nicht mehr benutzt. Der
   Umstieg auf `docker-compose.server.yml` steht noch aus.
-- **SFTP-Ziel für die Sicherungen.** Skripte und systemd-Einheiten liegen
-  fertig im Repository, es fehlt nur `SICHERUNG_ZIEL`. Solange wird
-  **nichts gesichert**.
+- ~~SFTP-Ziel~~ **erledigt am 16.08.2026**: Hetzner Storage Box
+  `u647588-sub2@u647588.your-storagebox.de:/home/mtb-bielefeld-app-backup`,
+  **Port 23** (Port 22 nimmt Verbindungen an und weist den Schlüssel dann
+  ab — sieht wie ein Schlüsselproblem aus, ist keines). Nur über IPv6
+  erreichbar. Eigener Schlüssel `/home/verein/.ssh/sicherung` auf dem
+  Server, hinterlegt per SFTP in `.ssh/authorized_keys` der Box. Timer
+  `mtb-sicherung.timer` läuft alle zwei Stunden, erste Sicherungen liegen.
+  **Noch nie zurückgespielt** — der private age-Schlüssel liegt auf dem
+  alten Laptop, siehe [[age-schluessel-fuer-sicherungen]]. Ein nie
+  zurückgespieltes Backup ist eine Vermutung, keine Sicherung.
 - **Ein zweiter Zugang zu den Servern.** Es kommt genau ein Mensch von
   genau einem Rechner hinein.
 - **Die Maschine des Vereins** und **`api.mtb-bielefeld.de` im DNS**.
