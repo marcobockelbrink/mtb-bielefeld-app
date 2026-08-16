@@ -36,8 +36,23 @@ Sie tut vier Dinge:
 Das geht nur in Xcode oder App Store Connect, nicht aus dem Repository
 heraus.
 
-1. In Xcode das Projekt öffnen (`ios/…​.xcworkspace`) →
-   **Product ▸ Xcode Cloud ▸ Create Workflow**.
+1. In Xcode das **Workspace** öffnen — `ios/MTBBIdev.xcworkspace`, nicht
+   die `.xcodeproj`; ohne die Pods fehlt die Hälfte. Dann
+   **Integrate ▸ Create Workflow…**
+
+   **Nicht unter `Product`.** Seit Xcode 14 hat Xcode Cloud ein eigenes
+   Menü namens `Integrate`. Ältere Anleitungen im Netz — und die erste
+   Fassung dieser hier — nennen den alten Ort; genau darüber ist Marco am
+   16.08.2026 gestolpert. Taucht `Integrate` gar nicht auf, ist kein
+   Projekt geöffnet: Das Menü erscheint erst mit einem offenen Workspace.
+
+   Außerdem nötig: in Xcode unter **Settings ▸ Accounts** mit der Apple-ID
+   angemeldet, und im Team die Rolle *Account Holder*, *Admin* oder
+   *App Manager*. Bei einem Einzelkonto trifft das von selbst zu.
+
+   `ios/` entsteht erst durch `npx expo prebuild --platform ios` gefolgt
+   von `cd ios && pod install` — also dasselbe, was das CI-Skript tut. Auf
+   einem frischen Klon ist der Ordner nicht da.
 2. Als Quelle das GitHub-Repository wählen und Apple den Zugriff geben.
 3. **Environment ▸ Environment Variables:** `EXPO_PUBLIC_APP_UMGEBUNG`
    auf `dev` setzen. Für einen Vereinsbau später ein **zweiter Workflow**

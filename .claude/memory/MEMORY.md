@@ -1,4 +1,5 @@
-- [TestFlight und EAS](testflight-und-eas.md) — Team 755278A9P4, EAS-Projekt, der Bauweg des dev-Builds
+- [Repo liegt in ~/Projekte](repo-liegt-in-projekte.md) — seit 16.08.2026 umgezogen; `~/Documents` wurde von iCloud synchronisiert
+- [TestFlight und EAS](testflight-und-eas.md) — Team 755278A9P4, EAS-Projekt, Xcode Cloud als zweiter Bauweg
 - [Instagram erst mit Backend](instagram-erst-mit-backend.md) — vertagt; Meta verlangt Token, das nirgends sicher liegen kann
 - [iOS-Gerätebau: Push-Berechtigung](ios-geraetebau-push-berechtigung.md) — kostenloses Apple-Team scheitert an `aps-environment`, das die App gar nicht braucht
 - [Server: offene Punkte](mtb-server-offene-punkte.md) — Hetzner trägt allein und verschickt echte Mail; Aufbau liegt in `~/mtb-bielefeld-app/betrieb`, es fehlt die Vereinsmaschine

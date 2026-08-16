@@ -28,8 +28,37 @@ eingereicht.
   `submit`) laufen **nicht** im `!`-Fenster der Sitzung (kein lesbares
   stdin) — dafür das normale Terminal nehmen.
 - Der lokale Simulator-Bau scheitert auf dem Intel-Mac an
-  `resource fork … detritus` beim Signieren von ExpoModulesJSI —
-  ungelöst; EAS umgeht das komplett.
+  `resource fork … detritus` beim Signieren von ExpoModulesJSI. Am
+  16.08.2026 nachgemessen: Es sind `com.apple.FinderInfo` und
+  `com.apple.fileprovider.fpfs#P` am Framework, und `xattr -cr` hilft
+  nicht — es entsteht bei jedem Bau neu. Verdacht auf die iCloud-Synchro
+  von `~/Documents`, weshalb das Repository umgezogen ist
+  ([[repo-liegt-in-projekte]]); **nach dem Umzug noch nicht erneut
+  versucht**. EAS und Xcode Cloud umgehen es ohnehin.
+
+## Xcode Cloud als zweiter Bauweg (seit 16.08.2026)
+
+Angelegt, weil das EAS-Kontingent knapp ist ([[releases-sparsam-bauen]]) —
+Xcode Cloud ist im Entwicklerprogramm enthalten, 25 Rechenstunden im Monat.
+Im Repository steht `ci_scripts/ci_post_clone.sh`, die Anleitung in
+`docs/xcode-cloud.md`.
+
+Drei Dinge, die Zeit gekostet haben oder kosten würden:
+
+- **Xcode Cloud löst CocoaPods nicht auf**, nur Swift Packages. Ohne ein
+  eigenes `pod install` im Skript scheitert `xcodebuild` an fehlenden
+  Headern — einer Meldung, die auf alles zeigt außer auf die Ursache.
+- Das Menü heißt **`Integrate ▸ Create Workflow…`**, nicht
+  `Product ▸ Xcode Cloud`. Der alte Ort steht in allen älteren Anleitungen
+  und stand zuerst auch in meiner.
+- Das **Schema heißt `MTBBIdev`** (aus `expo.name` „MTB BI (dev)"). Der
+  lokale Ordner trug lange `MTBBielefelddev` aus der Zeit davor. Wer den
+  alten Namen im Workflow einträgt, baut nie wieder — und die Meldung nennt
+  nur ein nicht gefundenes Schema.
+
+**Noch nicht erledigt:** Der Workflow selbst ist von Marco anzulegen, samt
+`EXPO_PUBLIC_APP_UMGEBUNG=dev` als Umgebungsvariable. Ohne sie bricht das
+Skript ab — mit Absicht, siehe CLAUDE.md Falle 6.
 
 **Why:** Der Gerätenachweis der Universal Links und jede Verteilung an
 Mitglieder laufen ab jetzt über diesen Weg.
