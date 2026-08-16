@@ -19,14 +19,15 @@
  * dasselbe da wie vorher, und beide Plätze sind erreichbar statt nur einer.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import type { TrainingDetails } from '../../data/jugend';
 import { meldeKindAb, meldeKindAn } from '../../data/jugend';
+import { holeProfile, type Profil } from '../../data/familie';
 import { useKonto } from '../../konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../../theme';
-import { ActionButton, Banner, Card, Label } from '../../ui/components';
+import { ActionButton, Banner, Card, Chip, Label } from '../../ui/components';
 import { useTheme } from '../../ui/theme';
 import { darfNochAnmelden, eigeneKinder } from './eigeneKinder';
 import { beschreibeJugendFehler } from './jugendFehler';
@@ -51,6 +52,10 @@ export function KindAnmelden({
 
   const [vorname, setVorname] = useState('');
   const [nachname, setNachname] = useState('');
+  // Die angelegten Familienprofile — ein Tipp trägt sie ein, statt den
+  // Namen jedes Mal neu zu tippen. Wer kein Profil hat (Nachbarskind,
+  // Besuch), nimmt weiter das Freitextfeld darunter: **beides** geht.
+  const [profile, setProfile] = useState<Profil[]>([]);
   // Datensparsam als Standard: Vorname sichtbar, Nachname nicht. Wer mehr
   // zeigen will, tippt einmal.
   const [zeigtVorname, setZeigtVorname] = useState(true);
@@ -61,6 +66,25 @@ export function KindAnmelden({
 
   const trainingId = training.id;
   const meine = eigeneKinder(training);
+
+  useEffect(() => {
+    // Ein Fehlschlag bleibt still: Die Profile sind eine Abkürzung, kein
+    // Weg — ohne sie funktioniert das Formular unverändert.
+    void holeProfile(api).then(setProfile, () => setProfile([]));
+  }, [api]);
+
+  /**
+   * Aus „Mika Meier" werden Vor- und Nachname.
+   *
+   * Ein Profil trägt einen Anzeigenamen, die Anmeldung zwei Felder. Bei
+   * einem einzelnen Wort bleibt der Nachname leer — das ist gültig, und
+   * einen zu erfinden wäre schlimmer.
+   */
+  function ausProfil(profil: Profil) {
+    const teile = (profil.name ?? '').trim().split(/\s+/).filter(Boolean);
+    setVorname(teile[0] ?? '');
+    setNachname(teile.slice(1).join(' '));
+  }
 
   async function anmelden() {
     setMeldung(null);
@@ -145,6 +169,29 @@ export function KindAnmelden({
 
       {darfNochAnmelden(training) && !laeuft ? (
         <>
+          {/* Die eigenen Profile zuerst — der häufige Fall. Antippen füllt
+              die Felder darunter, statt eine zweite Anmeldeart zu bauen:
+              So sieht man vor dem Absenden, was eingetragen wird, und kann
+              es noch ändern. */}
+          {profile.length > 0 ? (
+            <View style={styles.profile}>
+              <Text style={[styles.profileLabel, { color: palette.textMuted }]}>Meine Familie</Text>
+              <View style={styles.profilReihe}>
+                {profile.map((profil) => (
+                  <Chip
+                    key={profil.id}
+                    label={profil.name ?? 'Profil'}
+                    selected={
+                      (profil.name ?? '').trim() === `${vorname} ${nachname}`.trim() &&
+                      vorname !== ''
+                    }
+                    onPress={() => ausProfil(profil)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
           <TextInput
             value={vorname}
             onChangeText={setVorname}
@@ -208,6 +255,15 @@ const styles = StyleSheet.create({
   banner: {
     marginTop: spacing.md,
   },
+  profile: { marginBottom: spacing.md },
+  profileLabel: {
+    fontFamily: font.label,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs,
+  },
+  profilReihe: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   feld: {
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
