@@ -8,7 +8,13 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { asyncStorageStore } from '../data/asyncStorageStore';
 import { useAppData } from '../data/AppDataContext';
 import { isBackgroundRefreshAvailable, updateBackgroundRefreshRegistration } from './backgroundTask';
-import { cancelAllReminders, hasPermission, requestPermission, syncReminders } from './index';
+import {
+  cancelAllReminders,
+  hasPermission,
+  requestPermission,
+  syncReminders,
+  type ErlaubnisErgebnis,
+} from './index';
 import { defaultSettings, loadSettings, saveSettings, type NotificationSettings } from './settings';
 
 interface NotificationState {
@@ -28,6 +34,15 @@ interface NotificationState {
    * wird sie verweigert, bleiben die Erinnerungen aus.
    */
   update: (changes: Partial<NotificationSettings>) => Promise<void>;
+  /**
+   * Wie die letzte Anfrage ausgegangen ist — `null`, solange keine lief.
+   *
+   * Ohne das blieb der Fehlschlag unsichtbar (Befund „H1"): `update` setzt
+   * `enabled` wieder auf `false`, und damit war jede Bedingung, die eine
+   * Warnung hätte zeigen können, ebenfalls wieder falsch. Der Schalter
+   * sprang zurück, und das war die ganze Auskunft.
+   */
+  letzteErlaubnis: ErlaubnisErgebnis | null;
 }
 
 const NotificationContext = createContext<NotificationState | null>(null);
@@ -38,6 +53,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [permitted, setPermitted] = useState(false);
   const [backgroundAvailable, setBackgroundAvailable] = useState(false);
+  const [letzteErlaubnis, setLetzteErlaubnis] = useState<ErlaubnisErgebnis | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -61,12 +77,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       let next = { ...settings, ...changes };
 
       if (next.enabled && !settings.enabled) {
-        const erlaubt = await requestPermission();
-        setPermitted(erlaubt);
+        const ergebnis = await requestPermission();
+        setLetzteErlaubnis(ergebnis);
+        setPermitted(ergebnis === 'erlaubt');
         // Ohne Erlaubnis wäre "eingeschaltet" eine Lüge — die App würde
-        // Erinnerungen versprechen, die nie erscheinen.
-        if (!erlaubt) next = { ...next, enabled: false };
+        // Erinnerungen versprechen, die nie erscheinen. Warum der Schalter
+        // zurückspringt, sagt jetzt `letzteErlaubnis` in der Oberfläche.
+        if (ergebnis !== 'erlaubt') next = { ...next, enabled: false };
       }
+
+      // Ein Ausschalten ist eine Entscheidung, keine Fehlermeldung: Der
+      // alte Hinweis hat sich damit erledigt.
+      if (!next.enabled && changes.enabled === false) setLetzteErlaubnis(null);
 
       setSettings(next);
       await saveSettings(asyncStorageStore, next);
@@ -94,8 +116,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [events.data, events.fetchedAt, events.loading, loading, settings]);
 
   const value = useMemo<NotificationState>(
-    () => ({ settings, loading, permitted, backgroundAvailable, update }),
-    [settings, loading, permitted, backgroundAvailable, update],
+    () => ({ settings, loading, permitted, backgroundAvailable, update, letzteErlaubnis }),
+    [settings, loading, permitted, backgroundAvailable, update, letzteErlaubnis],
   );
 
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;

@@ -19,15 +19,17 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppData } from '../src/data/AppDataContext';
 import type { EventCategory } from '../src/domain/types';
 import { formatAge } from '../src/features/events/format';
 import { AnmeldeKarte } from '../src/features/konto/AnmeldeKarte';
+import { beschreibeErlaubnis } from '../src/notifications/erlaubnisText';
 import { useNotifications } from '../src/notifications/NotificationContext';
+import { beschreibeVorlauf, naechsterErinnerterTermin } from '../src/notifications/scheduler';
 import { LEAD_TIME_OPTIONS } from '../src/notifications/settings';
 import { FamilienGruppe } from '../src/features/familie/FamilienGruppe';
 import { FREIGRENZEN } from '../src/features/fotos/netz';
@@ -54,8 +56,38 @@ export default function EinstellungenScreen() {
   const { palette } = useTheme();
   const { rolle, jugendBenachrichtigung, setzeJugendBenachrichtigung } = useKonto();
   const insets = useSafeAreaInsets();
-  const { settings, loading, permitted, backgroundAvailable, update } = useNotifications();
+  const { settings, loading, permitted, backgroundAvailable, update, letzteErlaubnis } =
+    useNotifications();
   const { events, news } = useAppData();
+
+  // Befund „H2": „2 Stunden vorher" ist eine Rechenaufgabe. Der Satz nimmt
+  // sie ab — am nächsten Termin, der zu den gewählten Kategorien passt.
+  const vorlaufSatz = useMemo(
+    () =>
+      beschreibeVorlauf(
+        settings.leadMinutes,
+        naechsterErinnerterTermin(events.data, settings),
+      ),
+    [settings, events.data],
+  );
+
+  // Befund „H1": Sprang der Schalter zurück, stand da nichts. Jetzt steht
+  // dort, warum — und bei blockierten Mitteilungen ein Weg dorthin, wo es
+  // sich ändern lässt.
+  const erlaubnisHinweis = letzteErlaubnis ? beschreibeErlaubnis(letzteErlaubnis) : null;
+
+  /**
+   * In die Systemeinstellungen — im Browser gibt es die nicht.
+   *
+   * Dort wirft `openSettings()`, und ohne diesen Fänger wäre das eine
+   * unbehandelte Zurückweisung in der Web-Fassung. Ein Knopf, der nichts
+   * tut, ist dort das erträglichere Verhalten: Ein Browser hat keine
+   * App-Berechtigungen, und die Web-Fassung schickt ohnehin keine
+   * Erinnerungen.
+   */
+  function systemEinstellungenOeffnen() {
+    void Linking.openSettings().catch(() => {});
+  }
 
   const { werte: uploads, aendere: aendereUploads } = useUploadEinstellungen();
   const [kategorienBlatt, setKategorienBlatt] = useState(false);
@@ -137,12 +169,36 @@ export default function EinstellungenScreen() {
             />
           </View>
 
-          {settings.enabled && !permitted ? (
+          {/* Zwei verschiedene Lagen, und beide waren vorher stumm:
+              `erlaubnisHinweis` erklärt einen gerade zurückgesprungenen
+              Schalter, der zweite Fall eine Erlaubnis, die nachträglich
+              entzogen wurde — da steht der Schalter noch auf an. */}
+          {erlaubnisHinweis ? (
+            <View style={styles.bannerAbstand}>
+              <Banner tone="warning" text={erlaubnisHinweis.text} />
+              {erlaubnisHinweis.zuEinstellungen ? (
+                <View style={styles.hinweisKnopf}>
+                  <ActionButton
+                    label="Handy-Einstellungen öffnen"
+                    tone="secondary"
+                    onPress={systemEinstellungenOeffnen}
+                  />
+                </View>
+              ) : null}
+            </View>
+          ) : settings.enabled && !permitted ? (
             <View style={styles.bannerAbstand}>
               <Banner
                 tone="warning"
                 text="Mitteilungen sind für diese App in den Systemeinstellungen abgeschaltet. Ohne Erlaubnis erscheinen keine Erinnerungen."
               />
+              <View style={styles.hinweisKnopf}>
+                <ActionButton
+                  label="Handy-Einstellungen öffnen"
+                  tone="secondary"
+                  onPress={systemEinstellungenOeffnen}
+                />
+              </View>
             </View>
           ) : null}
         </Zeile>
@@ -164,6 +220,9 @@ export default function EinstellungenScreen() {
                 />
               ))}
             </View>
+            <Text style={[styles.hinweis, { color: palette.textMuted, marginTop: spacing.sm }]}>
+              {vorlaufSatz}
+            </Text>
 
             <Pressable
               onPress={() => setKategorienBlatt(true)}
@@ -384,6 +443,9 @@ const styles = StyleSheet.create({
   },
   bannerAbstand: {
     marginTop: spacing.md,
+  },
+  hinweisKnopf: {
+    marginTop: spacing.sm,
   },
   datenZeile: {
     alignItems: 'center',

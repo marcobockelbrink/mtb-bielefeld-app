@@ -101,6 +101,16 @@ export default function AlbumScreen() {
   // ändert die Einstellung nicht.
   const mobilfunkErlaubtRef = useRef(false);
   const [uebersprungen, setUebersprungen] = useState(0);
+  // Aufträge, die während eines laufenden Stapels abgewählt wurden. Siehe
+  // `auftragEntfernen` — ohne diesen Merkzettel schriebe die Schleife sie
+  // wieder in die Schlange zurück.
+  //
+  // Wird bewusst **nie** geleert: Auftragskennungen sind einmalig
+  // (Zeitstempel und Zufall), ein alter Eintrag kann also nie einen neuen
+  // treffen. Beim Beginn eines neuen Stapels zu leeren wäre dagegen
+  // gefährlich — liefe der alte noch, holte er die abgewählten Bilder
+  // zurück. Ein paar Zeichenketten je Sitzung sind der günstigere Preis.
+  const entfernteRef = useRef<Set<string>>(new Set());
 
   /** Sichtung: leere Menge heißt kein Auswahlmodus. */
   const [auswahl, setAuswahl] = useState<Set<string>>(new Set());
@@ -165,6 +175,10 @@ export default function AlbumScreen() {
       // Pausieren greift zwischen zwei Bildern — das laufende wird nicht
       // abgebrochen, die übrigen bleiben als „wartet" stehen.
       if (pausiertRef.current) break;
+      // Zwischenzeitlich abgewählt (Befund „C2"): überspringen, sonst
+      // lüde die Schleife ein Bild hoch, das der Nutzer gerade
+      // zurückgezogen hat — und dessen Kopie es nicht mehr gibt.
+      if (entfernteRef.current.has(auftrag.id)) continue;
       setZustaende((alt) => ({ ...alt, [auftrag.id]: 'laedt' }));
       try {
         const vorbereitet = await bereiteVor(auftrag.uri);
@@ -205,6 +219,9 @@ export default function AlbumScreen() {
         // der Schlange" — der Fehler aus dem Bericht vom 15.08.2026.
         if (!keinNetz) setFehler(beschreibeJugendFehler(ursache));
       }
+      // Abgewählte hier herauswerfen, nicht nur beim Überspringen: Diese
+      // Zeile ist es, die sie sonst wieder in den Speicher schriebe.
+      schlange = schlange.filter((eintrag) => !entfernteRef.current.has(eintrag.id));
       await schreibSchlange(schlange);
     }
 
@@ -245,6 +262,28 @@ export default function AlbumScreen() {
     // Erst sichern, dann senden: Ab hier überlebt die Auswahl auch einen
     // Absturz zwischen Kopieren und erstem Sendeversuch.
     void inDieSchlange(uris).then((auftraege) => stapelHochladen(auftraege));
+  }
+
+  /**
+   * Ein einzelnes Bild aus der Schlange nehmen — Befund „C2" vom
+   * 15.08.2026. Wer das falsche Foto erwischt hat, musste bisher den
+   * ganzen Stapel abbrechen.
+   *
+   * **Die Tücke steckt im Zusammenspiel mit der laufenden Schleife.** Die
+   * hält ihre eigene Kopie der Schlange und schreibt sie nach jedem Bild
+   * zurück; ein hier gelöschter Auftrag stünde nach dem nächsten
+   * Rückschreiben wieder drin — und wäre inzwischen ohne Datei. Deshalb
+   * das Merkzettel-Ref: Die Schleife fragt es vor jedem Bild und vor jedem
+   * Schreiben ab. Ohne das ist der Fehler weder in einem Test noch beim
+   * Ausprobieren mit gutem Netz zu sehen — nur draußen, wo die Uploads
+   * lange genug dauern, dass jemand dazwischenkommt.
+   */
+  async function auftragEntfernen(auftrag: Auftrag) {
+    entfernteRef.current.add(auftrag.id);
+    loescheKopie(auftrag);
+    setStapel((alt) => alt.filter((a) => a.id !== auftrag.id));
+    setZustaende(({ [auftrag.id]: _weg, ...rest }) => rest);
+    await schreibSchlange(entferne(await liesSchlange(), auftrag.id));
   }
 
   function pausierenUmschalten() {
@@ -360,6 +399,7 @@ export default function AlbumScreen() {
                 void stapelHochladen(stapel);
               }}
               beimEinstellungen={() => router.push('/einstellungen')}
+              beimEntfernen={(auftrag) => void auftragEntfernen(auftrag)}
             />
 
             {album.fotos.length === 0 ? (

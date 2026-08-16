@@ -22,6 +22,14 @@ import { ActionButton, Badge, Banner, Chip, EmptyState, LoadingState } from '../
 import { Blatt } from '../../src/ui/Blatt';
 import { useTheme } from '../../src/ui/theme';
 
+/**
+ * Spielraum in Punkten, ab dem die Zeile als „geht weiter" gilt.
+ *
+ * Unterhalb davon bleibt am Ende oft ein Bruchteil eines Punktes stehen,
+ * und eine Kante, die beim letzten Pixel wieder aufblitzt, flackert.
+ */
+const RAND = 4;
+
 export default function NewsScreen() {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
@@ -31,6 +39,14 @@ export default function NewsScreen() {
   // („2a"). Leer heißt: alle Beiträge.
   const [gewaehlteThemen, setGewaehlteThemen] = useState<string[]>([]);
   const [themenBlattOffen, setThemenBlattOffen] = useState(false);
+  // Befund „G1": Die Fade-Kante rechts stand fest da — auch wenn alle
+  // Themen ins Bild passten. Diese drei Werte sagen, ob wirklich noch
+  // etwas kommt; gemessen statt geraten, weil die Breite von der Anzahl
+  // der Themen, der Schriftgröße und dem Gerät abhängt.
+  const [inhaltsbreite, setInhaltsbreite] = useState(0);
+  const [zeilenbreite, setZeilenbreite] = useState(0);
+  const [amEnde, setAmEnde] = useState(false);
+  const mehrThemen = inhaltsbreite > zeilenbreite + RAND && !amEnde;
   // Die Auswahl im Blatt togglet sofort optisch, angewandt wird sie erst
   // mit dem Bestätigen-Knopf — bis dahin lebt sie hier.
   const [blattAuswahl, setBlattAuswahl] = useState<string[]>([]);
@@ -88,11 +104,31 @@ export default function NewsScreen() {
             <View style={styles.zeileRahmen}>
               {/* Eine scrollende Zeile statt drei umbrechender: Die Tags
                   schoben den ersten Beitrag unter die Falte. Die Fade-Kante
-                  rechts sagt, dass es weitergeht. */}
+                  rechts sagt, dass es weitergeht.
+
+                  Seit dem 16.08.2026 (Befund „G1") sagt sie es nur noch,
+                  wenn es stimmt: Fest eingeblendet stand sie auch über
+                  drei Themen, die vollständig ins Bild passten — ein
+                  Hinweis auf Verborgenes, hinter dem nichts lag. Wer
+                  daraufhin wischt und nichts findet, glaubt der Kante
+                  beim nächsten Mal nicht mehr. */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.zeile}
+                scrollEventThrottle={32}
+                onScroll={(e) => {
+                  const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+                  setAmEnde(contentOffset.x + layoutMeasurement.width >= contentSize.width - RAND);
+                }}
+                onContentSizeChange={(breite) => {
+                  setInhaltsbreite(breite);
+                  // Kommt ein Thema dazu, ist „am Ende" nicht mehr wahr.
+                  // Der nächste Wisch berichtigt es ohnehin; ohne das
+                  // bliebe die Kante bis dahin verschwunden.
+                  setAmEnde(false);
+                }}
+                onLayout={(e) => setZeilenbreite(e.nativeEvent.layout.width)}
               >
                 <Pressable
                   onPress={() => {
@@ -122,13 +158,15 @@ export default function NewsScreen() {
                   />
                 ))}
               </ScrollView>
-              <LinearGradient
-                colors={['transparent', palette.background]}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.fade}
-                pointerEvents="none"
-              />
+              {mehrThemen ? (
+                <LinearGradient
+                  colors={['transparent', palette.background]}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={styles.fade}
+                  pointerEvents="none"
+                />
+              ) : null}
             </View>
           ) : null}
         </View>

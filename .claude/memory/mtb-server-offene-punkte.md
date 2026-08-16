@@ -5,6 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 9594adb8-6d4b-46e0-b2ff-87ebf8679fee
+  modified: 2026-08-16T10:24:20.678Z
 ---
 
 ## Was läuft
@@ -68,6 +69,23 @@ Der Vereinsserver (`api.mtb-bielefeld.de`) existiert noch nicht.
 - ~~Apple-Konto~~ **erledigt**: Team `755278A9P4`, siehe
   [[testflight-und-eas]] — Universal Links am 12.08.2026 auf echtem
   iPhone nachgewiesen.
+
+## Wo der Aufbau liegt und wie er aktualisiert wird
+
+**`~/mtb-bielefeld-app/betrieb`** — nicht `/opt/mtb`, worauf ich am
+16.08.2026 zuerst getippt habe. Die Compose-Dateien liegen im Repository
+unter `betrieb/`, und dort wird auch gestartet:
+
+```bash
+ssh mtb-hetzner
+cd ~/mtb-bielefeld-app && git pull --ff-only
+cd betrieb && docker compose -f docker-compose.yml -f docker-compose.vorlaeufig.yml up -d --build api
+```
+
+Der Zustandsendpunkt heißt **`/gesundheit`**, nicht `/zustand` — die
+Antwort darauf lautet trotzdem `{"zustand":"bereit"}`, was die
+Verwechslung nährt. Ein 404 auf `/zustand` heißt also nicht, dass der
+Server liegt.
 
 ## Die Hetzner-Maschine im Einzelnen
 

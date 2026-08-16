@@ -37,12 +37,24 @@ export function configureNotificationHandler(): void {
 }
 
 /**
+ * Wie die Anfrage ausgegangen ist.
+ *
+ * Ein bloßes `false` warf zwei grundverschiedene Lagen zusammen — Befund
+ * „H1" aus dem Usability-Review vom 15.08.2026: `abgelehnt` heißt, das
+ * System hat gefragt und die Antwort war nein; ein weiterer Tipp auf den
+ * Schalter fragt erneut. `blockiert` heißt, das System fragt gar nicht
+ * mehr — dann hilft nur der Weg in die Systemeinstellungen, und **das muss
+ * die App sagen**. Sonst schnappt der Schalter zurück und nichts geschieht.
+ */
+export type ErlaubnisErgebnis = 'erlaubt' | 'abgelehnt' | 'blockiert';
+
+/**
  * Fragt die Erlaubnis für Mitteilungen an.
  *
  * Wird erst aufgerufen, wenn der Nutzer Erinnerungen einschaltet — ungefragt
  * beim ersten Start danach zu fragen, ist der sicherste Weg zu einem Nein.
  */
-export async function requestPermission(): Promise<boolean> {
+export async function requestPermission(): Promise<ErlaubnisErgebnis> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
       name: 'Termin-Erinnerungen',
@@ -52,11 +64,15 @@ export async function requestPermission(): Promise<boolean> {
   }
 
   const bestehend = await Notifications.getPermissionsAsync();
-  if (bestehend.granted) return true;
-  if (!bestehend.canAskAgain) return false;
+  if (bestehend.granted) return 'erlaubt';
+  // `canAskAgain: false` ist der stille Fall: Auf Android 13+ nach zweimal
+  // „Nicht zulassen", auf iOS nach der ersten Ablehnung. Ein Aufruf von
+  // `requestPermissionsAsync` kehrt hier ohne jeden Dialog zurück.
+  if (!bestehend.canAskAgain) return 'blockiert';
 
   const angefragt = await Notifications.requestPermissionsAsync();
-  return angefragt.granted;
+  if (angefragt.granted) return 'erlaubt';
+  return angefragt.canAskAgain ? 'abgelehnt' : 'blockiert';
 }
 
 export async function hasPermission(): Promise<boolean> {

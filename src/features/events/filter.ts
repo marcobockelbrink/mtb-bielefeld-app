@@ -59,6 +59,90 @@ export function activeFilterCount(filter: EventFilter): number {
 }
 
 /**
+ * Der gesetzte Filter als einzeln abwerfbare Marken — Befund „D2" aus dem
+ * Usability-Review vom 15.08.2026.
+ *
+ * Das Problem war nicht das Filtern, sondern das Vergessen: Wer die
+ * Filterleiste zuklappt, sieht eine kurze Liste und keinen Grund dafür.
+ * „Wo ist die Mittwochstour?" ist dann eine berechtigte Frage an eine App,
+ * die selbst die Antwort verbirgt.
+ *
+ * Die Beschriftungen kommen von außen, weil sie in `theme.ts` neben Farben
+ * und Symbolen stehen und diese Datei ohne React Native prüfbar bleiben
+ * soll — dasselbe Muster wie `dayKeyOf` bei `groupByDay`.
+ *
+ * `hideCancelled` fehlt hier bewusst: Es ist die Voreinstellung, und eine
+ * Marke „Abgesagte versteckt" stünde dauerhaft über der Liste, ohne je
+ * etwas zu erklären.
+ */
+export interface FilterMarke {
+  /** Zum Abwerfen — siehe `entferneFilter`. */
+  schluessel: string;
+  label: string;
+}
+
+export interface MarkenTexte {
+  kategorie: (kategorie: EventCategory) => string;
+  stufe: (stufe: SkillLevel) => string;
+}
+
+export function aktiveFilterMarken(filter: EventFilter, texte: MarkenTexte): FilterMarke[] {
+  const marken: FilterMarke[] = [];
+
+  const suche = filter.search.trim();
+  if (suche) marken.push({ schluessel: 'suche', label: `„${suche}"` });
+
+  for (const kategorie of filter.categories) {
+    marken.push({ schluessel: `kategorie:${kategorie}`, label: texte.kategorie(kategorie) });
+  }
+  for (const stufe of filter.levels) {
+    marken.push({ schluessel: `stufe:${stufe}`, label: texte.stufe(stufe) });
+  }
+
+  // „höchstens" mitschreiben: Ohne das Wort läse sich „Fahrtechnik 2" wie
+  // eine Auswahl genau dieser Stufe, und der Filter tut etwas anderes.
+  if (filter.maxTechniqueStars !== undefined) {
+    marken.push({
+      schluessel: 'fahrtechnik',
+      label: `Fahrtechnik höchstens ${filter.maxTechniqueStars}`,
+    });
+  }
+  if (filter.maxEnduranceStars !== undefined) {
+    marken.push({
+      schluessel: 'ausdauer',
+      label: `Ausdauer höchstens ${filter.maxEnduranceStars}`,
+    });
+  }
+  if (filter.ladiesOnly) marken.push({ schluessel: 'ladiesOnly', label: 'Nur Ladies only' });
+
+  return marken;
+}
+
+/**
+ * Wirft eine einzelne Einschränkung ab und lässt die übrigen stehen.
+ *
+ * Ein unbekannter Schlüssel gibt den Filter unverändert zurück, statt zu
+ * werfen: Er kann nur aus einer Marke stammen, die es nicht mehr gibt, und
+ * dafür ist ein Absturz die falsche Antwort.
+ */
+export function entferneFilter(filter: EventFilter, schluessel: string): EventFilter {
+  if (schluessel === 'suche') return { ...filter, search: '' };
+  if (schluessel === 'fahrtechnik') return { ...filter, maxTechniqueStars: undefined };
+  if (schluessel === 'ausdauer') return { ...filter, maxEnduranceStars: undefined };
+  if (schluessel === 'ladiesOnly') return { ...filter, ladiesOnly: false };
+
+  const [art, wert] = schluessel.split(':');
+  if (art === 'kategorie') {
+    return { ...filter, categories: filter.categories.filter((eintrag) => eintrag !== wert) };
+  }
+  if (art === 'stufe') {
+    return { ...filter, levels: filter.levels.filter((eintrag) => eintrag !== wert) };
+  }
+
+  return filter;
+}
+
+/**
  * Prüft eine Sterne-Obergrenze.
  *
  * Entscheidend ist der **untere** Wert der Spanne: Eine Tour mit "⭐ bis ⭐⭐⭐"

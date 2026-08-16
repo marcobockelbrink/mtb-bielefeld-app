@@ -54,6 +54,7 @@ export function UploadFortschritt({
   fehlertext,
   beimUeberMobilfunk,
   beimEinstellungen,
+  beimEntfernen,
 }: {
   auftraege: Auftrag[];
   zustaende: Record<string, UploadZustand>;
@@ -64,6 +65,12 @@ export function UploadFortschritt({
   fehlertext: string | null;
   beimUeberMobilfunk: () => void;
   beimEinstellungen: () => void;
+  /**
+   * Ein einzelnes Bild aus der Schlange nehmen — Befund „C2" vom
+   * 15.08.2026. Vorher blieb bei einem falsch gewählten Foto nur, den
+   * ganzen Stapel abzubrechen.
+   */
+  beimEntfernen: (auftrag: Auftrag) => void;
 }) {
   const { palette } = useTheme();
   const { width } = useWindowDimensions();
@@ -115,6 +122,10 @@ export function UploadFortschritt({
           const zustand = zustaende[auftrag.id] ?? 'wartet';
           const badge = BADGE[zustand];
           const gedimmt = zustand === 'wartet' || zustand === 'keinNetz';
+          // Nicht beim laufenden Bild und nicht beim fertigen: Das laufende
+          // ist schon halb beim Verein, und was oben liegt, holt kein
+          // Wegwischen hier zurück — dafür gibt es das Melden im Album.
+          const abwaehlbar = zustand !== 'laedt' && zustand !== 'hochgeladen';
           return (
             <View
               key={auftrag.id}
@@ -129,6 +140,17 @@ export function UploadFortschritt({
               <View style={[styles.badge, { backgroundColor: badge.farbe }]}>
                 <Text style={styles.badgeText}>{badge.text}</Text>
               </View>
+              {abwaehlbar ? (
+                <Pressable
+                  onPress={() => beimEntfernen(auftrag)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Dieses Bild nicht hochladen"
+                  hitSlop={8}
+                  style={styles.entfernen}
+                >
+                  <Text style={styles.entfernenZeichen}>×</Text>
+                </Pressable>
+              ) : null}
             </View>
           );
         })}
@@ -228,6 +250,25 @@ const styles = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
+  },
+  entfernen: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Eigene dunkle Scheibe statt einer Themenfarbe: Darunter liegt ein
+    // beliebiges Foto, und auf hellem Himmel wäre ein helles Kreuz weg.
+    backgroundColor: 'rgba(20,26,30,0.72)',
+  },
+  entfernenZeichen: {
+    color: '#fff',
+    fontFamily: font.semibold,
+    fontSize: 15,
+    lineHeight: 17,
   },
   hinweis: {
     borderLeftWidth: 3,

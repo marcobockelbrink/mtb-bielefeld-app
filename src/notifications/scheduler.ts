@@ -7,7 +7,7 @@
  */
 
 import type { ClubEvent } from '../domain/types';
-import { formatTime } from '../features/events/format';
+import { formatShortDate, formatTime } from '../features/events/format';
 import type { NotificationSettings } from './settings';
 
 export interface PlannedReminder {
@@ -64,6 +64,79 @@ function reminderBody(event: ClubEvent): string {
   const zeit = event.allDay ? 'ganztägig' : `${formatTime(event.start)} Uhr`;
   const ort = event.details.meetingPoint ?? event.location;
   return ort ? `${zeit} · ${ort}` : zeit;
+}
+
+/**
+ * Was der gewählte Vorlauf in Uhrzeiten heißt — Befund „H2" aus dem
+ * Usability-Review vom 15.08.2026.
+ *
+ * „2 Stunden vorher" ist eine Rechenaufgabe, keine Auskunft. Der Satz
+ * nimmt sie ab, und zwar am **nächsten wirklich anstehenden Termin**: Ein
+ * erfundenes Beispiel wäre zwar auch greifbar, aber „bei deiner Tour am
+ * Mittwoch" beantwortet die Frage, die jemand tatsächlich hat.
+ *
+ * Zwei Fälle führen bewusst auf das allgemeine Beispiel zurück:
+ * - Es steht nichts an, das zu den Einstellungen passt.
+ * - Der Weckzeitpunkt liegt schon in der Vergangenheit. Dann *würde* für
+ *   diesen Termin nichts mehr kommen (`planReminders` wirft ihn weg), und
+ *   „meldet sich" wäre schlicht falsch.
+ */
+export function beschreibeVorlauf(
+  leadMinutes: number,
+  naechsterStart: Date | null,
+  now: Date = new Date(),
+): string {
+  if (naechsterStart) {
+    const weckzeit = new Date(naechsterStart.getTime() - leadMinutes * 60 * 1000);
+    if (weckzeit.getTime() > now.getTime()) {
+      // Fällt die Erinnerung auf einen anderen Tag als der Termin (bei „Am
+      // Tag vorher" der Normalfall), muss das Datum mit — sonst liest sich
+      // „um 20:00 Uhr" als der Abend des Termins selbst.
+      const anderertag = formatShortDate(weckzeit) !== formatShortDate(naechsterStart);
+      const wann = anderertag
+        ? `am ${formatShortDate(weckzeit)} um ${formatTime(weckzeit)} Uhr`
+        : `um ${formatTime(weckzeit)} Uhr`;
+      return `Beim nächsten Termin am ${formatShortDate(naechsterStart)} um ${formatTime(naechsterStart)} Uhr meldet sich dein Handy ${wann}.`;
+    }
+  }
+
+  // Das allgemeine Beispiel. 20:00 Uhr, weil die Touren des Vereins abends
+  // starten — die Zahl wirkt dadurch nicht willkürlich.
+  //
+  // Bewusst in Minuten gerechnet statt über ein `Date`: Die Formatierer
+  // arbeiten in Vereinszeit, ein hier gebautes `Date` entstünde aber in der
+  // Zeitzone des Geräts. Auf einem Telefon in Bielefeld fiele der
+  // Unterschied nie auf, in der Prüfung auf einem Rechner mit UTC sofort.
+  const START = 20 * 60;
+  const roh = START - leadMinutes;
+  const tageVorher = roh < 0 ? Math.ceil(-roh / (24 * 60)) : 0;
+  const minuten = ((roh % (24 * 60)) + 24 * 60) % (24 * 60);
+  const uhrzeit = `${String(Math.floor(minuten / 60)).padStart(2, '0')}:${String(minuten % 60).padStart(2, '0')}`;
+  const tagText = tageVorher === 0 ? '' : tageVorher === 1 ? ' am Tag davor' : ` ${tageVorher} Tage davor`;
+
+  return `Zum Beispiel: Tour um 20:00 Uhr, Erinnerung${tagText} um ${uhrzeit} Uhr.`;
+}
+
+/**
+ * Der nächste Termin, für den nach den Einstellungen erinnert würde.
+ *
+ * Getrennt von `beschreibeVorlauf`, damit der Satz auch ohne Terminliste
+ * prüfbar bleibt — und weil die Auswahlregel dieselbe sein muss wie in
+ * `planReminders`. Liefe sie auseinander, nennte der Satz einen Termin, zu
+ * dem nie eine Meldung käme.
+ */
+export function naechsterErinnerterTermin(
+  events: ClubEvent[],
+  settings: NotificationSettings,
+  now: Date = new Date(),
+): Date | null {
+  const kommend = events
+    .filter((event) => !event.cancelled)
+    .filter((event) => settings.categories.length === 0 || settings.categories.includes(event.category))
+    .filter((event) => event.start.getTime() > now.getTime())
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  return kommend[0]?.start ?? null;
 }
 
 /**

@@ -27,7 +27,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -41,6 +41,7 @@ import {
   type Rolle,
 } from '../src/data/verwaltung';
 import { beschreibeJugendFehler } from '../src/features/jugend/jugendFehler';
+import { sucheMitglieder } from '../src/features/verwaltung/suche';
 import { useKonto } from '../src/konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../src/theme';
 import { ActionButton, Badge, Banner, Card, Label, LoadingState } from '../src/ui/components';
@@ -66,6 +67,14 @@ export default function VerwaltungScreen() {
   const [laedtNach, setLaedtNach] = useState(false);
   const [adresse, setAdresse] = useState('');
   const [laeuft, setLaeuft] = useState(false);
+  // Befund „F2": Ab etwa vierzig Mitgliedern ist Scrollen keine Bedienung
+  // mehr. Der Verein hat rund 200.
+  const [suche, setSuche] = useState('');
+
+  const gefiltert = useMemo(
+    () => (liste === null ? null : sucheMitglieder(liste, suche)),
+    [liste, suche],
+  );
 
   const laden = useCallback(async () => {
     setFehler(null);
@@ -232,7 +241,51 @@ export default function VerwaltungScreen() {
 
         {liste === null && !fehler ? <LoadingState /> : null}
 
-        {liste?.map((zeile) => (
+        {/* Erst ab einer Länge, bei der Suchen schneller ist als Scrollen.
+            Bei acht Mitgliedern wäre das Feld nur ein Hindernis vor der
+            Liste — und der Verein fängt klein an. */}
+        {liste !== null && liste.length >= 8 ? (
+          <View
+            style={[
+              styles.suchzeile,
+              { backgroundColor: palette.surface, borderColor: palette.border },
+            ]}
+          >
+            <Ionicons name="search" size={17} color={palette.textMuted} />
+            <TextInput
+              value={suche}
+              onChangeText={setSuche}
+              placeholder="Adresse oder Rolle suchen"
+              placeholderTextColor={palette.textMuted}
+              style={[styles.sucheingabe, { color: palette.text }]}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {suche.length > 0 ? (
+              <Pressable
+                onPress={() => setSuche('')}
+                accessibilityRole="button"
+                accessibilityLabel="Suche leeren"
+                hitSlop={8}
+              >
+                <Ionicons name="close-circle" size={17} color={palette.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* Ohne diesen Satz sähe eine leergefilterte Liste aus wie eine
+            leere Mitgliederliste — bei einem Vertipper der Schreckmoment,
+            alle Mitglieder verloren zu haben. */}
+        {gefiltert !== null && gefiltert.length === 0 && liste !== null && liste.length > 0 ? (
+          <Text style={[styles.leer, { color: palette.textMuted }]}>
+            Niemand passt zu „{suche.trim()}" — von {liste.length}{' '}
+            {liste.length === 1 ? 'Eintrag' : 'Einträgen'}.
+          </Text>
+        ) : null}
+
+        {gefiltert?.map((zeile) => (
           <Card key={zeile.email}>
             <View style={styles.kopf}>
               <Text style={[styles.email, { color: palette.text }]} numberOfLines={1}>
@@ -310,6 +363,29 @@ const styles = StyleSheet.create({
     minHeight: 44,
     fontFamily: font.regular,
     fontSize: fontSize.md,
+  },
+  suchzeile: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  sucheingabe: {
+    flex: 1,
+    fontFamily: font.regular,
+    fontSize: fontSize.md,
+    // Volle Zeilenhöhe: Ohne das schneidet Android bei manchen Schriften
+    // die Unterlängen ab — derselbe Griff wie in der Terminsuche.
+    paddingVertical: spacing.sm,
+  },
+  leer: {
+    fontFamily: font.regular,
+    fontSize: fontSize.sm,
+    lineHeight: 20,
+    paddingHorizontal: spacing.xs,
   },
   kopf: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   email: { fontFamily: font.semibold, fontSize: fontSize.md, flexShrink: 1 },

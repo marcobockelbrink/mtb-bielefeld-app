@@ -12,14 +12,20 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { EventCategory, SkillLevel } from '../../domain/types';
 import { categoryDisplay, font, fontSize, levelDisplay, MAX_STARS, radius, spacing } from '../../theme';
 import { Chip, Label } from '../../ui/components';
 import { SpanMarks } from '../../ui/SkillSpan';
 import { useTheme } from '../../ui/theme';
-import { activeFilterCount, emptyFilter, type EventFilter } from './filter';
+import {
+  activeFilterCount,
+  aktiveFilterMarken,
+  emptyFilter,
+  entferneFilter,
+  type EventFilter,
+} from './filter';
 
 const KATEGORIEN: EventCategory[] = [
   'tour',
@@ -49,6 +55,10 @@ export function FilterPanel({
 }) {
   const { palette } = useTheme();
   const anzahl = activeFilterCount(filter);
+  const marken = aktiveFilterMarken(filter, {
+    kategorie: (kategorie) => categoryDisplay[kategorie].label,
+    stufe: (stufe) => levelDisplay[stufe],
+  });
 
   function toggleInList<T>(list: T[], value: T): T[] {
     return list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
@@ -129,6 +139,33 @@ export function FilterPanel({
           </Pressable>
         ) : null}
       </View>
+
+      {/* Befund „D2": Zugeklappt war der Filter unsichtbar, die Liste aber
+          kurz. Die Marken stehen deshalb genau dann da, wenn die Leiste zu
+          ist — im aufgeklappten Zustand sagen die ausgewählten Chips
+          dasselbe, und beides zusammen wäre doppelt. */}
+      {!expanded && marken.length > 0 ? (
+        <View style={styles.marken}>
+          {marken.map((marke) => (
+            <Pressable
+              key={marke.schluessel}
+              onPress={() => onChange(entferneFilter(filter, marke.schluessel))}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter ${marke.label} entfernen`}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.marke,
+                { backgroundColor: palette.primary, opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Text style={[styles.markeText, { color: palette.onPrimary }]} numberOfLines={1}>
+                {marke.label}
+              </Text>
+              <Ionicons name="close" size={13} color={palette.onPrimary} />
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
 
       {expanded ? (
         <View style={styles.bereich}>
@@ -226,5 +263,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  marken: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  marke: {
+    alignItems: 'center',
+    borderRadius: radius.sm,
+    flexDirection: 'row',
+    gap: 5,
+    // Kleiner als ein Filter-Chip: Diese Marken sagen, was schon gilt, und
+    // sollen die Liste darunter nicht wegdrücken. Die Trefffläche bleibt
+    // über `hitSlop` groß genug für einen Daumen.
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    maxWidth: '100%',
+  },
+  markeText: {
+    flexShrink: 1,
+    fontFamily: font.semibold,
+    fontSize: 12,
   },
 });
