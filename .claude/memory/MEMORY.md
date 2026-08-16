@@ -3,6 +3,7 @@
 - [iOS-Gerätebau: Push-Berechtigung](ios-geraetebau-push-berechtigung.md) — kostenloses Apple-Team scheitert an `aps-environment`, das die App gar nicht braucht
 - [Server: offene Punkte](mtb-server-offene-punkte.md) — Hetzner trägt allein und verschickt echte Mail; Aufbau liegt in `~/mtb-bielefeld-app/betrieb`, es fehlt die Vereinsmaschine
 - [Git-Refs-Duplikate auf macOS](git-refs-duplikate-macos.md) — „bad object refs/heads/main 2" blockiert jedes pull; die Datei mit Leerzeichen ist die Ursache
+- [Foto-Upload defekt](foto-upload-defekt.md) — scheitert auf dem Gerät vor dem Senden; Netzweg nachweislich in Ordnung, Ursache offen
 - [Simulator mit idb](simulator-mit-idb.md) — tippt und liest die Oberfläche; vier Fallen, die alle stumm falsche Ergebnisse liefern
 - [age-Schlüssel für Sicherungen](age-schluessel-fuer-sicherungen.md) — privater Teil nur lokal in ~/.ssh, bewusst nirgends im Repository
 - [Lokal grün ist nicht CI grün](lokal-gruen-ist-nicht-ci-gruen.md) — mehrfach „alles grün" gemeldet, während die CI seit Tagen rot war

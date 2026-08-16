@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 9594adb8-6d4b-46e0-b2ff-87ebf8679fee
-  modified: 2026-08-16T10:24:20.678Z
+  modified: 2026-08-16T17:11:56.934Z
 ---
 
 ## Was läuft
@@ -60,9 +60,22 @@ Der Vereinsserver (`api.mtb-bielefeld.de`) existiert noch nicht.
   erreichbar. Eigener Schlüssel `/home/verein/.ssh/sicherung` auf dem
   Server, hinterlegt per SFTP in `.ssh/authorized_keys` der Box. Timer
   `mtb-sicherung.timer` läuft alle zwei Stunden, erste Sicherungen liegen.
-  **Noch nie zurückgespielt** — der private age-Schlüssel liegt auf dem
-  alten Laptop, siehe [[age-schluessel-fuer-sicherungen]]. Ein nie
-  zurückgespieltes Backup ist eine Vermutung, keine Sicherung.
+  Die **Datenbank** ist noch nie mit dem echten Schlüssel zurückgespielt
+  worden — der private age-Schlüssel liegt auf dem alten Laptop, siehe
+  [[age-schluessel-fuer-sicherungen]]. Ein nie zurückgespieltes Backup
+  ist eine Vermutung, keine Sicherung.
+
+  **Seit 16.08.2026 sind die Bilder mit dabei** (`betrieb-fotos`-Volume,
+  eigener Takt `SICHERUNG_BILDER_STUNDEN`=24, eigene Frist
+  `SICHERUNG_BILDER_TAGE`). Bis dahin sicherte der Timer die Datenbank
+  samt Verweisen auf Bilddateien und ließ die Dateien liegen — eine
+  Rücksicherung hätte lauter Fotos ergeben, die ins Leere zeigen. Das
+  Volume war zu dem Zeitpunkt noch leer, es ist nichts verloren.
+
+  Der **Rundlauf ist bewiesen**: am 16.08. mit einem Wegwerf-age-Paar
+  auf dem Server gepackt, verschlüsselt, gelöscht, über
+  `ruecksicherung.sh` zurückgespielt — MD5 identisch. Getestet ist damit
+  die ganze Kette außer dem echten Schlüssel.
 - **Ein zweiter Zugang zu den Servern.** Es kommt genau ein Mensch von
   genau einem Rechner hinein.
 - **Die Maschine des Vereins** und **`api.mtb-bielefeld.de` im DNS**.
