@@ -58,6 +58,12 @@ set -a; . "$UMGEBUNG"; set +a
 : "${SICHERUNG_ZIEL:?SICHERUNG_ZIEL fehlt in betrieb/.env — z. B. benutzer@host:/pfad}"
 : "${SICHERUNG_SCHLUESSEL:?SICHERUNG_SCHLUESSEL fehlt in betrieb/.env — SSH-Schlüssel für den SFTP-Zugang}"
 TAGE=${SICHERUNG_TAGE:-31}
+# Hetzners Storage Box hört auf **23**, nicht auf 22 — Port 22 nimmt dort
+# zwar Verbindungen an, weist einen Schlüssel aber ab („Connection closed").
+# Deshalb ein eigener Wert mit dem üblichen Standard, statt den Port in
+# SICHERUNG_ZIEL zu quetschen: `benutzer@host:port:/pfad` wäre nicht mehr
+# zu lesen, und der Doppelpunkt trennt dort schon den Pfad ab.
+PORT=${SICHERUNG_PORT:-22}
 
 command -v age >/dev/null || scheitere "age ist nicht installiert (apt install age)."
 command -v sftp >/dev/null || scheitere "sftp ist nicht installiert (apt install openssh-client)."
@@ -91,7 +97,7 @@ GROESSE=$(stat -c %s "$TMP/$NAME" 2>/dev/null || stat -f %z "$TMP/$NAME")
 [ "$GROESSE" -gt 500 ] || scheitere "Die Sicherung ist nur $GROESSE Bytes groß — das kann kein Dump sein."
 
 # --- 2. Hochladen ---------------------------------------------------------
-SFTP=(sftp -q -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$SICHERUNG_SCHLUESSEL")
+SFTP=(sftp -q -P "$PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$SICHERUNG_SCHLUESSEL")
 if ! "${SFTP[@]}" "$BENUTZER_HOST" <<EOF
 cd $FERNPFAD
 put $TMP/$NAME
