@@ -20,12 +20,14 @@
  */
 
 import { Stack, router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { legeTrainingAn } from '../../src/data/jugend';
 import { leseOptionaleAnzahl } from '../../src/features/jugend/eingabe';
+import { hatInhalt, istFrisch, type TrainingsEntwurf } from '../../src/features/jugend/entwurf';
+import { liesEntwurf, loescheEntwurf, schreibEntwurf } from '../../src/features/jugend/entwurfSpeicher';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { useKonto } from '../../src/konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../../src/theme';
@@ -50,6 +52,15 @@ export default function NeuesTrainingScreen() {
 
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
+  const [gefragte, setGefragte] = useState<number | null>(null);
+  /**
+   * Ein wiedergefundener Entwurf wird **angeboten**, nicht eingesetzt.
+   *
+   * Ungefragt zu füllen wäre übergriffig: Wer ein neues Training anlegt,
+   * bekäme die Reste des letzten Versuchs untergeschoben und merkte es
+   * womöglich erst nach dem Absenden.
+   */
+  const [gefunden, setGefunden] = useState<TrainingsEntwurf | null>(null);
   // Bleibt bewusst nur im Arbeitsspeicher dieses Bildschirms, statt den
   // Hinweis über einen Adress-Parameter an die Liste weiterzureichen: Ein
   // per `router.setParams` „gelöschter" Parameter blieb im Test hängen und
@@ -57,6 +68,39 @@ export default function NeuesTrainingScreen() {
   // ungewollt wieder auf. Diese Karte hier verschwindet dagegen zuverlässig,
   // sobald der Guide zur Liste weitergeht.
   const [angelegt, setAngelegt] = useState(false);
+
+  useEffect(() => {
+    void liesEntwurf().then((entwurf) => {
+      if (entwurf && hatInhalt(entwurf) && istFrisch(entwurf, new Date())) setGefunden(entwurf);
+      else if (entwurf) void loescheEntwurf();
+    });
+  }, []);
+
+  // Bei jeder Eingabe sichern. Kein Entprellen: Der Vorgang ist ein
+  // Schreibzugriff auf ein paar hundert Byte, und ein verlorener Entwurf
+  // wiegt schwerer als ein paar Schreibvorgänge zu viel.
+  useEffect(() => {
+    const entwurf: TrainingsEntwurf = {
+      datum: datum ? datum.toISOString() : null,
+      uhrzeit: uhrzeit ? uhrzeit.toISOString() : null,
+      ort,
+      hinweis,
+      plaetze,
+      guidesNoetig,
+      standAm: Date.now(),
+    };
+    if (hatInhalt(entwurf)) void schreibEntwurf(entwurf);
+  }, [datum, uhrzeit, ort, hinweis, plaetze, guidesNoetig]);
+
+  function entwurfUebernehmen(entwurf: TrainingsEntwurf) {
+    setDatum(entwurf.datum ? new Date(entwurf.datum) : null);
+    setUhrzeit(entwurf.uhrzeit ? new Date(entwurf.uhrzeit) : null);
+    setOrt(entwurf.ort);
+    setHinweis(entwurf.hinweis);
+    setPlaetze(entwurf.plaetze);
+    setGuidesNoetig(entwurf.guidesNoetig);
+    setGefunden(null);
+  }
 
   async function anlegen() {
     setFehler(null);
@@ -86,13 +130,16 @@ export default function NeuesTrainingScreen() {
 
     setLaeuft(true);
     try {
-      await legeTrainingAn(api, {
+      const angelegtes = await legeTrainingAn(api, {
         beginntAm,
         ort: ort.trim(),
         hinweis: hinweis.trim() === '' ? null : hinweis.trim(),
         plaetze: plaetzeWert,
         guidesNoetig: guidesNoetigWert ?? undefined,
       });
+      setGefragte(angelegtes.gefragteGuides);
+      // Angelegt heißt: Der Entwurf hat seinen Zweck erfüllt.
+      await loescheEntwurf();
       setAngelegt(true);
     } catch (ursache) {
       setFehler(beschreibeJugendFehler(ursache));
@@ -106,7 +153,19 @@ export default function NeuesTrainingScreen() {
       <>
         <Stack.Screen options={{ title: 'Neues Training' }} />
         <View style={[styles.bestaetigung, { paddingBottom: insets.bottom + spacing.xxl }]}>
-          <Banner tone="info" text="Angelegt. Die Guides bekommen jetzt eine Mail." />
+          {/* Die Zahl statt „die Guides": Der Guide will wissen, ob die
+              Info wirklich raus ist — „12 Guides" beantwortet das, „die
+              Guides" lässt offen, ob es überhaupt welche gibt. */}
+          <Banner
+            tone="info"
+            text={
+              gefragte === null
+                ? 'Angelegt. Die Guides bekommen jetzt eine Mail.'
+                : gefragte === 0
+                  ? 'Angelegt. Es ist allerdings kein Guide hinterlegt — es wurde niemand benachrichtigt.'
+                  : `Angelegt. ${gefragte} ${gefragte === 1 ? 'Guide bekommt' : 'Guides bekommen'} jetzt eine Mail.`
+            }
+          />
           <View style={styles.knopf}>
             <ActionButton label="Zur Liste" onPress={() => router.replace('/(tabs)/jugend')} />
           </View>
@@ -119,6 +178,29 @@ export default function NeuesTrainingScreen() {
     <>
       <Stack.Screen options={{ title: 'Neues Training' }} />
       <ScrollView contentContainerStyle={[styles.inhalt, { paddingBottom: insets.bottom + spacing.xxl }]}>
+        {/* Das Angebot steht über dem Formular, nicht darin: Wer es
+            übersieht, tippt einfach weiter und verliert nichts. */}
+        {gefunden ? (
+          <Card>
+            <Label>Angefangener Entwurf</Label>
+            <Text style={[styles.feldLabel, { color: palette.textMuted }]}>
+              Von dir ist noch ein unfertiges Training gespeichert
+              {gefunden.ort.trim() !== '' ? ` — Ort: ${gefunden.ort.trim()}` : ''}. Übernehmen?
+            </Text>
+            <View style={styles.entwurfKnoepfe}>
+              <ActionButton label="Weitermachen" onPress={() => entwurfUebernehmen(gefunden)} />
+              <ActionButton
+                label="Verwerfen"
+                tone="secondary"
+                onPress={() => {
+                  void loescheEntwurf();
+                  setGefunden(null);
+                }}
+              />
+            </View>
+          </Card>
+        ) : null}
+
         <Card>
           <Label>Entwurf</Label>
 
@@ -209,6 +291,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     marginTop: spacing.md,
   },
+  entwurfKnoepfe: { gap: spacing.sm, marginTop: spacing.sm },
   feld: {
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,

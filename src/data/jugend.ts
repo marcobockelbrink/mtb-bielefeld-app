@@ -105,13 +105,16 @@ export function meldeKindAb(api: ApiZugang, id: string, kindId: string): Promise
   );
 }
 
-export async function legeTrainingAn(api: ApiZugang, eingabe: TrainingEingabe): Promise<Training> {
-  const roh = await api.sende<RohTraining>('/jugendtraining', 'POST', {
+export async function legeTrainingAn(
+  api: ApiZugang,
+  eingabe: TrainingEingabe,
+): Promise<Training & { gefragteGuides: number }> {
+  const roh = await api.sende<RohTraining & { gefragteGuides: number }>('/jugendtraining', 'POST', {
     ...eingabe,
     beginntAm: eingabe.beginntAm.toISOString(),
     endetAm: eingabe.endetAm ? eingabe.endetAm.toISOString() : null,
   });
-  return zuTraining(roh);
+  return { ...zuTraining(roh), gefragteGuides: roh.gefragteGuides ?? 0 };
 }
 
 export async function veroeffentliche(api: ApiZugang, id: string): Promise<Training> {

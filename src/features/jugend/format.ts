@@ -35,3 +35,29 @@ export function formatiereTrainingszeit(training: Pick<Training, 'beginntAm' | '
   const zeit = training.endetAm ? `${beginn} – ${zeitFormat.format(training.endetAm)}` : beginn;
   return `${datum} · ${zeit} Uhr`;
 }
+
+/**
+ * Teilt Trainings in „Kommend" und „Vorbei".
+ *
+ * Reine Rechenlogik ohne React Native — dieselbe Trennung wie überall, damit
+ * sie ohne Gerät prüfbar bleibt. Vorbei ist, was vorbei ist: Ein Training
+ * ohne Ende gilt an seinem Beginn als gelaufen, genau wie beim Aufräumen
+ * (`aufraeumen.ts`) und beim Lesen (`holeTrainings`).
+ */
+export function teileNachZeit<T extends { beginntAm: Date; endetAm: Date | null }>(
+  trainings: T[],
+  jetzt: Date,
+): { kommend: T[]; vorbei: T[] } {
+  const kommend: T[] = [];
+  const vorbei: T[] = [];
+
+  for (const training of trainings) {
+    const ende = training.endetAm ?? training.beginntAm;
+    if (ende.getTime() >= jetzt.getTime()) kommend.push(training);
+    else vorbei.push(training);
+  }
+
+  // Vorbei rückwärts: Das zuletzt Gelaufene interessiert am meisten.
+  vorbei.reverse();
+  return { kommend, vorbei };
+}

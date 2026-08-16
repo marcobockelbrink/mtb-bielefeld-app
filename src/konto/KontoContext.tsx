@@ -23,6 +23,7 @@ import { ApiZugang } from '../data/api';
 import { setzeAbonnement } from '../data/jugend';
 import { secureTokenSpeicher } from '../data/secureTokenSpeicher';
 import type { TokenSpeicher } from '../data/tokenSpeicher';
+import { ApiFehler } from '../data/api';
 import { beschreibeEinloesenFehler } from './einloesenFehler';
 import { extrahiereEinladungsCode, extrahiereMagicToken } from './magicLink';
 
@@ -74,6 +75,14 @@ export interface KontoZustand {
    * Problem behoben wurde (neuer Link angefordert, neuer Link eingelöst).
    */
   einloesenFehlgeschlagen: string | null;
+  /**
+   * War der Link abgelaufen oder verbraucht (401) — im Unterschied zu „kein
+   * Netz"? Der eine Fall braucht einen neuen Link, der andere nur Geduld,
+   * und der Bildschirm muss das verschieden beantworten.
+   */
+  linkAbgelaufen: boolean;
+  /** Womit es versucht wurde — „Einladung" und „Anmeldelink" sind zweierlei. */
+  linkArt: 'magic' | 'einladung' | null;
 }
 
 const Kontext = createContext<KontoZustand | null>(null);
@@ -107,6 +116,8 @@ export function KontoProvider({
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [zuletztEingeloest, setZuletztEingeloest] = useState<number | null>(null);
   const [einloesenFehlgeschlagen, setEinloesenFehlgeschlagen] = useState<string | null>(null);
+  const [linkAbgelaufen, setLinkAbgelaufen] = useState(false);
+  const [linkArt, setLinkArt] = useState<'magic' | 'einladung' | null>(null);
   // `Linking.getInitialURL()` und das `url`-Ereignis liefern je nach
   // Plattform gelegentlich dieselbe Adresse doppelt. Ein Magic Link gilt
   // aber nur einmal — der zweite Versuch schlüge zwangsläufig fehl und
@@ -215,18 +226,21 @@ export function KontoProvider({
       // mit einer falschen Fehlermeldung zu überschreiben.
       if (token === zuletztVersuchterToken.current) return;
       zuletztVersuchterToken.current = token;
+      setLinkArt(magic ? 'magic' : 'einladung');
       try {
         if (magic) await api.loeseEin(magic);
         else await api.loeseEinladungEin(einladung!);
         setAngemeldet(true);
         setZuletztEingeloest(Date.now());
         setEinloesenFehlgeschlagen(null);
+        setLinkAbgelaufen(false);
       } catch (fehler) {
         // Ein abgelaufener Link ist Alltag, kein Absturz — aber die Person
         // muss ihn sehen: sonst passiert nach dem Antippen sichtbar gar
         // nichts. `console.warn` bleibt zusätzlich für den Betreiber.
         console.warn('Anmeldelink ließ sich nicht einlösen:', fehler);
         setEinloesenFehlgeschlagen(beschreibeEinloesenFehler(fehler));
+        setLinkAbgelaufen(fehler instanceof ApiFehler && fehler.status === 401);
       }
     },
     [api],
@@ -257,11 +271,14 @@ export function KontoProvider({
       setzeJugendBenachrichtigung: setzeJugendBenachrichtigungAn,
       zuletztEingeloest,
       einloesenFehlgeschlagen,
+      linkAbgelaufen,
+      linkArt,
       anmeldungAnfordern: async (email, code) => {
         // Ein neu angeforderter Link löst das alte Problem ab — ein
         // stehengebliebener Hinweis wäre sonst eine Lüge über einen bereits
         // erledigten Fehler.
         setEinloesenFehlgeschlagen(null);
+        setLinkAbgelaufen(false);
         await api.fordereAnmeldungAn(email, code);
       },
       abmelden: async () => {
@@ -283,6 +300,8 @@ export function KontoProvider({
       setzeJugendBenachrichtigungAn,
       zuletztEingeloest,
       einloesenFehlgeschlagen,
+      linkAbgelaufen,
+      linkArt,
     ],
   );
 

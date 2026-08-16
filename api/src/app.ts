@@ -1000,9 +1000,12 @@ dein Kind auch anmelden.</p>
       jetzt(),
     );
 
-    // Erst antworten, dann fragen: Der Mailversand darf die Antwort nicht
-    // aufhalten — dieselbe Regel wie bei den Magic Links.
-    antwort.code(201).send(training);
+    // Wie viele gefragt werden, steht **vor** der Antwort fest — der Guide
+    // will wissen „ist die Info jetzt raus?", und die Zahl nachzureichen
+    // ginge nur über einen zweiten Aufruf. Der Versand selbst läuft
+    // weiterhin danach: Er darf die Antwort nicht aufhalten.
+    const gefragte = (await jugend.holeGuideAdressen(pool)).length;
+    antwort.code(201).send({ ...training, gefragteGuides: gefragte });
     imHintergrund(() => fragteGuides(training));
     return antwort;
   });
@@ -1011,7 +1014,9 @@ dein Kind auch anmelden.</p>
     const ausweis = await holeAusweis(anfrage);
     if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
 
-    const trainings = await jugend.holeTrainings(pool, hatGuideRechte(ausweis.rolle), jetzt());
+    // 90 Tage zurück: genug, um die Saison nachzuschlagen, wenig genug,
+    // dass die Liste nicht über Jahre wächst.
+    const trainings = await jugend.holeTrainings(pool, hatGuideRechte(ausweis.rolle), jetzt(), 90);
     const mitZahlen = await Promise.all(
       trainings.map(async (t) => ({
         ...t,

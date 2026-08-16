@@ -116,6 +116,10 @@ export default function VerwaltungScreen() {
     setListe((alt) => alt?.map((z) => (z.id === zeile.id ? { ...z, ...aenderung } : z)) ?? alt);
     try {
       await aendereMitglied(api, zeile.id, aenderung);
+      // Sichtbare Bestätigung: Ein Chip, der still umspringt, lässt offen,
+      // ob die Änderung wirklich beim Server ankam — gerade bei Rollen die
+      // Frage, die man sich stellt.
+      setHinweis(`Gespeichert: ${zeile.email}`);
       await laden();
     } catch (ursache) {
       // Der 409 der letzten Verwaltungsrolle kommt mit dem Satz der API an

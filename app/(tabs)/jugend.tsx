@@ -15,15 +15,15 @@
 
 import { Link, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { holeTrainings, type Training } from '../../src/data/jugend';
-import { formatiereTrainingszeit } from '../../src/features/jugend/format';
+import { formatiereTrainingszeit, teileNachZeit } from '../../src/features/jugend/format';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { TrainingKarte } from '../../src/features/jugend/TrainingKarte';
 import { useKonto } from '../../src/konto/KontoContext';
-import { spacing } from '../../src/theme';
+import { font, spacing } from '../../src/theme';
 import { ActionButton, EmptyState, LoadingState } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
@@ -57,6 +57,7 @@ export default function JugendScreen() {
 
   // Verwaltung erbt die Guide-Rechte — dieselbe Hierarchie wie in der API.
   const istGuide = rolle === 'guide' || rolle === 'verwaltung';
+  const { kommend, vorbei } = teileNachZeit(trainings ?? [], new Date());
 
   // Vier Zustände, und alle vier müssen sichtbar sein. „Leer" ist der, den
   // man am leichtesten mit einem Fehler verwechselt.
@@ -106,7 +107,10 @@ export default function JugendScreen() {
     >
       {istGuide ? <ActionButton label="Training anlegen" onPress={() => router.push('/jugend/neu')} /> : null}
 
-      {trainings.map((training) => (
+      {/* Zwei Abschnitte statt einer Liste: Vorher endete die Liste hart bei
+          „jetzt", und ein Training war am Tag danach spurlos verschwunden —
+          das sah nach Datenverlust aus und war nur ein Filter. */}
+      {kommend.map((training) => (
         // `Link asChild` ersetzt das äußere Element und dessen Stil ginge
         // verloren — deshalb sitzt die Gestaltung auf `TrainingKarte` selbst
         // (über `style`) und nicht auf diesem `Pressable`. Siehe `EventCard`,
@@ -117,6 +121,28 @@ export default function JugendScreen() {
           </Pressable>
         </Link>
       ))}
+
+      {kommend.length === 0 ? (
+        <EmptyState
+          title="Nichts geplant"
+          hint={istGuide ? 'Leg den nächsten Entwurf an.' : 'Sobald ein Guide eines anlegt, steht es hier.'}
+        />
+      ) : null}
+
+      {vorbei.length > 0 ? (
+        <>
+          <Text style={[styles.abschnitt, { color: palette.textMuted }]}>Vorbei</Text>
+          {vorbei.map((training) => (
+            <Link key={training.id} href={{ pathname: '/jugend/[id]', params: { id: training.id } }} asChild>
+              <Pressable accessibilityRole="button" accessibilityLabel={formatiereTrainingszeit(training)}>
+                {({ pressed }) => (
+                  <TrainingKarte training={training} style={{ opacity: pressed ? 0.6 : 0.75 }} />
+                )}
+              </Pressable>
+            </Link>
+          ))}
+        </>
+      ) : null}
     </ScrollView>
   );
 }
@@ -125,6 +151,13 @@ const styles = StyleSheet.create({
   inhalt: {
     gap: spacing.md,
     padding: spacing.md,
+  },
+  abschnitt: {
+    fontFamily: font.label,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginTop: spacing.md,
   },
   leerInhalt: {
     flexGrow: 1,

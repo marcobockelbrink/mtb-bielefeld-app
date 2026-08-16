@@ -112,7 +112,7 @@ export function KindAnmelden({
     setLaeuft(true);
     try {
       await meldeKindAb(api, trainingId, kindId);
-      setMeldung({ text: 'Abgemeldet.', fehler: false });
+      setMeldung({ text: 'Ausgetragen.', fehler: false });
       onGeaendert();
     } catch (ursache) {
       // Kein Zurücksetzen: Die Liste kommt beim nächsten Laden aus der API,
@@ -160,7 +160,7 @@ export function KindAnmelden({
         meine.map((kind) => (
           <View key={kind.id} style={styles.knopf}>
             <ActionButton
-              label={`${kind.anzeige} abmelden`}
+              label={`${kind.anzeige} austragen`}
               tone="secondary"
               onPress={() => void abmelden(kind.id)}
             />

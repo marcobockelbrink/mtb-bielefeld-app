@@ -41,7 +41,7 @@ export default function AnmeldungScreen() {
   // siehe Dateikopf. Er wird nur gelesen, damit die Route ihn überhaupt
   // annimmt und expo-router nicht auf den Notbildschirm ausweicht.
   useLocalSearchParams<{ token: string }>();
-  const { angemeldet, einloesenFehlgeschlagen } = useKonto();
+  const { angemeldet, einloesenFehlgeschlagen, linkAbgelaufen, linkArt } = useKonto();
   const [zuLange, setZuLange] = useState(false);
 
   useEffect(() => {
@@ -54,6 +54,35 @@ export default function AnmeldungScreen() {
   // nicht eine Bestätigung wegtippen. Die Einstellungen zeigen den Zustand,
   // wenn jemand nachsehen will.
   if (angemeldet) return <Redirect href="/" />;
+
+  // Ein abgelaufener Link ist kein Fehler, sondern Alltag — und für viele
+  // der **erste** Kontakt mit der App: Wer die Einladung drei Tage später
+  // öffnet, landet genau hier. Deshalb ein eigener, freundlicher Zustand
+  // mit einem Weg nach vorn statt einer roten Meldung mit Sackgasse.
+  if (linkAbgelaufen) {
+    const einladung = linkArt === 'einladung';
+    return (
+      <View style={styles.mitte}>
+        <Text style={[styles.titel, { color: palette.text }]}>
+          {einladung ? 'Diese Einladung ist abgelaufen' : 'Dieser Link gilt nicht mehr'}
+        </Text>
+        <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+          {einladung
+            ? 'Einladungen gelten zwei Monate und lassen sich nur einmal einlösen. Der Verein stellt dir gern eine neue aus — melde dich beim Vorstand oder bei der Person, die dich eingeladen hat.'
+            : 'Anmeldelinks gelten fünfzehn Minuten und nur einmal. Fordere einfach einen neuen an — das dauert einen Moment.'}
+        </Text>
+        <View style={styles.abstand}>
+          <ActionButton
+            label={einladung ? 'Zur Anmeldung' : 'Neuen Link anfordern'}
+            onPress={() => router.replace('/einstellungen')}
+          />
+        </View>
+        <View style={styles.abstand}>
+          <ActionButton label="Weiter zu den Terminen" tone="secondary" onPress={() => router.replace('/')} />
+        </View>
+      </View>
+    );
+  }
 
   if (einloesenFehlgeschlagen) {
     return (

@@ -141,17 +141,31 @@ export async function holeTraining(
  * von hilfreich — wer das Training gestern gesehen hat, hielte das
  * Verschwinden für einen Fehler der App und führe hin.
  */
+/**
+ * `tageZurueck` holt auch Vergangenes dazu — seit dem 16.08.2026.
+ *
+ * Vorher endete die Liste hart bei „jetzt", und ein Training war am Tag
+ * danach spurlos verschwunden. Das sah nach Datenverlust aus, war aber nur
+ * ein Filter; gemeldet wurde es als „nach jedem Release sind die Trainings
+ * weg". Ein Blick zurück beantwortet auch die häufige Frage „wann war das
+ * noch mal?".
+ *
+ * Begrenzt statt unbegrenzt, damit die Liste nicht über Jahre wächst — wer
+ * weiter zurück will, fragt die Verwaltung.
+ */
 export async function holeTrainings(
   ausfuehrer: pg.Pool | pg.PoolClient,
   mitEntwuerfen: boolean,
   jetzt: Date,
+  tageZurueck = 0,
 ): Promise<Training[]> {
+  const grenze = new Date(jetzt.getTime() - tageZurueck * 24 * 60 * 60 * 1000);
   const { rows } = await ausfuehrer.query<Zeile>(
     `SELECT ${SPALTEN} FROM jugendtraining
       WHERE COALESCE(endet_am, beginnt_am) >= $1
         AND ($2 OR zustand <> 'entwurf')
       ORDER BY beginnt_am`,
-    [jetzt, mitEntwuerfen],
+    [grenze, mitEntwuerfen],
   );
   return rows.map(zuTraining);
 }
