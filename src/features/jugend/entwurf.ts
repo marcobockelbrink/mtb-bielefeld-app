@@ -46,6 +46,38 @@ export function istFrisch(entwurf: TrainingsEntwurf, jetzt: Date): boolean {
 }
 
 /**
+ * Die beiden Zahlen zwischen Entwurf und Zählern übersetzen.
+ *
+ * Das Entwurfsformat hält sie als **Zeichenkette** — es ist älter als die
+ * Zähler (Handoff 11, „11c" vom 16.08.2026), und ein Formatwechsel machte
+ * jeden gespeicherten Entwurf ungültig. Gerade die sind das, was hier
+ * nicht verlorengehen soll.
+ *
+ * `null` heißt bei den Plätzen **unbegrenzt** — in der API etwas anderes
+ * als 0, und deshalb darf ein unlesbarer Wert auch nicht auf 0 fallen.
+ */
+export function plaetzeAusEntwurf(text: string): number | null {
+  const zahl = Number.parseInt(text, 10);
+  return Number.isFinite(zahl) && zahl > 0 ? zahl : null;
+}
+
+/**
+ * Anders als bei den Plätzen gibt es hier kein „unbegrenzt": Ein Training
+ * braucht Guides. Unlesbares fällt deshalb auf die Voreinstellung zurück,
+ * nicht auf `null` — und keinesfalls auf `NaN`, denn ein Zähler mit `NaN`
+ * ließe sich nicht mehr bedienen.
+ */
+export function guidesAusEntwurf(text: string, ersatz: number): number {
+  const zahl = Number.parseInt(text, 10);
+  return Number.isFinite(zahl) && zahl > 0 ? zahl : ersatz;
+}
+
+/** Und zurück: `null` wird zur leeren Zeichenkette, wie im alten Formular. */
+export function zahlInEntwurf(wert: number | null): string {
+  return wert === null ? '' : String(wert);
+}
+
+/**
  * Aus dem Speicher gelesen — Kaputtes wird verworfen, nicht repariert.
  *
  * Ein halber Entwurf, der beim Wiederherstellen Felder mit `undefined`
