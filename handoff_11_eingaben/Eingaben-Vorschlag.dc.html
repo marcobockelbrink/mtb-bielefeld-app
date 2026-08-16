@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=Barlow+Semi+Condensed:wght@600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#e8ecee; font-family:Barlow, sans-serif; }
+  a { color:#25749e; text-decoration:none; }
+  a:hover { color:#1a5677; }
+</style>
+</helmet>
+
+<section style="padding:56px 56px 90px;display:flex;flex-direction:column;gap:34px">
+  <div style="display:flex;flex-direction:column;gap:8px;max-width:900px">
+    <div style="font-family:'Barlow Semi Condensed',sans-serif;font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:#495b65">Runde 11 · Eingaben</div>
+    <h1 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:40px;color:#111c22">Familie anlegen und Training eintragen</h1>
+    <p style="margin:0;font-size:16px;line-height:24px;color:#2c3a42;text-wrap:pretty">Zwei gemeldete Stellen: Im Familien-Blatt schiebt die Tastatur die Eingabe unter den Bildschirmrand (<a href="#11a">11a</a>, <a href="#11b">11b</a>), und das Trainings-Formular ist eine Kette gleich aussehender Tippfelder (<a href="#11c">11c</a>, <a href="#11d">11d</a>). Je Stelle ein gründlicher und ein kleiner Eingriff.</p>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:48px;align-items:flex-start">
+
+    <!-- 11a -->
+    <div id="11a" style="display:flex;flex-direction:column;gap:16px;width:max-content">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;background:#111c22;color:#fff;padding:4px 9px;border-radius:999px">11a</span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;color:#111c22">Familie: eigene Seite statt Blatt</span>
+        <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#25749e;border:1px solid #25749e;padding:3px 8px;border-radius:999px">Empfehlung</span>
+      </div>
+
+      <div style="display:flex;gap:32px;align-items:flex-start">
+        <!-- Phone: Erwachsener, Tastatur offen -->
+        <div style="width:390px;height:844px;flex:0 0 auto;border:9px solid #1b2429;border-radius:44px;background:#dfe4e7;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 46px rgba(17,28,34,.25)">
+          <div style="height:42px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 26px;background:#fbfcfd;font-family:'Barlow Semi Condensed',sans-serif;font-size:14px;color:#111c22"><span>17:05</span><span>5G ▮</span></div>
+          <div style="flex:0 0 auto;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#fbfcfd;border-bottom:1px solid #b7c2c8">
+            <span style="font-size:15px;color:#25749e;min-height:44px;display:flex;align-items:center;padding:0 6px">Abbrechen</span>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;color:#111c22">Erwachsenen einladen</span>
+            <span style="width:64px"></span>
+          </div>
+          <div style="flex:1;min-height:0;padding:16px;display:flex;flex-direction:column;gap:16px;overflow:hidden">
+            <div style="background:#fbfcfd;border:1px solid #b7c2c8;border-radius:10px;padding:14px;display:flex;gap:10px">
+              <span style="flex:0 0 auto;width:17px;height:17px;border-radius:999px;background:#25749e;color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:1px">i</span>
+              <span style="flex:1;font-size:13px;line-height:19px;color:#111c22">Erwachsene bekommen ein <b>eigenes Konto</b>. Sie sehen die Termine der Familie und können selbst zu- und absagen.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Name</span>
+              <div style="min-height:48px;border:1px solid #b7c2c8;border-radius:3px;background:#fbfcfd;padding:0 12px;display:flex;align-items:center;font-size:16px;color:#111c22">Anke Bockelbrink</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">E-Mail — dahin geht die Einladung</span>
+              <div style="min-height:48px;border:2px solid #25749e;border-radius:3px;background:#fbfcfd;padding:0 12px;display:flex;align-items:center;font-size:16px;color:#111c22">anke@bockelbrink.n<span style="width:2px;height:22px;background:#25749e;margin-left:1px"></span></div>
+              <span style="font-size:13px;line-height:18px;color:#495b65">Nur Name und Adresse — mehr braucht die Einladung nicht.</span>
+            </div>
+          </div>
+          <div style="flex:0 0 auto;background:#fbfcfd;border-top:1px solid #b7c2c8;padding:10px 16px 12px;display:flex;flex-direction:column;gap:8px">
+            <div style="min-height:50px;border-radius:6px;background:#25749e;display:flex;align-items:center;justify-content:center;font-family:Barlow,sans-serif;font-weight:600;font-size:16px;color:#fff">Einladung senden</div>
+          </div>
+          <sc-if value="{{ tastaturAn }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:0 0 auto;background:#d1d5da;padding:6px 4px 8px;display:flex;flex-direction:column;gap:7px">
+            <div style="display:flex;align-items:center;justify-content:space-around;height:38px;font-size:16px;color:#111c22"><span>anke</span><span style="width:1px;height:20px;background:#aab3b9"></span><span>anke@bockelbrink.net</span><span style="width:1px;height:20px;background:#aab3b9"></span><span>Anke</span></div>
+            <div style="display:flex;gap:6px;padding:0 3px">
+              <span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">q</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">w</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">e</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">r</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">t</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">z</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">u</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">i</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">o</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">p</span>
+            </div>
+            <div style="display:flex;gap:6px;padding:0 16px">
+              <span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">a</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">s</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">d</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">f</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">g</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">h</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">j</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">k</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">l</span>
+            </div>
+            <div style="display:flex;gap:6px;padding:0 3px">
+              <span style="width:44px;height:42px;background:#b9c0c6;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:17px">⇧</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">y</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">x</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">c</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">v</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">b</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">n</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">m</span><span style="width:44px;height:42px;background:#b9c0c6;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:17px">⌫</span>
+            </div>
+            <div style="display:flex;gap:6px;padding:0 3px">
+              <span style="width:44px;height:42px;background:#b9c0c6;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:15px">123</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px"></span><span style="width:44px;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:19px">@</span><span style="width:44px;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:19px">.</span><span style="width:62px;height:42px;background:#25749e;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff">Fertig</span>
+            </div>
+          </div>
+          </sc-if>
+        </div>
+
+        <!-- Phone: Kind -->
+        <div style="width:390px;height:844px;flex:0 0 auto;border:9px solid #1b2429;border-radius:44px;background:#dfe4e7;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 46px rgba(17,28,34,.25)">
+          <div style="height:42px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 26px;background:#fbfcfd;font-family:'Barlow Semi Condensed',sans-serif;font-size:14px;color:#111c22"><span>17:06</span><span>5G ▮</span></div>
+          <div style="flex:0 0 auto;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#fbfcfd;border-bottom:1px solid #b7c2c8">
+            <span style="font-size:15px;color:#25749e;min-height:44px;display:flex;align-items:center;padding:0 6px">Abbrechen</span>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;color:#111c22">Kind anlegen</span>
+            <span style="width:64px"></span>
+          </div>
+          <div style="flex:1;min-height:0;padding:16px;display:flex;flex-direction:column;gap:18px;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Name</span>
+              <div style="min-height:48px;border:1px solid #b7c2c8;border-radius:3px;background:#fbfcfd;padding:0 12px;display:flex;align-items:center;font-size:16px;color:#495b65">Mika</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Geburtsjahr</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-size:15px;color:#111c22">2013</span>
+                <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #25749e;background:#25749e;display:flex;align-items:center;font-size:15px;color:#fff">2014</span>
+                <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-size:15px;color:#111c22">2015</span>
+                <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-size:15px;color:#111c22">2016</span>
+                <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-size:15px;color:#495b65">Anderes Jahr …</span>
+              </div>
+              <span style="font-size:13px;line-height:18px;color:#495b65">Bestimmt die Altersgruppe — Mika fährt bei den <b>U14</b> mit.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">E-Mail des Kindes — optional</span>
+              <div style="min-height:48px;border:1px solid #b7c2c8;border-radius:3px;background:#fbfcfd;padding:0 12px;display:flex;align-items:center;font-size:16px;color:#495b65">Leer lassen ist in Ordnung</div>
+              <span style="font-size:13px;line-height:18px;color:#495b65">Ohne Adresse geht die Bestätigung an <b>dich</b> und du gibst die Zugangsdaten weiter.</span>
+            </div>
+            <div style="border:1px solid #b7c2c8;border-radius:6px;background:#fbfcfd;padding:12px;display:flex;align-items:center;gap:10px">
+              <span style="flex:0 0 auto;display:flex"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#495b65" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2.5"></rect><path d="M8.5 10V7.5a3.5 3.5 0 017 0V10"></path></svg></span>
+              <span style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-family:Barlow,sans-serif;font-weight:600;font-size:15px;color:#111c22">Kann Bilder hochladen</span><span style="font-size:13px;line-height:18px;color:#495b65">Aus. Später jederzeit änderbar.</span></span>
+              <span style="width:51px;height:31px;border-radius:999px;background:#c3cbd0;display:flex;align-items:center;padding:2px"><span style="width:27px;height:27px;border-radius:999px;background:#fff"></span></span>
+            </div>
+          </div>
+          <div style="flex:0 0 auto;background:#fbfcfd;border-top:1px solid #b7c2c8;padding:10px 16px 26px;display:flex;flex-direction:column;gap:8px">
+            <div style="min-height:50px;border-radius:6px;background:#25749e;display:flex;align-items:center;justify-content:center;font-family:Barlow,sans-serif;font-weight:600;font-size:16px;color:#fff">Mika anlegen</div>
+            <span style="font-size:12px;text-align:center;color:#495b65">Bestätigung geht an marco@bockelbrink.net</span>
+          </div>
+        </div>
+      </div>
+
+      <sc-if value="{{ notizenAn }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;gap:32px">
+        <div style="width:390px;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:20px;color:#2c3a42">
+          <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Das Blatt wird eine <b>eigene Seite</b> (Stack-Route). Damit rutscht der Inhalt über die Tastatur statt darunter — <code>KeyboardAvoidingView</code> plus <code>ScrollView</code>, <code>keyboardShouldPersistTaps="handled"</code>.</span></div>
+          <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Kind oder Erwachsener wird <b>vor</b> dem Formular gewählt (zwei Zeilen in „Meine Familie"). Der Segment-Schalter im Formular fällt weg, und jede Seite zeigt nur ihre Felder.</span></div>
+          <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>„Weitere Eltern" ist damit ein Formular mit <b>zwei</b> Feldern — beide bleiben über der Tastatur sichtbar.</span></div>
+        </div>
+        <div style="width:390px;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:20px;color:#2c3a42">
+          <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Geburtsjahr als <b>Jahrgangs-Chips</b> statt Zahlentastatur, mit direkter Rückmeldung zur Altersgruppe.</span></div>
+          <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Feste Fußleiste: Der Knopf sagt, was passiert („Mika anlegen"), und darunter steht, wohin die Mail geht — die Frage, die der Bestätigungsdialog bisher erst hinterher beantwortet.</span></div>
+          <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Fehler stehen am Feld, nicht als Banner oben.</span></div>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+
+    <!-- 11b -->
+    <div id="11b" style="display:flex;flex-direction:column;gap:16px;width:max-content">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;background:#111c22;color:#fff;padding:4px 9px;border-radius:999px">11b</span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;color:#111c22">Familie: Blatt bleibt, wird tastaturfest</span>
+        <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65;border:1px solid #b7c2c8;padding:3px 8px;border-radius:999px">Kleiner Eingriff</span>
+      </div>
+
+      <div style="width:390px;height:844px;flex:0 0 auto;border:9px solid #1b2429;border-radius:44px;background:#dfe4e7;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 46px rgba(17,28,34,.25);position:relative">
+        <div style="height:42px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 26px;background:#fbfcfd;font-family:'Barlow Semi Condensed',sans-serif;font-size:14px;color:#111c22"><span>17:05</span><span>5G ▮</span></div>
+        <div style="flex:0 0 auto;height:52px;display:flex;align-items:center;justify-content:center;background:#fbfcfd;border-bottom:1px solid #b7c2c8;opacity:.5"><span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;color:#111c22">Einstellungen</span></div>
+        <div style="flex:1;min-height:0;background:rgba(17,28,34,.38)"></div>
+        <div style="flex:0 0 auto;background:#fbfcfd;border-radius:16px 16px 0 0;display:flex;flex-direction:column;max-height:520px">
+          <div style="width:36px;height:4px;border-radius:2px;background:#b7c2c8;align-self:center;margin:8px 0 10px"></div>
+          <div style="padding:0 16px 12px;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+            <span style="font-family:Barlow,sans-serif;font-weight:600;font-size:18px;color:#111c22">Familienmitglied hinzufügen</span>
+            <div style="display:flex;background:#d0d8dc;border-radius:8px;padding:3px">
+              <span style="flex:1;height:40px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:Barlow,sans-serif;font-weight:600;font-size:15px;color:#495b65">Kind</span>
+              <span style="flex:1;height:40px;border-radius:6px;background:#fbfcfd;display:flex;align-items:center;justify-content:center;font-family:Barlow,sans-serif;font-weight:600;font-size:15px;color:#111c22">Erwachsener</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Name</span>
+              <div style="min-height:46px;border:1px solid #b7c2c8;border-radius:3px;background:#fbfcfd;padding:0 12px;display:flex;align-items:center;font-size:16px;color:#111c22">Anke Bockelbrink</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">E-Mail — erforderlich</span>
+              <div style="min-height:46px;border:2px solid #25749e;border-radius:3px;background:#fbfcfd;padding:0 12px;display:flex;align-items:center;font-size:16px;color:#111c22">anke@bockelbrink.n<span style="width:2px;height:22px;background:#25749e;margin-left:1px"></span></div>
+            </div>
+          </div>
+          <div style="border-top:1px solid #b7c2c8;padding:10px 16px;display:flex;align-items:center;gap:12px">
+            <span style="flex:1;font-size:13px;line-height:18px;color:#495b65">Einladung geht an die eingetragene Adresse.</span>
+            <span style="min-height:46px;padding:0 18px;border-radius:6px;background:#25749e;display:flex;align-items:center;font-family:Barlow,sans-serif;font-weight:600;font-size:16px;color:#fff">Senden</span>
+          </div>
+        </div>
+        <sc-if value="{{ tastaturAn }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:0 0 auto;background:#d1d5da;padding:6px 4px 8px;display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;justify-content:space-around;height:38px;font-size:16px;color:#111c22"><span>anke</span><span style="width:1px;height:20px;background:#aab3b9"></span><span>anke@bockelbrink.net</span><span style="width:1px;height:20px;background:#aab3b9"></span><span>Anke</span></div>
+          <div style="display:flex;gap:6px;padding:0 3px">
+            <span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">q</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">w</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">e</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">r</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">t</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">z</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">u</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">i</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">o</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">p</span>
+          </div>
+          <div style="display:flex;gap:6px;padding:0 16px">
+            <span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">a</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">s</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">d</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">f</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">g</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">h</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">j</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">k</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">l</span>
+          </div>
+          <div style="display:flex;gap:6px;padding:0 3px">
+            <span style="width:44px;height:42px;background:#b9c0c6;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:17px">⇧</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">y</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">x</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">c</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">v</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">b</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">n</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:21px">m</span><span style="width:44px;height:42px;background:#b9c0c6;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:17px">⌫</span>
+          </div>
+          <div style="display:flex;gap:6px;padding:0 3px">
+            <span style="width:44px;height:42px;background:#b9c0c6;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:15px">123</span><span style="flex:1;height:42px;background:#fbfcfd;border-radius:5px"></span><span style="width:44px;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:19px">@</span><span style="width:44px;height:42px;background:#fbfcfd;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:19px">.</span><span style="width:62px;height:42px;background:#25749e;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff">Fertig</span>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+
+      <sc-if value="{{ notizenAn }}" hint-placeholder-val="{{ true }}">
+      <div style="width:390px;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:20px;color:#2c3a42">
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span><code>Blatt</code> bekommt <code>KeyboardAvoidingView</code> und innen eine <code>ScrollView</code>; das Blatt sitzt <b>auf</b> der Tastatur, statt von ihr überdeckt zu werden.</span></div>
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Die Aktion wandert in eine <b>feste Leiste am Blattboden</b> — bisher stand sie am Ende des Inhalts und war die erste Sache, die verschwand.</span></div>
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Höhe auf 62 % begrenzt, damit sichtbar bleibt, dass darunter noch etwas ist; bei „Erwachsener" entfällt das Geburtsjahr-Feld, es bleiben zwei.</span></div>
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Ein Eingriff in <b>eine</b> Datei (<code>src/ui/Blatt.tsx</code>) — wirkt sofort auch im Foto- und Filter-Blatt.</span></div>
+      </div>
+      </sc-if>
+    </div>
+
+    <!-- 11c -->
+    <div id="11c" style="display:flex;flex-direction:column;gap:16px;width:max-content">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;background:#111c22;color:#fff;padding:4px 9px;border-radius:999px">11c</span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;color:#111c22">Training: tippen nur, wo es sein muss</span>
+        <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#25749e;border:1px solid #25749e;padding:3px 8px;border-radius:999px">Empfehlung</span>
+      </div>
+
+      <div style="width:390px;height:844px;flex:0 0 auto;border:9px solid #1b2429;border-radius:44px;background:#dfe4e7;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 46px rgba(17,28,34,.25)">
+        <div style="height:42px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 26px;background:#fbfcfd;font-family:'Barlow Semi Condensed',sans-serif;font-size:14px;color:#111c22"><span>17:12</span><span>5G ▮</span></div>
+        <div style="flex:0 0 auto;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#fbfcfd;border-bottom:1px solid #b7c2c8">
+          <span style="font-size:15px;color:#25749e;min-height:44px;display:flex;align-items:center;padding:0 6px">‹ Jugend</span>
+          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;color:#111c22">Neues Training</span>
+          <span style="width:64px"></span>
+        </div>
+        <div style="flex:1;min-height:0;padding:14px;display:flex;flex-direction:column;gap:12px;overflow:hidden">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Wann</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-size:15px;color:#111c22">Heute</span>
+              <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-size:15px;color:#111c22">Morgen</span>
+              <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #25749e;background:#25749e;display:flex;align-items:center;font-size:15px;color:#fff">Do 20.8.</span>
+              <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-size:15px;color:#495b65"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#495b65" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><span style="margin-left:6px">Datum wählen</span></span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;color:#111c22">17:00</span>
+              <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #25749e;background:#25749e;display:flex;align-items:center;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;color:#fff">17:30</span>
+              <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;color:#111c22">18:00</span>
+              <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-size:15px;color:#495b65"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#495b65" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg><span style="margin-left:6px">Andere</span></span>
+            </div>
+            <span style="font-size:13px;line-height:18px;color:#495b65">Die drei Zeiten sind deine letzten Trainings — die Uhr bleibt für Ausnahmen.</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Treffpunkt</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #25749e;background:#25749e;display:flex;align-items:center;font-size:15px;color:#fff">Wanderparkplatz Kalkofen</span>
+              <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-size:15px;color:#111c22">Hünenburg</span>
+              <span style="min-height:44px;padding:0 14px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;font-size:15px;color:#495b65">Anderer Ort …</span>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px">
+            <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+              <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Plätze</span>
+              <div style="display:flex;align-items:center;border:1px solid #b7c2c8;border-radius:6px;background:#fbfcfd;height:48px">
+                <span style="width:46px;height:46px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#25749e">−</span>
+                <span style="flex:1;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px;color:#111c22">12</span>
+                <span style="width:46px;height:46px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#25749e">+</span>
+              </div>
+              <span style="min-height:38px;border-radius:6px;border:1px solid #b7c2c8;background:#fbfcfd;display:flex;align-items:center;justify-content:center;font-size:14px;color:#495b65">unbegrenzt</span>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+              <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Guides nötig</span>
+              <div style="display:flex;align-items:center;border:1px solid #b7c2c8;border-radius:6px;background:#fbfcfd;height:48px">
+                <span style="width:46px;height:46px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#25749e">−</span>
+                <span style="flex:1;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px;color:#111c22">2</span>
+                <span style="width:46px;height:46px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#25749e">+</span>
+              </div>
+              <span style="font-size:13px;line-height:18px;color:#495b65">12 Guides werden gefragt.</span>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Hinweis — optional</span>
+            <div style="min-height:52px;border:1px solid #b7c2c8;border-radius:3px;background:#fbfcfd;padding:10px 12px;font-size:16px;color:#495b65">Helm nicht vergessen</div>
+          </div>
+        </div>
+        <div style="flex:0 0 auto;background:#fbfcfd;border-top:1px solid #b7c2c8;padding:10px 14px 26px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;color:#111c22">Do 20.8. · 17:30 · Kalkofen</span>
+            <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Entwurf gesichert</span>
+          </div>
+          <div style="min-height:50px;border-radius:6px;background:#25749e;display:flex;align-items:center;justify-content:center;font-family:Barlow,sans-serif;font-weight:600;font-size:16px;color:#fff">Training anlegen</div>
+        </div>
+      </div>
+
+      <sc-if value="{{ notizenAn }}" hint-placeholder-val="{{ true }}">
+      <div style="width:390px;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:20px;color:#2c3a42">
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Sechs gleich aussehende Tippfelder werden vier <b>unterschiedliche</b> Eingaben: Chips für Datum/Zeit/Ort, Zähler für Zahlen, Textfeld nur noch für den Hinweis.</span></div>
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Die Vorschläge kommen aus den letzten Trainings des Guides — der Regelfall ist damit <b>drei Antippen</b> ohne Tastatur.</span></div>
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Der iOS-Kompaktwähler links im Formular entfällt; er sah wie ein System-Fremdkörper aus und war das kleinste Ziel auf der Seite.</span></div>
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Fußleiste zeigt, was angelegt wird, und dass der Entwurf gesichert ist — bisher unsichtbar, obwohl es passiert.</span></div>
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>„12 Guides werden gefragt" steht <b>vor</b> dem Absenden statt danach in der Bestätigung.</span></div>
+      </div>
+      </sc-if>
+    </div>
+
+    <!-- 11d -->
+    <div id="11d" style="display:flex;flex-direction:column;gap:16px;width:max-content">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;background:#111c22;color:#fff;padding:4px 9px;border-radius:999px">11d</span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;color:#111c22">Training: Zeilen wie in den Einstellungen</span>
+        <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65;border:1px solid #b7c2c8;padding:3px 8px;border-radius:999px">Kompakt</span>
+      </div>
+
+      <div style="width:390px;height:844px;flex:0 0 auto;border:9px solid #1b2429;border-radius:44px;background:#dfe4e7;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 46px rgba(17,28,34,.25)">
+        <div style="height:42px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 26px;background:#fbfcfd;font-family:'Barlow Semi Condensed',sans-serif;font-size:14px;color:#111c22"><span>17:12</span><span>5G ▮</span></div>
+        <div style="flex:0 0 auto;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#fbfcfd;border-bottom:1px solid #b7c2c8">
+          <span style="font-size:15px;color:#25749e;min-height:44px;display:flex;align-items:center;padding:0 6px">‹ Jugend</span>
+          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;color:#111c22">Neues Training</span>
+          <span style="width:64px"></span>
+        </div>
+        <div style="flex:1;min-height:0;padding:14px;display:flex;flex-direction:column;gap:18px;overflow:hidden">
+          <div style="background:#fbfcfd;border:1px solid #b7c2c8;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:4px">
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:27px;color:#111c22">Do 20.8., 17:30</span>
+            <span style="font-size:15px;color:#495b65">Wanderparkplatz Kalkofen · 12 Plätze</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Termin</span>
+            <div style="background:#fbfcfd;border:1px solid #b7c2c8;border-radius:10px;display:flex;flex-direction:column">
+              <div style="min-height:52px;display:flex;align-items:center;padding:0 14px;gap:12px"><span style="flex:1;font-size:16px;color:#111c22">Datum</span><span style="font-size:16px;color:#495b65">Do, 20.8.2026</span><span style="color:#25749e">›</span></div>
+              <div style="min-height:52px;display:flex;align-items:center;padding:0 14px;gap:12px;border-top:1px solid rgba(183,194,200,.55)"><span style="flex:1;font-size:16px;color:#111c22">Uhrzeit</span><span style="font-size:16px;color:#495b65">17:30</span><span style="color:#25749e">›</span></div>
+              <div style="min-height:52px;display:flex;align-items:center;padding:0 14px;gap:12px;border-top:1px solid rgba(183,194,200,.55)"><span style="flex:1;font-size:16px;color:#111c22">Treffpunkt</span><span style="font-size:16px;color:#495b65">Kalkofen</span><span style="color:#25749e">›</span></div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-family:'Barlow Semi Condensed',sans-serif;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#495b65">Teilnahme</span>
+            <div style="background:#fbfcfd;border:1px solid #b7c2c8;border-radius:10px;display:flex;flex-direction:column">
+              <div style="min-height:52px;display:flex;align-items:center;padding:0 14px;gap:12px"><span style="flex:1;font-size:16px;color:#111c22">Plätze</span><span style="font-size:16px;color:#495b65">12</span><span style="color:#25749e">›</span></div>
+              <div style="min-height:52px;display:flex;align-items:center;padding:0 14px;gap:12px;border-top:1px solid rgba(183,194,200,.55)"><span style="flex:1;font-size:16px;color:#111c22">Guides nötig</span><span style="font-size:16px;color:#495b65">2 von 12 gefragt</span><span style="color:#25749e">›</span></div>
+              <div style="min-height:52px;display:flex;align-items:center;padding:0 14px;gap:12px;border-top:1px solid rgba(183,194,200,.55)"><span style="flex:1;font-size:16px;color:#111c22">Hinweis</span><span style="font-size:16px;color:#495b65">Helm nicht vergessen</span><span style="color:#25749e">›</span></div>
+            </div>
+          </div>
+
+          <div style="background:#d0d8dc;border-left:3px solid #25749e;border-radius:3px;padding:10px 12px"><span style="font-size:13px;line-height:19px;color:#111c22">Entwurf wird laufend gesichert. Du kannst hier jederzeit rausgehen.</span></div>
+        </div>
+        <div style="flex:0 0 auto;background:#fbfcfd;border-top:1px solid #b7c2c8;padding:10px 14px 26px">
+          <div style="min-height:50px;border-radius:6px;background:#25749e;display:flex;align-items:center;justify-content:center;font-family:Barlow,sans-serif;font-weight:600;font-size:16px;color:#fff">Training anlegen</div>
+        </div>
+      </div>
+
+      <sc-if value="{{ notizenAn }}" hint-placeholder-val="{{ true }}">
+      <div style="width:390px;display:flex;flex-direction:column;gap:9px;font-size:14px;line-height:20px;color:#2c3a42">
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Alles auf einen Blick, jede Zeile öffnet ihren eigenen Wähler in einem Blatt — die Seite scrollt nie unter eine Tastatur.</span></div>
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Die Kopfkarte liest sich wie die spätere Terminkarte: Der Guide sieht das Ergebnis, während er es baut.</span></div>
+        <div style="display:flex;gap:8px"><span style="color:#25749e">→</span><span>Nachteil gegenüber <a href="#11c">11c</a>: mehr Antippen für den Regelfall, weil kein Vorschlag direkt auf der Seite liegt.</span></div>
+      </div>
+      </sc-if>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;tastatur&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Darstellung&quot;},&quot;notizen&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Darstellung&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      tastaturAn: this.props.tastatur ?? true,
+      notizenAn: this.props.notizen ?? true,
+    };
+  }
+}
+</script>
+</body>
+</html>

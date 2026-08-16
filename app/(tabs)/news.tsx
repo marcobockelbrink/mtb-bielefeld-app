@@ -7,16 +7,19 @@
  */
 
 import { Image } from 'expo-image';
-import { Link } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppData } from '../../src/data/AppDataContext';
+import { asyncStorageStore } from '../../src/data/asyncStorageStore';
 import type { NewsItem } from '../../src/domain/types';
 import { formatAge, formatDateWithYear } from '../../src/features/events/format';
+import { istUngelesen, type GelesenStand } from '../../src/features/news/gelesen';
+import { liesGelesen } from '../../src/features/news/gelesenSpeicher';
 import { font, fontSize, labelType, radius, spacing } from '../../src/theme';
 import { ActionButton, Badge, Banner, Chip, EmptyState, LoadingState } from '../../src/ui/components';
 import { Blatt } from '../../src/ui/Blatt';
@@ -46,7 +49,28 @@ export default function NewsScreen() {
   const [inhaltsbreite, setInhaltsbreite] = useState(0);
   const [zeilenbreite, setZeilenbreite] = useState(0);
   const [amEnde, setAmEnde] = useState(false);
-  const mehrThemen = inhaltsbreite > zeilenbreite + RAND && !amEnde;
+  // Solange nicht gemessen ist, wird die Kante **gezeigt**. Der umgekehrte
+  // Ausgangswert war der erste Entwurf und der falsche: Vor der ersten
+  // Messung sind beide Breiten 0, die Kante fehlte also im ersten Bild —
+  // und blieb in der Web-Fassung ganz weg. Lieber einmal zu viel
+  // angedeutet als eine Andeutung verloren, die vorher funktionierte.
+  const gemessen = inhaltsbreite > 0 && zeilenbreite > 0;
+  const mehrThemen = !gemessen || (inhaltsbreite > zeilenbreite + RAND && !amEnde);
+
+  /**
+   * Befund „G2": ein dezenter Punkt an ungelesenen Beiträgen.
+   *
+   * Neu geladen bei **jedem** Zuwenden, nicht nur einmal: Wer einen
+   * Beitrag liest und zurückkommt, soll den Punkt weg sehen. Die
+   * Detailansicht schreibt in denselben Speicher, aber in einen eigenen
+   * Bildschirm — ohne das Nachladen bliebe der Punkt bis zum Neustart.
+   */
+  const [gelesen, setGelesen] = useState<GelesenStand | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      void liesGelesen(asyncStorageStore, new Date()).then(setGelesen);
+    }, []),
+  );
   // Die Auswahl im Blatt togglet sofort optisch, angewandt wird sie erst
   // mit dem Bestätigen-Knopf — bis dahin lebt sie hier.
   const [blattAuswahl, setBlattAuswahl] = useState<string[]>([]);
@@ -171,7 +195,9 @@ export default function NewsScreen() {
           ) : null}
         </View>
       }
-      renderItem={({ item }) => <NewsCard item={item} />}
+      renderItem={({ item }) => (
+        <NewsCard item={item} ungelesen={gelesen !== null && istUngelesen(item, gelesen)} />
+      )}
       ListEmptyComponent={
         <EmptyState
           title={gewaehlteThemen.length > 0 ? `Nichts zu ${gewaehlteThemen.length === 1 ? `„${gewaehlteThemen[0]}“` : 'diesen Themen'}` : 'Keine Beiträge'}
@@ -242,7 +268,7 @@ export default function NewsScreen() {
   );
 }
 
-function NewsCard({ item }: { item: NewsItem }) {
+function NewsCard({ item, ungelesen }: { item: NewsItem; ungelesen: boolean }) {
   const { palette } = useTheme();
 
   return (
@@ -276,9 +302,26 @@ function NewsCard({ item }: { item: NewsItem }) {
                 {formatDateWithYear(item.publishedAt)}
                 {item.author ? ` · ${item.author}` : ''}
               </Text>
-              <Text style={[styles.titel, { color: palette.text }]} numberOfLines={3}>
-                {item.title}
-              </Text>
+              {/* Befund „G2": ein Punkt, kein Wort und keine Farbe an der
+                  ganzen Karte. Er steht **vor** dem Titel, weil das Auge
+                  beim Blättern der linken Kante folgt — und er nimmt keinen
+                  Platz weg, wenn er fehlt (`gap` greift nur zwischen
+                  vorhandenen Kindern).
+
+                  Der Punkt trägt zusätzlich einen Text für die
+                  Vorlesefunktion: Wer die Karte hört statt sieht, bekommt
+                  eine Farbe nicht mit. */}
+              <View style={styles.titelZeile}>
+                {ungelesen ? (
+                  <View
+                    style={[styles.punkt, { backgroundColor: palette.primary }]}
+                    accessibilityLabel="Ungelesen"
+                  />
+                ) : null}
+                <Text style={[styles.titel, { color: palette.text }]} numberOfLines={3}>
+                  {item.title}
+                </Text>
+              </View>
               <Text style={[styles.anriss, { color: palette.textMuted }]} numberOfLines={3}>
                 {item.summary}
               </Text>
@@ -377,7 +420,24 @@ const styles = StyleSheet.create({
     ...labelType,
     fontSize: fontSize.xs - 1,
   },
+  titelZeile: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    // Oben ausgerichtet, nicht mittig: Bei einem dreizeiligen Titel
+    // stünde der Punkt sonst neben der mittleren Zeile und sähe wie ein
+    // Aufzählungszeichen aus.
+    alignItems: 'flex-start',
+  },
+  punkt: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    // Auf die Höhe der ersten Zeile gerückt: `lineHeight` 23, Punkt 8 —
+    // die Differenz halbiert setzt ihn auf die Mitte der Versalhöhe.
+    marginTop: 7,
+  },
   titel: {
+    flexShrink: 1,
     fontFamily: font.semibold,
     fontSize: fontSize.lg,
     lineHeight: 23,

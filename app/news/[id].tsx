@@ -18,6 +18,8 @@ import { asyncStorageStore } from '../../src/data/asyncStorageStore';
 import { loadArticle } from '../../src/data/repository';
 import type { NewsItem } from '../../src/domain/types';
 import { formatDateWithYear } from '../../src/features/events/format';
+import { markiereGelesen } from '../../src/features/news/gelesen';
+import { liesGelesen, schreibGelesen } from '../../src/features/news/gelesenSpeicher';
 import { font, fontSize, labelType, radius, spacing } from '../../src/theme';
 import { ActionButton, Badge, Banner, EmptyState, LoadingState } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
@@ -59,6 +61,29 @@ export default function NewsDetailScreen() {
       abgebrochen = true;
     };
   }, [anriss?.link, anriss?.truncated]);
+
+  /**
+   * Als gelesen vermerken — Befund „G2" vom 15.08.2026.
+   *
+   * Beim **Öffnen**, nicht erst beim Zuende-Scrollen: Wer den Beitrag
+   * aufmacht und nach zwei Sätzen entscheidet, dass er ihn nicht
+   * interessiert, hat ihn zur Kenntnis genommen. Ein Punkt, der dann
+   * bliebe, wäre eine Hausaufgabe statt eines Hinweises.
+   *
+   * Bewusst nicht daran gekoppelt, ob der Volltext ankam: Der Punkt sagt
+   * „das hast du gesehen", nicht „das hat geladen".
+   */
+  useEffect(() => {
+    if (!id) return;
+
+    void (async () => {
+      const stand = await liesGelesen(asyncStorageStore, new Date());
+      const neu = markiereGelesen(stand, id);
+      // `markiereGelesen` gibt denselben Stand zurück, wenn nichts
+      // dazukam — das spart ein Schreiben bei jedem erneuten Öffnen.
+      if (neu !== stand) await schreibGelesen(asyncStorageStore, neu);
+    })();
+  }, [id]);
 
   if (news.loading) return <LoadingState />;
   if (!anriss) {
