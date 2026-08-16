@@ -44,10 +44,16 @@ Text des Geräts mit.
 ## Was fehlt
 
 Der Wortlaut der echten Ausnahme vom Gerät. **Von diesem Rechner aus
-nicht reproduzierbar** — der lokale Simulator-Bau scheitert am
-`resource fork … detritus`-Signaturfehler, siehe
-[[testflight-und-eas]]. Nächster Schritt: Marco lädt ein Bild hoch und
-liest die neue Meldung vor.
+nicht reproduzierbar** — der lokale Bau scheitert am
+`resource fork … detritus`-Signaturfehler, siehe [[testflight-und-eas]]
+und [[repo-liegt-in-projekte]].
+
+Die bessere Meldung ist seit **0.11.4** in TestFlight und in 0.11.5
+weiterhin enthalten; bis zum Abend des 16.08.2026 hat Marco sie nicht
+zurückgemeldet. **Danach zuerst fragen** — ohne diesen Satz kommt die
+Untersuchung nicht weiter, und es ist der letzte offene Fehler aus der
+Beta. Am schnellsten über das Profilbild: derselbe Weg wie beim Album,
+aber ohne Warteschlange dazwischen.
 
 **Why:** Ohne diese Messungen fängt jede Untersuchung wieder beim Netz
 an — dort ist nachweislich nichts. Und die Erfahrung dahinter gilt über

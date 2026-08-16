@@ -79,10 +79,11 @@ dev-testflight`, dann `… submit … --latest`. Verwandt:
 
 **Security-Seite leer seit 13.08. spät:** CodeQL 0 (Pfadprüfung des Vorschau-Servers in analysierbare Form gebracht — erst normalisieren, dann prüfen, dann denselben Wert benutzen), Dependabot 0 (beide image-size-Alerts als tolerable_risk geschlossen, Begründung am Alert, Wiedervorlage 01.11.2026 im Audit-Skript). 0.8.9 zu Apple hochgeladen.
 
-**Stand 16.08.2026: 0.11.2** (Build `7bf78ce9`, eingereicht). Was in
-welcher Fassung steckt, steht in der Historie — hier nur die aktuelle
-Nummer, damit die nächste Anhebung nicht geraten wird. Angehoben wird an
-**drei** Stellen: `package.json`, `api/package.json`, `app.config.js`.
+**Stand 16.08.2026: 0.11.5** (fünfzehnter iOS-Build im August — siehe
+[[releases-sparsam-bauen]]). Was in welcher Fassung steckt, steht in der
+Historie; hier nur die aktuelle Nummer, damit die nächste Anhebung nicht
+geraten wird. Angehoben wird an **drei** Stellen: `package.json`,
+`api/package.json`, `app.config.js`.
 
 **Der Ablauf eines Release, in dieser Reihenfolge:**
 
