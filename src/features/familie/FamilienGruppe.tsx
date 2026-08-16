@@ -16,14 +16,14 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   aendereProfil,
   altersTag,
   holeProfile,
-  legeProfilAn,
   loescheProfil,
   statusZeile,
   type Profil,
@@ -31,8 +31,7 @@ import {
 import { useKonto } from '../../konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../../theme';
 import { Avatar } from '../../ui/Avatar';
-import { Blatt } from '../../ui/Blatt';
-import { ActionButton, Banner, Card, Gruppe, Zeile } from '../../ui/components';
+import { Banner, Card, Gruppe, Zeile } from '../../ui/components';
 import { useTheme } from '../../ui/theme';
 import { beschreibeJugendFehler } from '../jugend/jugendFehler';
 
@@ -42,18 +41,7 @@ export function FamilienGruppe() {
 
   const [profile, setProfile] = useState<Profil[] | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
-  const [blattOffen, setBlattOffen] = useState(false);
-  const [bestaetigung, setBestaetigung] = useState<{ name: string; an: string; eigene: boolean } | null>(
-    null,
-  );
 
-  // Formularzustand des Blatts
-  const [art, setArt] = useState<'kind' | 'erwachsen'>('kind');
-  const [name, setName] = useState('');
-  const [geburtsjahr, setGeburtsjahr] = useState('');
-  const [email, setEmail] = useState('');
-  const [darfHochladen, setDarfHochladen] = useState(false);
-  const [laeuft, setLaeuft] = useState(false);
 
   const laden = useCallback(async () => {
     if (!angemeldet) return;
@@ -69,43 +57,6 @@ export function FamilienGruppe() {
   useEffect(() => {
     void laden();
   }, [laden]);
-
-  function blattOeffnen() {
-    setArt('kind');
-    setName('');
-    setGeburtsjahr('');
-    setEmail('');
-    setDarfHochladen(false);
-    setFehler(null);
-    setBlattOffen(true);
-  }
-
-  async function anlegen() {
-    if (name.trim() === '') return;
-    setLaeuft(true);
-    setFehler(null);
-    try {
-      const jahr = Number.parseInt(geburtsjahr, 10);
-      const ergebnis = await legeProfilAn(api, {
-        art,
-        name: name.trim(),
-        geburtsjahr: art === 'kind' && Number.isFinite(jahr) ? jahr : null,
-        email: email.trim() || null,
-        kannBilderHochladen: art === 'kind' ? darfHochladen : true,
-      });
-      setBlattOffen(false);
-      setBestaetigung({
-        name: name.trim(),
-        an: ergebnis.bestaetigungAn,
-        eigene: email.trim() !== '',
-      });
-      await laden();
-    } catch (ursache) {
-      setFehler(beschreibeJugendFehler(ursache));
-    } finally {
-      setLaeuft(false);
-    }
-  }
 
   function profilMenue(profil: Profil) {
     Alert.alert(profil.name ?? 'Profil', undefined, [
@@ -137,7 +88,6 @@ export function FamilienGruppe() {
 
   if (!angemeldet) return null;
 
-  const kannAnlegen = name.trim() !== '' && (art === 'kind' || email.trim() !== '');
 
   return (
     <>
@@ -180,152 +130,32 @@ export function FamilienGruppe() {
           </Zeile>
         ))}
 
-        <Zeile>
-          <Pressable onPress={blattOeffnen} style={styles.hinzufuegen}>
-            <Ionicons name="add" size={20} color={palette.primary} />
-            <Text style={[styles.hinzufuegenText, { color: palette.primary }]}>
-              Familienmitglied hinzufügen
-            </Text>
-          </Pressable>
-        </Zeile>
+        {/* Zwei Zeilen statt eines Knopfs (Handoff 11, Teil B): Die Art
+            steht damit in der Adresse, und jede Seite zeigt nur ihre
+            eigenen Felder. „Weitere Eltern eintragen" ist dadurch ein
+            Formular mit zwei Feldern statt mit fünf, von denen drei nicht
+            gelten. */}
+        {([
+          ['kind', 'Kind anlegen'],
+          ['erwachsen', 'Erwachsenen einladen'],
+        ] as const).map(([art, label]) => (
+          <Zeile key={art}>
+            <Pressable
+              onPress={() => router.push({ pathname: '/familie/neu', params: { art } })}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              style={styles.hinzufuegen}
+            >
+              <Ionicons name="add" size={20} color={palette.primary} />
+              <Text style={[styles.hinzufuegenText, { color: palette.primary }]}>{label}</Text>
+              <View style={styles.schieber} />
+              <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
+            </Pressable>
+          </Zeile>
+        ))}
       </Card>
 
-      <Blatt offen={blattOffen} beimSchliessen={() => setBlattOffen(false)}>
-        <Text style={[styles.blattTitel, { color: palette.text }]}>Familienmitglied hinzufügen</Text>
 
-        {/* Der Schalter steuert alles Weitere: Bei „Kind" entsteht ein
-            verwaltetes Profil mit optionaler Mail, bei „Erwachsener" ein
-            eigenständiges Konto — und dafür ist die Adresse Pflicht. */}
-        <Text style={[styles.feldLabel, { color: palette.textMuted }]}>Wen legst du an?</Text>
-        <View style={[styles.spur, { backgroundColor: palette.surfaceMuted }]}>
-          {(
-            [
-              ['kind', 'Kind'],
-              ['erwachsen', 'Erwachsener'],
-            ] as const
-          ).map(([wert, label]) => (
-            <Pressable
-              key={wert}
-              onPress={() => setArt(wert)}
-              style={[styles.segment, art === wert && { backgroundColor: palette.surface }]}
-            >
-              <Text
-                style={[
-                  styles.segmentText,
-                  { color: art === wert ? palette.text : palette.textMuted },
-                ]}
-              >
-                {label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={[styles.feldLabel, { color: palette.textMuted }]}>Name</Text>
-        <TextInput
-          style={[styles.feld, { borderColor: palette.border, color: palette.text, backgroundColor: palette.surface }]}
-          value={name}
-          onChangeText={setName}
-          placeholder="Mika"
-          placeholderTextColor={palette.textMuted}
-        />
-
-        {art === 'kind' ? (
-          <>
-            <Text style={[styles.feldLabel, { color: palette.textMuted }]}>Geburtsjahr</Text>
-            <TextInput
-              style={[styles.feld, { borderColor: palette.border, color: palette.text, backgroundColor: palette.surface }]}
-              value={geburtsjahr}
-              onChangeText={setGeburtsjahr}
-              placeholder="2015"
-              placeholderTextColor={palette.textMuted}
-              keyboardType="number-pad"
-              maxLength={4}
-            />
-          </>
-        ) : null}
-
-        <Text style={[styles.feldLabel, { color: palette.textMuted }]}>
-          {art === 'kind' ? 'E-Mail des Kindes — optional' : 'E-Mail — erforderlich'}
-        </Text>
-        <TextInput
-          style={[styles.feld, { borderColor: palette.border, color: palette.text, backgroundColor: palette.surface }]}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="mika@example.org"
-          placeholderTextColor={palette.textMuted}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-
-        {art === 'kind' ? (
-          <>
-            <View style={[styles.infoBox, { backgroundColor: palette.background }]}>
-              <Ionicons name="information-circle" size={16} color={palette.primary} />
-              <Text style={[styles.infoText, { color: palette.text }]}>
-                <Text style={styles.fett}>Leer gelassen?</Text> Kein Problem — die Bestätigung geht
-                an dein Postfach, und du gibst deinem Kind die Zugangsdaten weiter. Mit eigener Mail
-                bekommt das Kind die Bestätigung direkt.
-              </Text>
-            </View>
-
-            {/* Voreinstellung, keine Zwangsregel — der Schalter ist
-                bedienbar, und die Sperre lässt sich später ändern. */}
-            <View style={[styles.rechte, { borderColor: palette.border }]}>
-              <Ionicons name="lock-closed" size={20} color={palette.textMuted} />
-              <View style={styles.rechteText}>
-                <Text style={[styles.name, { color: palette.text }]}>Kann Bilder hochladen</Text>
-                <Text style={[styles.status, { color: palette.textMuted }]}>
-                  Bei Kinderprofilen voreingestellt aus. Du kannst das später ändern.
-                </Text>
-              </View>
-              <Switch
-                value={darfHochladen}
-                onValueChange={setDarfHochladen}
-                trackColor={{ true: palette.primary }}
-                accessibilityLabel="Kann Bilder hochladen"
-              />
-            </View>
-          </>
-        ) : null}
-
-        <View style={styles.blattKnopf}>
-          <ActionButton
-            label={laeuft ? 'Wird angelegt …' : 'Anlegen & Bestätigung senden'}
-            onPress={() => {
-              if (kannAnlegen && !laeuft) void anlegen();
-            }}
-          />
-        </View>
-      </Blatt>
-
-      {/* „7c": Der Dialog nennt den tatsächlichen Empfänger — das ist die
-          Frage, die sich in diesem Moment stellt. */}
-      <Modal visible={bestaetigung !== null} transparent animationType="fade">
-        <View style={styles.dialogHintergrund}>
-          <View style={[styles.dialog, { backgroundColor: palette.surface }]}>
-            <View style={styles.dialogKreis}>
-              <Ionicons name="mail-unread" size={30} color="#2f8a4e" />
-            </View>
-            <Text style={[styles.dialogTitel, { color: palette.text }]}>Bestätigung verschickt</Text>
-            <Text style={[styles.dialogText, { color: palette.text }]}>
-              Die Mail für {bestaetigung?.name} ging an{' '}
-              <Text style={styles.fett}>{bestaetigung?.an}</Text>.
-            </Text>
-            <Text style={[styles.dialogSchritt, { color: palette.textMuted }]}>
-              1. Link öffnen und das Profil bestätigen.
-            </Text>
-            {bestaetigung?.eigene ? null : (
-              <Text style={[styles.dialogSchritt, { color: palette.textMuted }]}>
-                2. Zugangsdaten weitergeben — das Profil erscheint dann in der App.
-              </Text>
-            )}
-            <View style={styles.blattKnopf}>
-              <ActionButton label="Verstanden" onPress={() => setBestaetigung(null)} />
-            </View>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 }
@@ -339,71 +169,9 @@ const styles = StyleSheet.create({
   tag: { borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
   tagText: { fontFamily: font.label, fontSize: 10, letterSpacing: 0.6, textTransform: 'uppercase' },
   status: { fontFamily: font.regular, fontSize: fontSize.sm, marginTop: 2 },
+  // Schiebt das Chevron an den rechten Rand, ohne die Zeile zu dehnen.
+  schieber: { flex: 1 },
   hinzufuegen: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 44 },
   hinzufuegenText: { fontFamily: font.semibold, fontSize: 15 },
-  blattTitel: { fontFamily: font.semibold, fontSize: fontSize.lg, marginBottom: spacing.md },
-  feldLabel: {
-    fontFamily: font.label,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    marginBottom: spacing.xs,
-  },
-  feld: {
-    borderWidth: 1,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    minHeight: 46,
-    marginBottom: spacing.md,
-    fontFamily: font.regular,
-    fontSize: fontSize.md,
-  },
-  spur: { flexDirection: 'row', borderRadius: 8, padding: 3, marginBottom: spacing.md },
-  segment: { flex: 1, alignItems: 'center', justifyContent: 'center', height: 40, borderRadius: 6 },
-  segmentText: { fontFamily: font.semibold, fontSize: 15 },
-  infoBox: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: spacing.md,
-  },
-  infoText: { flex: 1, fontFamily: font.regular, fontSize: 13, lineHeight: 19 },
-  fett: { fontFamily: font.semibold },
-  rechte: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: spacing.md,
-  },
-  rechteText: { flex: 1 },
-  blattKnopf: { marginTop: spacing.sm },
-  dialogHintergrund: {
-    flex: 1,
-    backgroundColor: 'rgba(17, 28, 34, 0.38)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
   dialog: { borderRadius: 14, padding: 24, alignItems: 'center', width: '100%' },
-  dialogKreis: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#eaf3ec',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  dialogTitel: { fontFamily: font.display, fontSize: 20, marginBottom: spacing.sm },
-  dialogText: { fontFamily: font.regular, fontSize: fontSize.md, textAlign: 'center' },
-  dialogSchritt: {
-    fontFamily: font.regular,
-    fontSize: fontSize.sm,
-    marginTop: spacing.sm,
-    alignSelf: 'flex-start',
-  },
 });
