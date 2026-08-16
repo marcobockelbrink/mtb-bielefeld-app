@@ -109,7 +109,13 @@ fi
 
 # --- 3. Gegenprobe: liegt sie wirklich dort? ------------------------------
 # Ein `put` ohne Fehler heißt noch nicht, dass die Datei vollständig ankam.
-FERN_GROESSE=$("${SFTP[@]}" "$BENUTZER_HOST" <<EOF 2>/dev/null | awk -v n="$NAME" '$NF == n {print $5}'
+# `$5 ~ /^[0-9]+$/` ist nicht Zierde: Manche SFTP-Dienste spiegeln den
+# Befehl zurück („sftp> ls -l mtbie-….age"). Diese Zeile endet ebenfalls auf
+# den Dateinamen, hat dort aber keine Größe — ohne die Prüfung stünden zwei
+# Werte in FERN_GROESSE, und der Vergleich scheiterte bei einer Sicherung,
+# die tatsächlich vollständig angekommen ist. Genau so gesehen mit Hetzners
+# Storage Box am 16.08.2026.
+FERN_GROESSE=$("${SFTP[@]}" "$BENUTZER_HOST" <<EOF 2>/dev/null | awk -v n="$NAME" '$NF == n && $5 ~ /^[0-9]+$/ {print $5; exit}'
 cd $FERNPFAD
 ls -l $NAME
 bye
