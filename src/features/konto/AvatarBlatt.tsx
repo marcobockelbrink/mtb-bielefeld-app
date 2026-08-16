@@ -23,6 +23,7 @@ import { font, fontSize, spacing } from '../../theme';
 import { Avatar } from '../../ui/Avatar';
 import { Blatt } from '../../ui/Blatt';
 import { useTheme } from '../../ui/theme';
+import { beschreibeUploadFehler, type UploadSchritt } from '../fotos/uploadFehler';
 import { beschreibeJugendFehler } from '../jugend/jugendFehler';
 
 /** 512 statt 256: Der Server schneidet zu, ein wenig Reserve schadet nicht. */
@@ -70,6 +71,11 @@ export function AvatarBlatt({
 
     setLaeuft(true);
     setFehler(null);
+    // Welcher Schritt gerade läuft. Bis zum 16.08.2026 meldete jeder
+    // Fehler hier „Der Verein ist gerade nicht erreichbar" — auch wenn er
+    // aus der Bildverarbeitung kam und nie eine Anfrage gestellt wurde.
+    // Siehe `features/fotos/uploadFehler.ts`.
+    let schritt: UploadSchritt = 'vorbereiten';
     try {
       const kontext = ImageManipulator.ImageManipulator.manipulate(auswahl.assets[0].uri);
       kontext.resize({ width: VORBEREITUNG_KANTE });
@@ -79,11 +85,12 @@ export function AvatarBlatt({
         compress: 0.9,
       });
 
+      schritt = 'senden';
       await setzeAvatar(api, mitgliedId, fertig.uri);
       await beimAendern();
       beimSchliessen();
     } catch (ursache) {
-      setFehler(beschreibeJugendFehler(ursache));
+      setFehler(beschreibeUploadFehler(ursache, schritt));
     } finally {
       setLaeuft(false);
     }

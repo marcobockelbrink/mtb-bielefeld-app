@@ -30,6 +30,19 @@ export function beschreibeJugendFehler(fehler: unknown): string {
     // Sonst nur durchreichen, was die API selbst formuliert hat. Was Fastify
     // bei 5xx durchreicht, ist der rohe Text der Ursache.
     if (fehler.vonDerApi) return fehler.message.trim() || NICHT_ERREICHBAR;
+    return NICHT_ERREICHBAR;
   }
-  return NICHT_ERREICHBAR;
+
+  // Kein `ApiFehler` — dann war die API gar nicht beteiligt, und der Fehler
+  // stammt vom Gerät (Bildverarbeitung, Dateisystem, ein Programmierfehler).
+  //
+  // **Bis zum 16.08.2026 stand hier ebenfalls `NICHT_ERREICHBAR`**, und das
+  // war die teuerste Zeile der App: Der Foto-Upload scheiterte beim
+  // Vorbereiten auf dem Gerät, die App behauptete „Der Verein ist gerade
+  // nicht erreichbar", und niemand kam auf die Idee, woanders als im Netz
+  // zu suchen. Der Prüfserver sah in einer Woche keinen einzigen Upload.
+  //
+  // Ein neutraler Satz sagt weniger — aber er sagt nichts Falsches. Wo der
+  // technische Text gebraucht wird, gibt es `beschreibeUploadFehler`.
+  return 'Da ist etwas schiefgegangen.';
 }

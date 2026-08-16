@@ -64,6 +64,7 @@ import { useImWlan } from '../../src/features/fotos/netzZustand';
 import { useUploadEinstellungen } from '../../src/features/fotos/uploadEinstellungen';
 import { entferne, fuegeHinzu, fuerAlbum, vermerkeFehlschlag, type Auftrag } from '../../src/features/fotos/warteschlange';
 import { kopiereInsAppVerzeichnis, liesSchlange, loescheKopie, schreibSchlange } from '../../src/features/fotos/warteschlangeSpeicher';
+import { beschreibeUploadFehler, type UploadSchritt } from '../../src/features/fotos/uploadFehler';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { useKonto } from '../../src/konto/KontoContext';
 import { font, fontSize, spacing } from '../../src/theme';
@@ -180,6 +181,11 @@ export default function AlbumScreen() {
       // zurückgezogen hat — und dessen Kopie es nicht mehr gibt.
       if (entfernteRef.current.has(auftrag.id)) continue;
       setZustaende((alt) => ({ ...alt, [auftrag.id]: 'laedt' }));
+      // Welcher Schritt gerade läuft — die Meldung im Fehlerfall hängt
+      // daran. Vorbereiten passiert auf dem Gerät, Senden geht ans Netz;
+      // beides als „nicht erreichbar" zu melden hat den Upload eine Woche
+      // lang unauffindbar kaputt gehalten (siehe `uploadFehler.ts`).
+      let schritt: UploadSchritt = 'vorbereiten';
       try {
         const vorbereitet = await bereiteVor(auftrag.uri);
 
@@ -202,6 +208,7 @@ export default function AlbumScreen() {
           continue;
         }
 
+        schritt = 'senden';
         const ergebnis = await ladeHoch(api, auftrag.albumId, vorbereitet.uri);
         if ('doppelt' in ergebnis) doppelte += 1;
         loescheKopie(auftrag);
@@ -217,7 +224,7 @@ export default function AlbumScreen() {
         setZustaende((alt) => ({ ...alt, [auftrag.id]: keinNetz ? 'keinNetz' : 'fehlgeschlagen' }));
         // Ohne diesen Satz sah ein 413 („Bild zu groß") aus wie „steht in
         // der Schlange" — der Fehler aus dem Bericht vom 15.08.2026.
-        if (!keinNetz) setFehler(beschreibeJugendFehler(ursache));
+        if (!keinNetz) setFehler(beschreibeUploadFehler(ursache, schritt));
       }
       // Abgewählte hier herauswerfen, nicht nur beim Überspringen: Diese
       // Zeile ist es, die sie sonst wieder in den Speicher schriebe.

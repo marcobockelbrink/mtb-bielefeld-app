@@ -27,6 +27,27 @@
 # **Gesichert:** der vollständige Postgres-Dump. Das ist alles, was sich nicht
 # wiederherstellen lässt — Mitglieder, Einladungen, Sitzungen, Anmeldungen.
 #
+# **Ebenfalls gesichert, seit dem 16.08.2026: die Bilder** aus dem Volume
+# `betrieb-fotos`. Bis dahin lief der Timer alle zwei Stunden und sicherte
+# brav die Datenbank samt der Verweise auf Bilddateien — die Dateien selbst
+# blieben liegen. Eine Rücksicherung hätte eine vollständige Datenbank
+# ergeben, in der jedes Foto ins Leere zeigt. Aufgefallen ist es nur, weil
+# jemand danach gefragt hat; das Volume war zu dem Zeitpunkt noch leer.
+#
+# Die Bilder laufen in **eigenem Takt** (`SICHERUNG_BILDER_STUNDEN`,
+# voreingestellt 24) und mit **eigener Aufbewahrung**. Der Grund ist Masse:
+# Der Dump ist ein paar hundert Kilobyte, das Bildarchiv wächst mit jedem
+# Vereinsjahr in die Gigabyte. Alle zwei Stunden ein volles Archiv wäre
+# derselbe Inhalt zwölfmal am Tag.
+#
+# **Volle Archive, keine Zuwächse** — und das ist eine bewusste Entscheidung
+# gegen die sparsamere Bauweise: Ein Zuwachs-Archiv ist nur zusammen mit
+# allen vorherigen etwas wert. Fällt eines aus (Fehlschlag, Aufräumfrist,
+# ein übersehener Tag), fehlen die Bilder dieses Zeitraums für immer, und
+# man merkt es erst beim Zurückspielen. Ein volles Archiv braucht zum
+# Zurückspielen genau **eine** Datei. Bilder sind unersetzlich; Platz auf
+# der Storage Box ist es nicht.
+#
 # **Nicht gesichert:** `betrieb/.env`. Dort stehen Zugangsdaten; sie gehören
 # nicht in dieselbe Ablage wie die Daten, die sie schützen. Wer den Server neu
 # aufsetzt, legt die `.env` aus `.env.beispiel` neu an — die Werte kommen aus
@@ -58,6 +79,14 @@ set -a; . "$UMGEBUNG"; set +a
 : "${SICHERUNG_ZIEL:?SICHERUNG_ZIEL fehlt in betrieb/.env — z. B. benutzer@host:/pfad}"
 : "${SICHERUNG_SCHLUESSEL:?SICHERUNG_SCHLUESSEL fehlt in betrieb/.env — SSH-Schlüssel für den SFTP-Zugang}"
 TAGE=${SICHERUNG_TAGE:-31}
+# Eigene Aufbewahrung für die Bildarchive: Sie sind um Größenordnungen
+# dicker als ein Dump, und wie viel Platz die Storage Box hat, weiß nur der
+# Verein. Ohne Angabe dieselbe Frist wie für die Datenbank.
+BILDER_TAGE=${SICHERUNG_BILDER_TAGE:-$TAGE}
+# Wie oft ein volles Bildarchiv entsteht. 0 schaltet die Bildsicherung ab —
+# ausdrücklich vorgesehen für den Fall, dass der Verein die Bilder anders
+# sichert; stillschweigend weglassen soll man sie nicht können.
+BILDER_STUNDEN=${SICHERUNG_BILDER_STUNDEN:-24}
 # Hetzners Storage Box hört auf **23**, nicht auf 22 — Port 22 nimmt dort
 # zwar Verbindungen an, weist einen Schlüssel aber ab („Connection closed").
 # Deshalb ein eigener Wert mit dem üblichen Standard, statt den Port in
@@ -98,60 +127,148 @@ GROESSE=$(stat -c %s "$TMP/$NAME" 2>/dev/null || stat -f %z "$TMP/$NAME")
 
 # --- 2. Hochladen ---------------------------------------------------------
 SFTP=(sftp -q -P "$PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes -i "$SICHERUNG_SCHLUESSEL")
-if ! "${SFTP[@]}" "$BENUTZER_HOST" <<EOF
+
+# Hochladen **und** nachsehen, ob es wirklich ankam — als Funktion, weil es
+# das Bildarchiv genauso braucht wie den Dump.
+#
+# Die Gegenprobe ist nicht Zierde: Ein `put` ohne Fehler heißt noch nicht,
+# dass die Datei vollständig ankam. Und `$5 ~ /^[0-9]+$/` ebenso wenig:
+# Manche SFTP-Dienste spiegeln den Befehl zurück („sftp> ls -l mtbie-….age").
+# Diese Zeile endet ebenfalls auf den Dateinamen, hat dort aber keine Größe —
+# ohne die Prüfung stünden zwei Werte in der Ausgabe, und der Vergleich
+# scheiterte bei einer Sicherung, die tatsächlich vollständig angekommen ist.
+# Genau so gesehen mit Hetzners Storage Box am 16.08.2026.
+lade_hoch() {
+  local pfad=$1 name=$2 groesse fern
+  groesse=$(stat -c %s "$pfad" 2>/dev/null || stat -f %z "$pfad")
+
+  "${SFTP[@]}" "$BENUTZER_HOST" <<EOF || return 1
 cd $FERNPFAD
-put $TMP/$NAME
+put $pfad
 bye
 EOF
-then
-  scheitere "Hochladen nach $SICHERUNG_ZIEL gescheitert. Schlüssel? Pfad? Wirtsschlüssel bekannt?"
-fi
 
-# --- 3. Gegenprobe: liegt sie wirklich dort? ------------------------------
-# Ein `put` ohne Fehler heißt noch nicht, dass die Datei vollständig ankam.
-# `$5 ~ /^[0-9]+$/` ist nicht Zierde: Manche SFTP-Dienste spiegeln den
-# Befehl zurück („sftp> ls -l mtbie-….age"). Diese Zeile endet ebenfalls auf
-# den Dateinamen, hat dort aber keine Größe — ohne die Prüfung stünden zwei
-# Werte in FERN_GROESSE, und der Vergleich scheiterte bei einer Sicherung,
-# die tatsächlich vollständig angekommen ist. Genau so gesehen mit Hetzners
-# Storage Box am 16.08.2026.
-FERN_GROESSE=$("${SFTP[@]}" "$BENUTZER_HOST" <<EOF 2>/dev/null | awk -v n="$NAME" '$NF == n && $5 ~ /^[0-9]+$/ {print $5; exit}'
+  fern=$("${SFTP[@]}" "$BENUTZER_HOST" <<EOF 2>/dev/null | awk -v n="$name" '$NF == n && $5 ~ /^[0-9]+$/ {print $5; exit}'
 cd $FERNPFAD
-ls -l $NAME
+ls -l $name
 bye
 EOF
 )
-[ "$FERN_GROESSE" = "$GROESSE" ] || scheitere "Auf dem Ziel liegen $FERN_GROESSE Bytes, lokal waren es $GROESSE."
+  if [ "$fern" != "$groesse" ]; then
+    melde "Auf dem Ziel liegen ${fern:-0} Bytes, lokal waren es $groesse."
+    return 1
+  fi
+  melde "Hochgeladen: $name ($groesse Bytes)."
+}
 
-melde "Hochgeladen: $NAME ($GROESSE Bytes)."
+lade_hoch "$TMP/$NAME" "$NAME" \
+  || scheitere "Hochladen von $NAME nach $SICHERUNG_ZIEL gescheitert. Schlüssel? Pfad? Wirtsschlüssel bekannt?"
 
-# --- 4. Alte Sicherungen wegräumen ---------------------------------------
-# Rollierend: Was älter als $TAGE Tage ist, fliegt. Verglichen wird über den
-# Zeitstempel im Namen, nicht über das Änderungsdatum auf dem Server — das
-# setzt mancher SFTP-Dienst beim Hochladen neu.
-GRENZE=$(date -u -d "-$TAGE days" +%Y%m%dT%H%M%SZ 2>/dev/null || date -u -v-"${TAGE}"d +%Y%m%dT%H%M%SZ)
-ALT=$("${SFTP[@]}" "$BENUTZER_HOST" <<EOF 2>/dev/null | grep -oE 'mtbie-[0-9]{8}T[0-9]{6}Z\.sql\.gz\.age' | sort -u
+# --- 3. Die Bilder ---------------------------------------------------------
+#
+# Eigener Takt, eigene Aufbewahrung, volle Archive — die Begründung steht im
+# Kopf dieser Datei.
+#
+# Ob heute schon eines fällig ist, wird **am Ziel** abgelesen und nicht in
+# einer Merkdatei auf dem Server festgehalten. Eine Merkdatei ginge beim
+# Neuaufsetzen der Maschine verloren, und dann stünde dort „noch nie
+# gesichert", während auf der Box dreißig Archive liegen. Das Ziel weiß es
+# ohnehin besser als wir.
+fern_liste() {
+  "${SFTP[@]}" "$BENUTZER_HOST" <<EOF 2>/dev/null
 cd $FERNPFAD
 ls -1
 bye
 EOF
-)
+}
 
-ANZAHL=0
-GELOESCHT=0
-while read -r datei; do
-  [ -n "$datei" ] || continue
-  ANZAHL=$((ANZAHL + 1))
-  stempel=${datei#mtbie-}; stempel=${stempel%%.sql.gz.age}
-  if [[ "$stempel" < "$GRENZE" ]]; then
-    if "${SFTP[@]}" "$BENUTZER_HOST" <<EOF >/dev/null 2>&1
+BILDER_MUSTER='mtbie-bilder-[0-9]{8}T[0-9]{6}Z\.tar\.gz\.age'
+LISTE=$(fern_liste)
+
+if [ "$BILDER_STUNDEN" -le 0 ]; then
+  melde "Bildsicherung ist abgeschaltet (SICHERUNG_BILDER_STUNDEN=0)."
+else
+  LETZTES=$(grep -oE "$BILDER_MUSTER" <<<"$LISTE" | sort | tail -1)
+  FAELLIG_AB=$(date -u -d "-$BILDER_STUNDEN hours" +%Y%m%dT%H%M%SZ 2>/dev/null \
+    || date -u -v-"${BILDER_STUNDEN}"H +%Y%m%dT%H%M%SZ)
+  LETZTER_STEMPEL=${LETZTES#mtbie-bilder-}; LETZTER_STEMPEL=${LETZTER_STEMPEL%%.tar.gz.age}
+
+  if [ -n "$LETZTES" ] && [[ "$LETZTER_STEMPEL" > "$FAELLIG_AB" ]]; then
+    melde "Bildarchiv noch aktuell ($LETZTES) — übersprungen."
+  else
+    BILD_NAME="mtbie-bilder-$STEMPEL.tar.gz.age"
+
+    # Erst zählen, dann packen. Ein leeres Volume ist der Normalfall, solange
+    # niemand Bilder hochgeladen hat — dafür jeden Tag ein Archiv aus nichts
+    # anzulegen, verstopfte die Ablage mit Attrappen und ließe eine echte
+    # Lücke später nicht mehr auffallen.
+    ANZ_BILDER=$("${COMPOSE[@]}" exec -T api sh -c 'find /fotos -type f | wc -l' 2>/dev/null | tr -d '[:space:]')
+
+    if [ -z "$ANZ_BILDER" ]; then
+      scheitere "Die Bildablage ließ sich nicht lesen. Läuft der api-Container?"
+    elif [ "$ANZ_BILDER" -eq 0 ]; then
+      melde "Keine Bilder vorhanden — kein Archiv angelegt."
+    else
+      melde "Bildarchiv $BILD_NAME beginnt ($ANZ_BILDER Dateien)."
+      # Wie beim Dump: durch die Pipe, der Klartext berührt die Platte nicht.
+      # `tar` liegt im Alpine-Abbild als busybox bei.
+      if ! "${COMPOSE[@]}" exec -T api tar -cf - -C /fotos . \
+           | gzip -9 \
+           | age -r "$SICHERUNG_EMPFAENGER" -o "$TMP/$BILD_NAME"; then
+        scheitere "Das Bildarchiv ließ sich nicht anlegen (tar, gzip oder age)."
+      fi
+
+      BILD_GROESSE=$(stat -c %s "$TMP/$BILD_NAME" 2>/dev/null || stat -f %z "$TMP/$BILD_NAME")
+      [ "$BILD_GROESSE" -gt 500 ] \
+        || scheitere "Das Bildarchiv ist nur $BILD_GROESSE Bytes groß — das kann nicht stimmen."
+
+      lade_hoch "$TMP/$BILD_NAME" "$BILD_NAME" \
+        || scheitere "Hochladen des Bildarchivs gescheitert."
+
+      # Platz sofort wieder freigeben: Das Archiv kann viele Gigabyte wiegen,
+      # und `trap` räumt erst am Ende auf — dazwischen läuft noch das
+      # Aufräumen am Ziel.
+      rm -f "$TMP/$BILD_NAME"
+      LISTE=$(fern_liste)
+    fi
+  fi
+fi
+
+# --- 4. Alte Sicherungen wegräumen ---------------------------------------
+# Rollierend: Was älter als die jeweilige Frist ist, fliegt. Verglichen wird
+# über den Zeitstempel im Namen, nicht über das Änderungsdatum auf dem Server
+# — das setzt mancher SFTP-Dienst beim Hochladen neu.
+#
+# Zwei Arten mit **getrennten** Fristen, und die Trennung ist wichtig: Beide
+# Namen fangen mit `mtbie-` an, ein gemeinsamer Ausdruck über beide würde die
+# Bildarchive nach der Datenbankfrist wegwerfen. Deshalb je ein eigenes
+# Muster, und das der Datenbank verlangt ausdrücklich `.sql.gz.age`.
+raeume_auf() {
+  local muster=$1 endung=$2 tage=$3 beschriftung=$4
+  local grenze alt anzahl=0 geloescht=0 stempel
+
+  grenze=$(date -u -d "-$tage days" +%Y%m%dT%H%M%SZ 2>/dev/null \
+    || date -u -v-"${tage}"d +%Y%m%dT%H%M%SZ)
+  alt=$(grep -oE "$muster" <<<"$LISTE" | sort -u)
+
+  while read -r datei; do
+    [ -n "$datei" ] || continue
+    anzahl=$((anzahl + 1))
+    stempel=${datei##*-}; stempel=${stempel%%"$endung"}
+    if [[ "$stempel" < "$grenze" ]]; then
+      if "${SFTP[@]}" "$BENUTZER_HOST" <<EOF >/dev/null 2>&1
 cd $FERNPFAD
 rm $datei
 bye
 EOF
-    then GELOESCHT=$((GELOESCHT + 1)); fi
-  fi
-done <<< "$ALT"
+      then geloescht=$((geloescht + 1)); fi
+    fi
+  done <<< "$alt"
 
-melde "Bestand: $ANZAHL Sicherungen, davon $GELOESCHT als älter als $TAGE Tage entfernt."
+  melde "Bestand $beschriftung: $anzahl, davon $geloescht älter als $tage Tage entfernt."
+}
+
+raeume_auf 'mtbie-[0-9]{8}T[0-9]{6}Z\.sql\.gz\.age' '.sql.gz.age' "$TAGE" 'Datenbank'
+raeume_auf "$BILDER_MUSTER" '.tar.gz.age' "$BILDER_TAGE" 'Bilder'
+
 melde "Fertig."
