@@ -104,6 +104,56 @@ async function hole(pfad) {
   return antwort.json();
 }
 
+async function sende(pfad, koerper) {
+  const antwort = await fetch(`${BASIS}${pfad}`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${ZUGANG}`, 'content-type': 'application/json' },
+    body: JSON.stringify(koerper),
+  });
+  if (!antwort.ok) {
+    const text = await antwort.text();
+    scheitere(`${antwort.status} bei ${pfad}\n${text.slice(0, 600)}`);
+  }
+  return antwort.json();
+}
+
+/**
+ * Einen Lauf anstoßen.
+ *
+ * Ohne Angabe eines Zweigs nimmt Xcode Cloud den, der am Workflow steht —
+ * bei uns `main`, und zwar dessen aktuellen Stand. Das ist die gewollte
+ * Bedeutung von „bau das, was jetzt gilt".
+ *
+ * **Das kostet Rechenzeit aus dem Kontingent des Vereins.** Deshalb nur auf
+ * ausdrückliche Bitte, nicht nebenbei.
+ */
+async function starte(workflowName) {
+  const produkte = await hole('/ciProducts');
+  if (!produkte.data?.length) scheitere('Kein Xcode-Cloud-Produkt gefunden.');
+
+  const workflows = await hole(`/ciProducts/${produkte.data[0].id}/workflows`);
+  const passend = workflowName
+    ? (workflows.data ?? []).find((w) => w.attributes?.name === workflowName)
+    : workflows.data?.[0];
+
+  if (!passend) {
+    console.error('Vorhandene Workflows:');
+    for (const w of workflows.data ?? []) console.error(`  ${w.attributes?.name}`);
+    scheitere(workflowName ? `Kein Workflow namens „${workflowName}".` : 'Kein Workflow vorhanden.');
+  }
+
+  const ergebnis = await sende('/ciBuildRuns', {
+    data: {
+      type: 'ciBuildRuns',
+      relationships: { workflow: { data: { type: 'ciWorkflows', id: passend.id } } },
+    },
+  });
+
+  const a = ergebnis.data?.attributes ?? {};
+  console.log(`Gestartet: ${passend.attributes?.name} — Lauf #${a.number ?? '?'}`);
+  console.log(`Kennung:   ${ergebnis.data?.id}`);
+}
+
 /** Alle Läufe des Produkts, neueste zuerst. */
 async function laeufe(anzahl = 10) {
   const produkte = await hole('/ciProducts');
@@ -169,9 +219,11 @@ const [befehl, wert] = process.argv.slice(2);
 
 if (befehl === 'laeufe') await laeufe(Number(wert) || 10);
 else if (befehl === 'protokoll' && wert) await protokoll(wert);
+else if (befehl === 'starte') await starte(wert);
 else {
   console.log('Aufruf:');
   console.log('  node tools/xcode-cloud.mjs laeufe [anzahl]');
   console.log('  node tools/xcode-cloud.mjs protokoll <lauf-id|letzter>');
+  console.log('  node tools/xcode-cloud.mjs starte [workflow-name]');
   process.exit(1);
 }
