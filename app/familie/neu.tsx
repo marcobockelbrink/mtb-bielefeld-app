@@ -41,6 +41,7 @@ import { legeProfilAn } from '../../src/data/familie';
 import {
   altersHinweis,
   bestaetigungGehtAn,
+  vollerName,
   geburtsjahrVorschlaege,
   istPlausiblesJahr,
   kannAnlegen,
@@ -65,7 +66,8 @@ export default function NeuesFamilienmitgliedScreen() {
   const art: ProfilArt = rohArt === 'erwachsen' ? 'erwachsen' : 'kind';
   const istKind = art === 'kind';
 
-  const [name, setName] = useState('');
+  const [vorname, setVorname] = useState('');
+  const [nachname, setNachname] = useState('');
   const [geburtsjahr, setGeburtsjahr] = useState<number | null>(null);
   const [jahrFeldOffen, setJahrFeldOffen] = useState(false);
   const [jahrText, setJahrText] = useState('');
@@ -87,8 +89,9 @@ export default function NeuesFamilienmitgliedScreen() {
   const heute = useMemo(() => new Date(), []);
   const jahrgaenge = useMemo(() => geburtsjahrVorschlaege(heute), [heute]);
   const emailFeld = useRef<TextInput>(null);
+  const nachnameFeld = useRef<TextInput>(null);
 
-  const bereit = kannAnlegen(art, name, email);
+  const bereit = kannAnlegen(art, vorname, nachname, email);
   const empfaenger = bestaetigungGehtAn(email, eigeneAdresse);
 
   function jahrUebernehmen() {
@@ -105,7 +108,7 @@ export default function NeuesFamilienmitgliedScreen() {
     try {
       const ergebnis = await legeProfilAn(api, {
         art,
-        name: name.trim(),
+        name: vollerName(vorname, nachname),
         geburtsjahr: istKind ? geburtsjahr : null,
         email: email.trim() || null,
         // Beim Erwachsenen keine Frage: Ein eigenständiges Konto darf
@@ -136,7 +139,7 @@ export default function NeuesFamilienmitgliedScreen() {
           <Card>
             <Label>Bestätigung verschickt</Label>
             <Text style={[styles.dialogText, { color: palette.text }]}>
-              Die Mail für {name.trim()} ging an {fertig.an}.
+              Die Mail für {vorname.trim()} ging an {fertig.an}.
             </Text>
             <Text style={[styles.erklaerung, { color: palette.textMuted }]}>
               1. Link öffnen und das Profil bestätigen.
@@ -183,19 +186,37 @@ export default function NeuesFamilienmitgliedScreen() {
         <ScrollView contentContainerStyle={styles.inhalt} keyboardShouldPersistTaps="handled">
           <Card>
             <Label>Name</Label>
+            {/* Zwei Felder statt einem — beide Pflicht. Die Anmeldung zum
+                Jugendtraining braucht Vor- und Nachname getrennt; mit
+                einem Feld entstanden Profile wie „Ben", die sich dann
+                nicht anmelden ließen. Siehe `formular.ts`. */}
             <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder={istKind ? 'Mika' : 'Bernd'}
-              placeholderTextColor={palette.textMuted}
+              value={vorname}
+              onChangeText={setVorname}
               autoFocus
               returnKeyType="next"
-              onSubmitEditing={() => emailFeld.current?.focus()}
+              onSubmitEditing={() => nachnameFeld.current?.focus()}
+              accessibilityLabel="Vorname"
               style={[
                 styles.feld,
                 { color: palette.text, borderColor: palette.border, backgroundColor: palette.surface },
               ]}
             />
+            <Text style={[styles.feldName, { color: palette.textMuted }]}>Vorname</Text>
+
+            <TextInput
+              ref={nachnameFeld}
+              value={nachname}
+              onChangeText={setNachname}
+              returnKeyType="next"
+              onSubmitEditing={() => emailFeld.current?.focus()}
+              accessibilityLabel="Nachname"
+              style={[
+                styles.feld,
+                { color: palette.text, borderColor: palette.border, backgroundColor: palette.surface },
+              ]}
+            />
+            <Text style={[styles.feldName, { color: palette.textMuted }]}>Nachname</Text>
           </Card>
 
           {istKind ? (
@@ -233,8 +254,7 @@ export default function NeuesFamilienmitgliedScreen() {
                   onChangeText={setJahrText}
                   onBlur={jahrUebernehmen}
                   onSubmitEditing={jahrUebernehmen}
-                  placeholder="2012"
-                  placeholderTextColor={palette.textMuted}
+                  accessibilityLabel="Anderes Geburtsjahr"
                   keyboardType="number-pad"
                   returnKeyType="done"
                   maxLength={4}
@@ -250,9 +270,9 @@ export default function NeuesFamilienmitgliedScreen() {
                   U-Gruppe: Die gibt es im Projekt nirgends, und eine
                   erfundene stünde später im Widerspruch zu der, die der
                   Verein wirklich benutzt. */}
-              {altersHinweis(name, geburtsjahr, heute) ? (
+              {altersHinweis(vorname, geburtsjahr, heute) ? (
                 <Text style={[styles.folge, { color: palette.textMuted }]}>
-                  {altersHinweis(name, geburtsjahr, heute)}
+                  {altersHinweis(vorname, geburtsjahr, heute)}
                 </Text>
               ) : null}
             </Card>
@@ -272,8 +292,6 @@ export default function NeuesFamilienmitgliedScreen() {
                 setEmail(wert);
                 setEmailFehler(null);
               }}
-              placeholder="mika@example.org"
-              placeholderTextColor={palette.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
@@ -397,6 +415,14 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  // Beschriftung **unter** dem Feld: Ein Beispieltext im Feld
+  // verschwindet beim Tippen, und dann weiß niemand mehr, was oben
+  // hineingehörte.
+  feldName: {
+    fontFamily: font.regular,
+    fontSize: fontSize.xs,
+    marginTop: spacing.xs,
   },
   feldFehler: {
     fontFamily: font.regular,

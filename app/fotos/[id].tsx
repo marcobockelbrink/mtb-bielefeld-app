@@ -231,12 +231,17 @@ export default function AlbumScreen() {
         // Token-Erneuerung wirft mit Status 0, und die heißt „der Verein ist
         // gerade überlastet", nicht „prüf dein Netz".
         //
-        // **Und `verbunden !== true` dazu.** `ohneNetz` heißt nur, dass
+        // **Und `verbunden === false` dazu.** `ohneNetz` heißt nur, dass
         // `fetch` geworfen hat. Am 17.08.2026 stand deshalb „Kein Netz" an
         // einer Kachel, während das Telefon an 5G hing — die Ursache lag
         // woanders, und das Etikett verdeckte sie.
+        //
+        // `=== false`, nicht `!== true`: Solange der Netzzustand unbekannt
+        // ist, wird nichts behauptet. Der erste Anlauf hatte es andersherum
+        // und zeigte deshalb weiter „Kein Netz", wenn NetInfo noch keine
+        // Auskunft gegeben hatte.
         const keinNetz =
-          ursache instanceof ApiFehler && ursache.ohneNetz && verbunden !== true;
+          ursache instanceof ApiFehler && ursache.ohneNetz && verbunden === false;
         setZustaende((alt) => ({ ...alt, [auftrag.id]: keinNetz ? 'keinNetz' : 'fehlgeschlagen' }));
         // Ohne diesen Satz sah ein 413 („Bild zu groß") aus wie „steht in
         // der Schlange" — der Fehler aus dem Bericht vom 15.08.2026.

@@ -8,21 +8,28 @@ import {
   istPlausiblesJahr,
   JUENGSTES_ALTER,
   kannAnlegen,
+  vollerName,
 } from '../src/features/familie/formular';
 
 const HEUTE = new Date(2026, 7, 16);
 
 describe('kannAnlegen', () => {
-  it('verlangt immer einen Namen', () => {
-    expect(kannAnlegen('kind', '', '')).toBe(false);
-    expect(kannAnlegen('kind', '   ', '')).toBe(false);
-    expect(kannAnlegen('erwachsen', '', 'anna@example.org')).toBe(false);
+  it('verlangt Vor- **und** Nachname', () => {
+    // **Der Anlass steht in der Datenbank.** Ein Profil hieß dort schlicht
+    // „Ben", weil das Formular ein einziges Namensfeld hatte. Die Anmeldung
+    // zum Jugendtraining zerlegt den Namen am Leerzeichen, fand keinen
+    // Nachnamen und wies ab — das Profil war anlegbar und für seinen
+    // einzigen Zweck unbrauchbar.
+    expect(kannAnlegen('kind', 'Ben', '', '')).toBe(false);
+    expect(kannAnlegen('kind', '', 'Bockelbrink', '')).toBe(false);
+    expect(kannAnlegen('kind', '   ', '   ', '')).toBe(false);
+    expect(kannAnlegen('kind', 'Ben', 'Bockelbrink', '')).toBe(true);
   });
 
   it('lässt ein Kind ohne Adresse zu', () => {
     // Viele Kinder haben kein eigenes Postfach — das ist eine bewusste
     // Entscheidung des Vereins und keine Lücke.
-    expect(kannAnlegen('kind', 'Mika', '')).toBe(true);
+    expect(kannAnlegen('kind', 'Mika', 'Probst', '')).toBe(true);
   });
 
   it('verlangt beim Erwachsenen eine Adresse', () => {
@@ -31,9 +38,25 @@ describe('kannAnlegen', () => {
     // eigene Seite ist sie genau das, was still verlorengehen kann. Ein
     // Erwachsener bekommt ein eigenständiges Konto, und die Adresse ist
     // der einzige Weg hinein.
-    expect(kannAnlegen('erwachsen', 'Bernd', '')).toBe(false);
-    expect(kannAnlegen('erwachsen', 'Bernd', '   ')).toBe(false);
-    expect(kannAnlegen('erwachsen', 'Bernd', 'bernd@example.org')).toBe(true);
+    expect(kannAnlegen('erwachsen', 'Bernd', 'Probst', '')).toBe(false);
+    expect(kannAnlegen('erwachsen', 'Bernd', 'Probst', '   ')).toBe(false);
+    expect(kannAnlegen('erwachsen', 'Bernd', 'Probst', 'bernd@example.org')).toBe(true);
+  });
+});
+
+describe('vollerName', () => {
+  it('setzt beide Teile mit einem Leerzeichen zusammen', () => {
+    expect(vollerName('Ben', 'Bockelbrink')).toBe('Ben Bockelbrink');
+    expect(vollerName('  Ben  ', '  Bockelbrink  ')).toBe('Ben Bockelbrink');
+  });
+
+  it('überlebt die Zerlegung in der Trainingsanmeldung', () => {
+    // Die Anmeldung teilt am ersten Leerzeichen: erstes Wort Vorname, Rest
+    // Nachname. Genau das muss zurückkommen, sonst war der Umbau umsonst.
+    const name = vollerName('Ben', 'von der Heide');
+    const teile = name.trim().split(/\s+/);
+    expect(teile[0]).toBe('Ben');
+    expect(teile.slice(1).join(' ')).toBe('von der Heide');
   });
 });
 

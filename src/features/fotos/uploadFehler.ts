@@ -54,7 +54,14 @@ export function beschreibeUploadFehler(
     // geworfen, aber das Telefon hing an 5G. Dann ist „prüf deine
     // Verbindung" nachweislich falsch, und der Originaltext ist das
     // einzige, was weiterhilft.
-    if (fehler.ohneNetz && verbunden === true && fehler.ursprung) {
+    //
+    // Die Bedingung ist `!== false` und nicht `=== true`, und das ist der
+    // Unterschied zwischen einer Behauptung und einer Auskunft: Bei
+    // unbekanntem Netzzustand (`null`) **wissen** wir nichts über die
+    // Verbindung — dann den Verbindungshinweis zu zeigen, hieße raten.
+    // Mein erster Anlauf verlangte hier `=== true` und fiel damit auf
+    // genau den Satz zurück, den er ersetzen sollte.
+    if (fehler.ohneNetz && verbunden !== false && fehler.ursprung) {
       return `${EINLEITUNG[schritt]}: ${fehler.ursprung}`;
     }
     // Sonst ist alles, was die API beantwortet hat, dort schon gut

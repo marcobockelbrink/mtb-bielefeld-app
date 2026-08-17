@@ -106,10 +106,22 @@ describe('beschreibeUploadFehler mit bekanntem Netzzustand', () => {
     );
   });
 
-  it('behauptet nichts, solange der Netzzustand unbekannt ist', () => {
-    expect(beschreibeUploadFehler(netzfehler('TypeError: Network request failed'), 'senden', null)).toBe(
-      'Keine Verbindung zum Server. Bitte prüfe deine Verbindung.',
-    );
+  it('behauptet auch bei unbekanntem Netzzustand nichts über die Verbindung', () => {
+    // **Hier stand bis zum 17.08.2026 abends das Gegenteil**, und es war
+    // falsch. Bei `null` weiß die App *nichts* über die Verbindung — dann
+    // „prüf deine Verbindung" zu zeigen, ist geraten.
+    //
+    // Schlimmer: NetInfo meldet sich über den Listener erst, wenn sich
+    // etwas **ändert**. Auf einem Telefon mit stabiler Verbindung kam nie
+    // ein Ereignis, der Wert blieb `null`, und der ehrliche Zweig war
+    // unerreichbar — die App zeigte weiter „Kein Netz" bei vollem 5G,
+    // obwohl der Fix angeblich drin war. Deshalb fragt `useVerbunden`
+    // jetzt zusätzlich einmal aktiv (`NetInfo.fetch()`).
+    //
+    // Nur eine **gemessene** `false` rechtfertigt den Verbindungshinweis.
+    const satz = beschreibeUploadFehler(netzfehler('TypeError: Network request failed'), 'senden', null);
+    expect(satz).toContain('Network request failed');
+    expect(satz).not.toContain('prüfe deine Verbindung');
   });
 
   it('kommt ohne Originaltext zurecht', () => {

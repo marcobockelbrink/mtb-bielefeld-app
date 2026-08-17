@@ -353,8 +353,6 @@ export default function NeuesTrainingScreen() {
               <TextInput
                 value={ort}
                 onChangeText={setOrt}
-                placeholder="Wanderparkplatz Kalkofen"
-                placeholderTextColor={palette.textMuted}
                 autoFocus
                 style={[
                   styles.feld,
@@ -430,8 +428,6 @@ export default function NeuesTrainingScreen() {
             <TextInput
               value={hinweis}
               onChangeText={setHinweis}
-              placeholder="Helm nicht vergessen"
-              placeholderTextColor={palette.textMuted}
               multiline
               // Ohne das steht der Text auf Android in der senkrechten
               // Mitte des Felds und sieht aus wie ein einzeiliges Feld,

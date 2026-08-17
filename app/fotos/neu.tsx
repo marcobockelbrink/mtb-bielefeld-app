@@ -82,8 +82,6 @@ export default function NeuesAlbumScreen() {
             style={[styles.feld, feldStil]}
             value={titel}
             onChangeText={setTitel}
-            placeholder="Sommertour 2026"
-            placeholderTextColor={palette.textMuted}
           />
 
           <Label>Datum des Ereignisses</Label>
@@ -94,8 +92,6 @@ export default function NeuesAlbumScreen() {
             style={[styles.feld, feldStil]}
             value={beschreibung}
             onChangeText={setBeschreibung}
-            placeholder="Drei Tage Harz, zwölf Leute"
-            placeholderTextColor={palette.textMuted}
           />
 
           <Label>Wer sieht freigegebene Bilder?</Label>

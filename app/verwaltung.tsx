@@ -228,8 +228,6 @@ export default function VerwaltungScreen() {
             style={[styles.feld, { borderColor: palette.border, color: palette.text, backgroundColor: palette.surface }]}
             value={adresse}
             onChangeText={setAdresse}
-            placeholder="anna@example.org"
-            placeholderTextColor={palette.textMuted}
             autoCapitalize="none"
             keyboardType="email-address"
           />

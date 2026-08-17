@@ -7,7 +7,7 @@
  * braucht, dort die Rechnung, die man testen kann.
  */
 
-import NetInfo from '@react-native-community/netinfo';
+import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 
 /**
@@ -44,13 +44,22 @@ export function useVerbunden(): boolean | null {
   const [verbunden, setVerbunden] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const abbestellen = NetInfo.addEventListener((zustand) => {
-      // `isInternetReachable` ist die genauere Auskunft, steht aber kurz
-      // nach dem Start eine Weile auf `null`, während `isConnected` schon
-      // stimmt. Deshalb das Genauere zuerst und der Rückfall darunter.
+    // `isInternetReachable` ist die genauere Auskunft, steht aber eine
+    // Weile auf `null`, während `isConnected` schon stimmt. Deshalb das
+    // Genauere zuerst und der Rückfall darunter.
+    const auswerten = (zustand: NetInfoState) =>
       setVerbunden(zustand.isInternetReachable ?? zustand.isConnected ?? null);
-    });
-    return abbestellen;
+
+    // **Einmal aktiv fragen, nicht nur zuhören.** `addEventListener`
+    // meldet sich zuverlässig erst, wenn sich etwas *ändert*. Bleibt die
+    // Verbindung, wie sie ist, kommt womöglich nie ein Ereignis — und der
+    // Wert stünde ewig auf `null`. Genau daran ist mein erster Anlauf
+    // gescheitert (18.08.2026): Die Unterscheidung „wirklich offline"
+    // gegen „fetch ist gescheitert" hing an einer Messung, die nie eintraf,
+    // und die App zeigte weiter „Kein Netz" bei vollem 5G.
+    void NetInfo.fetch().then(auswerten).catch(() => {});
+
+    return NetInfo.addEventListener(auswerten);
   }, []);
 
   return verbunden;

@@ -14,14 +14,46 @@ export type ProfilArt = 'kind' | 'erwachsen';
 /**
  * Wann der Absende-Knopf wirken darf.
  *
- * Der Unterschied ist der ganze Punkt der beiden Seiten: Ein **Kind**
- * bekommt ein verwaltetes Profil, die Adresse ist optional — viele Kinder
- * haben kein eigenes Postfach. Ein **Erwachsener** bekommt ein
- * eigenständiges Konto, und dafür ist die Adresse der einzige Weg hinein.
+ * **Vor- und Nachname sind beide Pflicht**, seit dem 17.08.2026. Der
+ * Anlass steht in der Datenbank: Ein Profil hieß dort schlicht „Ben",
+ * weil das Formular ein einziges Namensfeld hatte. Die Anmeldung zum
+ * Jugendtraining braucht die beiden aber **getrennt** — sie zerlegt den
+ * Profilnamen am Leerzeichen, fand keinen Nachnamen und wies mit „Vor-
+ * und Nachname werden gebraucht." ab. Das Familienprofil war also
+ * anlegbar und für den einzigen Zweck, für den es existiert, unbrauchbar.
+ *
+ * Der zweite Unterschied ist der ganze Punkt der beiden Seiten: Ein
+ * **Kind** bekommt ein verwaltetes Profil, die Adresse ist optional —
+ * viele Kinder haben kein eigenes Postfach. Ein **Erwachsener** bekommt
+ * ein eigenständiges Konto, und dafür ist die Adresse der einzige Weg
+ * hinein.
  */
-export function kannAnlegen(art: ProfilArt, name: string, email: string): boolean {
-  if (name.trim() === '') return false;
+export function kannAnlegen(
+  art: ProfilArt,
+  vorname: string,
+  nachname: string,
+  email: string,
+): boolean {
+  if (vorname.trim() === '' || nachname.trim() === '') return false;
   return art === 'kind' || email.trim() !== '';
+}
+
+/**
+ * Was als `name` in der Datenbank landet.
+ *
+ * Ein Feld, zwei Eingaben — die Tabelle `mitglied` hat genau eine Spalte
+ * dafür, und die zu teilen wäre eine Migration für nichts: Zusammengesetzt
+ * mit einem Leerzeichen findet die Zerlegung in der Trainingsanmeldung
+ * beide Teile wieder.
+ *
+ * Mehrteilige Nachnamen („von der Heide") überstehen das, weil dort alles
+ * ab dem zweiten Wort als Nachname gilt. Mehrteilige **Vornamen** nicht —
+ * aus „Anna Lena Meier" würde Vorname „Anna", Nachname „Lena Meier". Ein
+ * bekannter, in Kauf genommener Schönheitsfehler; die Anmeldung zeigt
+ * ohnehin standardmäßig nur den Vornamen.
+ */
+export function vollerName(vorname: string, nachname: string): string {
+  return `${vorname.trim()} ${nachname.trim()}`.trim();
 }
 
 /**

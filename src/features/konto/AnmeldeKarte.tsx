@@ -213,8 +213,6 @@ export function AnmeldeKarte() {
           <TextInput
             value={email}
             onChangeText={setEmail}
-            placeholder="deine@adresse.de"
-            placeholderTextColor={palette.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="email-address"
