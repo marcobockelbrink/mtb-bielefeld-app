@@ -84,22 +84,43 @@ dessen Elternverzeichnis ausgeschlossen ist.
 Und `expo prebuild` läuft seither **ohne `--clean`**: Das löschte das
 Verzeichnis, aus dem der laufende Prozess stammt.
 
-### Ohne Zielgruppe versucht Xcode Cloud alle Exportarten
+### Xcode Cloud baut immer drei Fassungen — und zwei davon brauchen Geräte
 
-Steht an der Archive-Aktion keine *Deployment Preparation*, bereitet Xcode
-Cloud **drei** Fassungen vor: App Store, Ad Hoc und Development. Die
-letzten beiden brauchen Profile, die es hier nicht gibt — der Lauf
-scheitert mit
+Zu jedem Archiv erzeugt Xcode Cloud **drei** Exporte: App Store, Ad Hoc und
+Development. Am 17.08.2026 sah das so aus:
 
+    ** ARCHIVE SUCCEEDED **
+    app-store    ** EXPORT SUCCEEDED **
+    ad-hoc       ** EXPORT FAILED **
+    development  ** EXPORT FAILED **
     error: exportArchive No profiles for 'de.mtbbielefeld.app.dev' were found
 
-obwohl `** ARCHIVE SUCCEEDED **` darüber steht und der App-Store-Export
-gelungen ist. Der Bau ist also in Ordnung; nur zwei Nebenprodukte kippen
-ihn.
+Der Bau ist also in Ordnung, und die Fassung für TestFlight liegt fertig
+vor — den Lauf kippen zwei Nebenprodukte.
 
-**Einstellen:** Workflow ▸ Archive ▸ *Deployment Preparation* auf
-**TestFlight (Internal Testing Only)**. Über die API entspricht das
-`buildDistributionAudience: INTERNAL_ONLY` an der ARCHIVE-Aktion.
+**Die Ursache steht im Entwicklerportal, nicht im Workflow.** Abgefragt
+über die API waren dort:
+
+| | |
+| --- | --- |
+| Bündelkennungen | `de.mtbbielefeld.app.dev` |
+| Profile | genau eines — das App-Store-Profil, das EAS am 12.08. anlegte |
+| **Registrierte Geräte** | **null** |
+
+Ad-Hoc- und Development-Profile führen Geräte-Kennungen auf. Ohne ein
+einziges registriertes Gerät kann Apple sie nicht erzeugen, und Xcode
+Cloud scheitert beim Versuch.
+
+**Was nicht hilft:** *Deployment Preparation* auf „TestFlight (Internal
+Testing Only)" zu stellen. Das war der erste Verdacht und ist falsch —
+nachgemessen mit `buildDistributionAudience: INTERNAL_ONLY` am Workflow
+lief derselbe Fehler erneut. Die Einstellung steuert, wohin das Ergebnis
+geht, nicht welche Fassungen entstehen. (Richtig ist sie trotzdem: Sie ist
+es, die den Bau überhaupt an TestFlight ausliefert.)
+
+**Was hilft:** ein Gerät registrieren. Entwicklerportal ▸ *Devices* ▸ `+`,
+die UDID kommt aus Xcode (Window ▸ Devices and Simulators, Feld
+*Identifier*) oder aus dem Finder, wenn das iPhone angeschlossen ist.
 
 ## Zwei Fallen, die nirgends auffallen
 
