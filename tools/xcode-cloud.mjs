@@ -154,28 +154,46 @@ async function starte(workflowName) {
   console.log(`Kennung:   ${ergebnis.data?.id}`);
 }
 
-/** Alle Läufe des Produkts, neueste zuerst. */
+/**
+ * Die Läufe des Produkts, **neueste zuerst**.
+ *
+ * Die Sortierung passiert hier und nicht in der Abfrage: Apple liefert die
+ * Liste in einer Reihenfolge, auf die man sich nicht verlassen sollte — am
+ * 17.08.2026 kamen die ältesten zuerst, und `laeufe 4` zeigte deshalb vier
+ * längst erledigte Fehlschläge, während der interessante Lauf gerade lief.
+ * Ein Werkzeug, das beim Nachsehen den falschen Stand zeigt, ist schlimmer
+ * als keins.
+ *
+ * Deshalb wird großzügig geholt und erst danach beschnitten.
+ */
 async function laeufe(anzahl = 10) {
   const produkte = await hole('/ciProducts');
   if (!produkte.data?.length) scheitere('Kein Xcode-Cloud-Produkt gefunden. Ist der Workflow angelegt?');
 
   const produkt = produkte.data[0];
-  const runs = await hole(`/ciProducts/${produkt.id}/buildRuns?limit=${anzahl}`);
+  const runs = await hole(`/ciProducts/${produkt.id}/buildRuns?limit=${Math.max(anzahl, 20)}`);
+  const sortiert = (runs.data ?? [])
+    .sort((a, b) => (b.attributes?.number ?? 0) - (a.attributes?.number ?? 0))
+    .slice(0, anzahl);
 
   console.log(`Produkt: ${produkt.attributes?.name ?? produkt.id}\n`);
-  for (const lauf of runs.data ?? []) {
+  for (const lauf of sortiert) {
     const a = lauf.attributes ?? {};
     console.log(
       [
-        `#${a.number ?? '?'}`.padEnd(6),
+        `#${a.number ?? '?'}`.padEnd(5),
         (a.executionProgress ?? '').padEnd(10),
         (a.completionStatus ?? 'läuft').padEnd(10),
+        // Wodurch angestoßen — `GIT_REF_CHANGE` heißt: durch einen Push,
+        // nicht durch einen Menschen. Das zu sehen ist die halbe Miete,
+        // wenn man sich fragt, wo das Kontingent hingeht.
+        (a.startReason ?? '').padEnd(15),
         (a.startedDate ?? a.createdDate ?? '').slice(0, 19).replace('T', ' '),
         lauf.id,
       ].join(' '),
     );
   }
-  return runs.data ?? [];
+  return sortiert;
 }
 
 /**
