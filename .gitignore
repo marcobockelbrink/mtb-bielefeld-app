@@ -42,7 +42,12 @@ yarn-error.*
 *.tsbuildinfo
 
 # generated native folders
-/ios
+# `/ios/*` statt `/ios`: Git kann nichts wieder einschließen, dessen
+# Elternverzeichnis ausgeschlossen ist. Gebraucht wird die Ausnahme für
+# `ios/ci_scripts/` — dort sucht Xcode Cloud seine Bauskripte, und der
+# Ordner darüber wird bei jedem Bau neu erzeugt.
+/ios/*
+!/ios/ci_scripts/
 /android
 
 # Web-Vorschau für die Screenshots

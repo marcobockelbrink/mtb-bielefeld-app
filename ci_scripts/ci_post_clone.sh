@@ -70,11 +70,12 @@ echo "--- ios/ erzeugen ---"
 # anwirft und das gerade festgezurrte `node_modules` neu auflöst. Die Pods
 # kommen gleich darunter, getrennt und sichtbar.
 #
-# `--clean`: Auf einem frisch geklonten Arbeitsverzeichnis ist ohnehin kein
-# `ios/` da — die Angabe kostet nichts und schützt davor, dass ein
-# zwischengespeichertes Verzeichnis überlebt und stillschweigend eine alte
-# Bündelkennung mitbringt.
-npx expo prebuild --platform ios --no-install --clean
+# **Kein `--clean`**, und das ist seit dem 17.08.2026 wichtig: In `ios/`
+# liegt jetzt `ci_scripts/` mit der Weiche, über die Xcode Cloud dieses
+# Skript überhaupt erst startet. `--clean` löschte das ganze Verzeichnis —
+# also auch die Datei, aus der der laufende Prozess stammt. Auf einem
+# frisch geklonten Arbeitsverzeichnis gibt es ohnehin nichts aufzuräumen.
+npx expo prebuild --platform ios --no-install
 
 echo "--- Pods ---"
 cd ios
