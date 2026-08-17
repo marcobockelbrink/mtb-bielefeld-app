@@ -64,6 +64,43 @@ heraus.
    stellen — das ist genau die Verschwendung, die wir loswerden wollten.
    Manuell starten oder an einen Tag-Push hängen.
 
+## Drei Fallen, die nirgends auffallen
+
+### Die Skripte müssen neben dem Projekt liegen, nicht in der Wurzel
+
+Alle Anleitungen legen `ci_scripts/` in die Wurzel des Repositories.
+**Hier reicht das nicht.** Xcode Cloud sucht neben dem Xcode-Projekt, und
+unseres liegt in `ios/`. Am 17.08.2026 scheiterten vier Läufe daran, ohne
+dass ein einziges `ci_post_clone`-Protokoll entstanden wäre — das Skript
+lag ausführbar im gebauten Stand und wurde nie aufgerufen. Sichtbar war nur:
+
+    xcodebuild: error: '…/ios/MTBBIdev.xcworkspace' does not exist.
+
+Deshalb steht in `ios/ci_scripts/ci_post_clone.sh` eine drei Zeilen lange
+Weiche auf das eigentliche Skript in der Wurzel. `.gitignore` schließt
+dafür `/ios/*` aus statt `/ios` — Git kann nichts wieder einschließen,
+dessen Elternverzeichnis ausgeschlossen ist.
+
+Und `expo prebuild` läuft seither **ohne `--clean`**: Das löschte das
+Verzeichnis, aus dem der laufende Prozess stammt.
+
+### Ohne Zielgruppe versucht Xcode Cloud alle Exportarten
+
+Steht an der Archive-Aktion keine *Deployment Preparation*, bereitet Xcode
+Cloud **drei** Fassungen vor: App Store, Ad Hoc und Development. Die
+letzten beiden brauchen Profile, die es hier nicht gibt — der Lauf
+scheitert mit
+
+    error: exportArchive No profiles for 'de.mtbbielefeld.app.dev' were found
+
+obwohl `** ARCHIVE SUCCEEDED **` darüber steht und der App-Store-Export
+gelungen ist. Der Bau ist also in Ordnung; nur zwei Nebenprodukte kippen
+ihn.
+
+**Einstellen:** Workflow ▸ Archive ▸ *Deployment Preparation* auf
+**TestFlight (Internal Testing Only)**. Über die API entspricht das
+`buildDistributionAudience: INTERNAL_ONLY` an der ARCHIVE-Aktion.
+
 ## Zwei Fallen, die nirgends auffallen
 
 ### Die Umgebungsvariable steht bei Apple, nicht im Quelltext
