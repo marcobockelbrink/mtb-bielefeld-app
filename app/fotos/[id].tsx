@@ -60,7 +60,7 @@ import { UploadFortschritt, type UploadZustand } from '../../src/features/fotos/
 import { Blatt } from '../../src/ui/Blatt';
 import { FotoRaster } from '../../src/features/fotos/FotoRaster';
 import { darfJetztHochladen } from '../../src/features/fotos/netz';
-import { useImWlan } from '../../src/features/fotos/netzZustand';
+import { useImWlan, useVerbunden } from '../../src/features/fotos/netzZustand';
 import { useUploadEinstellungen } from '../../src/features/fotos/uploadEinstellungen';
 import { entferne, fuegeHinzu, fuerAlbum, vermerkeFehlschlag, type Auftrag } from '../../src/features/fotos/warteschlange';
 import { kopiereInsAppVerzeichnis, liesSchlange, loescheKopie, schreibSchlange } from '../../src/features/fotos/warteschlangeSpeicher';
@@ -119,6 +119,7 @@ export default function AlbumScreen() {
 
   const istVerwaltung = rolle === 'verwaltung';
   const imWlan = useImWlan();
+  const verbunden = useVerbunden();
   const { werte: uploadRegeln } = useUploadEinstellungen();
 
   /**
@@ -138,17 +139,26 @@ export default function AlbumScreen() {
     [],
   );
 
-  const laden = useCallback(async () => {
+  /**
+   * Album und offene Aufträge holen.
+   *
+   * `darfAnstossen` ist keine Feinheit, sondern die Bremse gegen eine
+   * **Endlosschleife**: `stapelHochladen` ruft am Ende `laden()`, und
+   * `laden()` stieß bis zum 17.08.2026 die Schlange wieder an — bei jedem
+   * Fehlschlag drehte sich das im Sekundentakt weiter. Auf dem Gerät sah
+   * man die Kachel zwischen „Lädt …" und „Kein Netz" flackern, und das
+   * Kreuz zum Abwählen war kaum zu treffen (Screenshots vom 17.08.2026).
+   */
+  const laden = useCallback(async (darfAnstossen = true) => {
     if (!id) return;
     setFehler(null);
     try {
       setAlbum(await holeAlbum(api, id));
       // Liegengebliebene Aufträge dieses Albums — vom letzten Mal, auch
-      // über einen Neustart hinweg. Sie werden hier nicht nur gelesen,
-      // sondern auch wieder angestoßen (siehe `wiederAufnehmen`).
+      // über einen Neustart hinweg.
       const offen = fuerAlbum(await liesSchlange(), id);
       setStapel(offen);
-      wiederAufnehmen(offen);
+      if (darfAnstossen) wiederAufnehmen(offen);
     } catch (ursache) {
       setFehler(beschreibeJugendFehler(ursache));
     }
@@ -220,11 +230,17 @@ export default function AlbumScreen() {
         // `ohneNetz` statt `status === 0`: Auch eine gescheiterte
         // Token-Erneuerung wirft mit Status 0, und die heißt „der Verein ist
         // gerade überlastet", nicht „prüf dein Netz".
-        const keinNetz = ursache instanceof ApiFehler && ursache.ohneNetz;
+        //
+        // **Und `verbunden !== true` dazu.** `ohneNetz` heißt nur, dass
+        // `fetch` geworfen hat. Am 17.08.2026 stand deshalb „Kein Netz" an
+        // einer Kachel, während das Telefon an 5G hing — die Ursache lag
+        // woanders, und das Etikett verdeckte sie.
+        const keinNetz =
+          ursache instanceof ApiFehler && ursache.ohneNetz && verbunden !== true;
         setZustaende((alt) => ({ ...alt, [auftrag.id]: keinNetz ? 'keinNetz' : 'fehlgeschlagen' }));
         // Ohne diesen Satz sah ein 413 („Bild zu groß") aus wie „steht in
         // der Schlange" — der Fehler aus dem Bericht vom 15.08.2026.
-        if (!keinNetz) setFehler(beschreibeUploadFehler(ursache, schritt));
+        if (!keinNetz) setFehler(beschreibeUploadFehler(ursache, schritt, verbunden));
       }
       // Abgewählte hier herauswerfen, nicht nur beim Überspringen: Diese
       // Zeile ist es, die sie sonst wieder in den Speicher schriebe.
@@ -236,7 +252,8 @@ export default function AlbumScreen() {
     setUebersprungen(doppelte);
     laeuftHochRef.current = false;
     setLaeuftHoch(false);
-    await laden();
+    // **Ohne `false` hier dreht sich die Schlange endlos** — siehe `laden`.
+    await laden(false);
   }
 
   /** Kopiert die Auswahl ins App-Verzeichnis und stellt sie in die Schlange. */

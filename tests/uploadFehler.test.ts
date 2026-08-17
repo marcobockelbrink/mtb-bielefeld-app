@@ -74,3 +74,54 @@ describe('beschreibeJugendFehler — unbekannte Fehler', () => {
     );
   });
 });
+
+// --- Der Fall aus den Screenshots vom 17.08.2026 ------------------------
+//
+// Die Kachel zeigte „KEIN NETZ", während das Telefon an 5G hing. `ohneNetz`
+// heißt eben nur: `fetch` hat geworfen.
+
+describe('beschreibeUploadFehler mit bekanntem Netzzustand', () => {
+  function netzfehler(ursprung: string | null) {
+    return new ApiFehler(
+      0,
+      'Keine Verbindung zum Server. Bitte prüfe deine Verbindung.',
+      undefined,
+      false,
+      true,
+      ursprung,
+    );
+  }
+
+  it('nennt den Originaltext, wenn das Gerät nachweislich Netz hat', () => {
+    // Sonst steht wieder eine Behauptung da, die messbar falsch ist.
+    const satz = beschreibeUploadFehler(netzfehler('TypeError: Network request failed'), 'senden', true);
+    expect(satz).toContain('Network request failed');
+    expect(satz).toContain('nicht senden');
+  });
+
+  it('bleibt beim Verbindungshinweis, wenn das Gerät wirklich offline ist', () => {
+    // Im Funkloch ist der deutsche Satz der bessere — dort stimmt er.
+    expect(beschreibeUploadFehler(netzfehler('TypeError: Network request failed'), 'senden', false)).toBe(
+      'Keine Verbindung zum Server. Bitte prüfe deine Verbindung.',
+    );
+  });
+
+  it('behauptet nichts, solange der Netzzustand unbekannt ist', () => {
+    expect(beschreibeUploadFehler(netzfehler('TypeError: Network request failed'), 'senden', null)).toBe(
+      'Keine Verbindung zum Server. Bitte prüfe deine Verbindung.',
+    );
+  });
+
+  it('kommt ohne Originaltext zurecht', () => {
+    // Ältere Fehler tragen kein `ursprung` — dann bleibt es beim alten Satz.
+    expect(beschreibeUploadFehler(netzfehler(null), 'senden', true)).toBe(
+      'Keine Verbindung zum Server. Bitte prüfe deine Verbindung.',
+    );
+  });
+
+  it('lässt echte Antworten der API unberührt, auch bei Netz', () => {
+    // 413 ist kein Netzfehler; `ohneNetz` ist dort falsch.
+    const fehler = new ApiFehler(413, 'Das Bild ist größer als 25 MB.', undefined, true);
+    expect(beschreibeUploadFehler(fehler, 'senden', true)).toBe('Das Bild ist größer als 25 MB.');
+  });
+});

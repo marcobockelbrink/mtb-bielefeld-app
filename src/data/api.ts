@@ -51,6 +51,22 @@ export class ApiFehler extends Error {
    * `catch` um `fetch` setzt dieses Feld.
    */
   readonly ohneNetz: boolean;
+  /**
+   * Was `fetch` selbst gemeldet hat, bevor wir einen deutschen Satz daraus
+   * gemacht haben — meist englisch, etwa „Network request failed".
+   *
+   * **Warum das aufgehoben wird.** `ohneNetz` heißt genau genommen nur:
+   * `fetch` hat geworfen. Auf einem Telefon mit 5G ist das dann *nicht*
+   * das Netz, sondern etwas am Aufruf selbst — und der Ratschlag „prüf
+   * deine Verbindung" führt in die Irre. Genau so ist der Foto-Upload eine
+   * Woche lang unauffindbar geblieben. Wer die beiden Fälle unterscheiden
+   * kann (die Oberfläche weiß über `NetInfo`, ob das Gerät verbunden ist),
+   * braucht dann diesen Originaltext.
+   *
+   * Er gehört **nicht** ungefiltert in die Oberfläche: Bei echtem
+   * Funkloch ist der deutsche Satz der bessere.
+   */
+  readonly ursprung: string | null;
 
   constructor(
     status: number,
@@ -58,6 +74,7 @@ export class ApiFehler extends Error {
     feld?: ApiFehler['feld'],
     vonDerApi = false,
     ohneNetz = false,
+    ursprung: string | null = null,
   ) {
     super(nachricht);
     this.name = 'ApiFehler';
@@ -65,6 +82,7 @@ export class ApiFehler extends Error {
     this.feld = feld;
     this.vonDerApi = vonDerApi;
     this.ohneNetz = ohneNetz;
+    this.ursprung = ursprung;
   }
 }
 
@@ -174,6 +192,10 @@ export class ApiZugang {
         undefined,
         false,
         true,
+        // Den Originaltext mitgeben — siehe `ursprung` oben. Er ist die
+        // einzige Spur, wenn das Gerät nachweislich Netz hat und `fetch`
+        // trotzdem wirft.
+        fehler instanceof Error ? `${fehler.name}: ${fehler.message}` : String(fehler),
       );
     } finally {
       clearTimeout(timer);

@@ -40,11 +40,28 @@ const EINLEITUNG: Record<UploadSchritt, string> = {
   senden: 'Das Bild ließ sich nicht senden',
 };
 
-export function beschreibeUploadFehler(fehler: unknown, schritt: UploadSchritt): string {
-  // Alles, was die API selbst beantwortet hat, ist dort schon gut
-  // formuliert — samt Ratenbegrenzung, abgelaufener Anmeldung und dem
-  // Verbindungshinweis aus `api.ts`.
-  if (fehler instanceof ApiFehler) return beschreibeJugendFehler(fehler);
+export function beschreibeUploadFehler(
+  fehler: unknown,
+  schritt: UploadSchritt,
+  /**
+   * Ob das Gerät nachweislich Netz hat (`useVerbunden`). `null` heißt
+   * „nicht gemessen" — dann wird nichts behauptet.
+   */
+  verbunden: boolean | null = null,
+): string {
+  if (fehler instanceof ApiFehler) {
+    // **Der Fall aus den Screenshots vom 17.08.2026.** `fetch` hat
+    // geworfen, aber das Telefon hing an 5G. Dann ist „prüf deine
+    // Verbindung" nachweislich falsch, und der Originaltext ist das
+    // einzige, was weiterhilft.
+    if (fehler.ohneNetz && verbunden === true && fehler.ursprung) {
+      return `${EINLEITUNG[schritt]}: ${fehler.ursprung}`;
+    }
+    // Sonst ist alles, was die API beantwortet hat, dort schon gut
+    // formuliert — samt Ratenbegrenzung, abgelaufener Anmeldung und dem
+    // Verbindungshinweis aus `api.ts`.
+    return beschreibeJugendFehler(fehler);
+  }
 
   // Ein gewöhnlicher Fehler kommt vom Gerät: aus der Bildverarbeitung,
   // dem Dateisystem, dem Bildwähler. Seinen Text mitzugeben ist unschön
