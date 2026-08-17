@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { meldeDiagnose } from '../../data/diagnose';
 import { entferneAvatar, setzeAvatar } from '../../data/familie';
 import { useKonto } from '../../konto/KontoContext';
 import { font, fontSize, spacing } from '../../theme';
@@ -91,6 +92,12 @@ export function AvatarBlatt({
       beimSchliessen();
     } catch (ursache) {
       setFehler(beschreibeUploadFehler(ursache, schritt));
+      // Siehe `data/diagnose.ts` — Behelfsbrücke, bis der Fehler gefunden ist.
+      meldeDiagnose(
+        api,
+        `avatar/${schritt}`,
+        `${ursache instanceof Error ? `${ursache.name}: ${ursache.message}` : String(ursache)}`,
+      );
     } finally {
       setLaeuft(false);
     }
