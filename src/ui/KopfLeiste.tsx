@@ -27,7 +27,7 @@ import { useTheme } from './theme';
 
 export function KopfLeiste() {
   const { palette } = useTheme();
-  const { angemeldet, laedt, email } = useKonto();
+  const { angemeldet, laedt, email, name, avatarUrl, api } = useKonto();
 
   if (laedt) {
     return (
@@ -66,7 +66,17 @@ export function KopfLeiste() {
     >
       {/* Ohne Adresse (die Auskunft ist noch unterwegs) trägt der Kreis ein
           Fragezeichen statt eines leeren Grau — nie ein leerer Kreis. */}
-      <Avatar name={email ?? ''} size={34} />
+      {/* Name **und** Bild — beides hatte `useKonto()` schon, hier stand
+          nur die Adresse und gar kein Bild. Die Initialen wurden dadurch
+          aus „marco@…" gebildet („M") statt aus dem Namen („MB"), und ein
+          gesetztes Profilbild war nie zu sehen. `bildQuelle` macht aus dem
+          Serverpfad eine ladbare Adresse samt Zugang — geschützte Bilder
+          liefert die API nur mit Token aus. */}
+      <Avatar
+        name={name ?? email ?? ''}
+        uri={avatarUrl ? api.bildQuelle(avatarUrl).uri : null}
+        size={34}
+      />
     </Pressable>
   );
 }

@@ -109,7 +109,14 @@ export function FamilienGruppe() {
         {profile?.map((profil) => (
           <Zeile key={profil.id}>
             <Pressable onPress={() => profilMenue(profil)} style={styles.profilZeile}>
-              <Avatar name={profil.name ?? '?'} uri={profil.avatarUrl} size={40} />
+              {/* `profil.avatarUrl` ist ein Serverpfad, keine ladbare Adresse —
+                  ohne `bildQuelle` blieb es bei den Initialen, obwohl ein
+                  Bild gesetzt war. */}
+              <Avatar
+                name={profil.name ?? '?'}
+                uri={profil.avatarUrl ? api.bildQuelle(profil.avatarUrl).uri : null}
+                size={40}
+              />
               <View style={styles.profilText}>
                 <View style={styles.profilKopf}>
                   <Text style={[styles.name, { color: palette.text }]}>{profil.name}</Text>
