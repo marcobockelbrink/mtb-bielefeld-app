@@ -20,14 +20,15 @@
  */
 
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import type { TrainingDetails } from '../../data/jugend';
-import { meldeKindAb, meldeKindAn } from '../../data/jugend';
+import { aendereAnmeldung, meldeKindAb, meldeKindAn } from '../../data/jugend';
 import { holeProfile, type Profil } from '../../data/familie';
 import { useKonto } from '../../konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../../theme';
 import { ActionButton, Banner, Card, Chip, Label } from '../../ui/components';
+import { Blatt } from '../../ui/Blatt';
 import { useTheme } from '../../ui/theme';
 import { darfNochAnmelden, eigeneKinder } from './eigeneKinder';
 import { beschreibeJugendFehler } from './jugendFehler';
@@ -61,6 +62,20 @@ export function KindAnmelden({
   const [zeigtVorname, setZeigtVorname] = useState(true);
   const [zeigtNachname, setZeigtNachname] = useState(false);
 
+  /**
+   * Die Anmeldung, die gerade bearbeitet wird — samt eigener Feldwerte.
+   *
+   * Getrennt vom Anmeldeformular darüber: Beide gleichzeitig offen zu
+   * haben ist möglich, und ein geteilter Zustand hätte die Eingaben des
+   * einen ins andere geschrieben.
+   */
+  const [bearbeitet, setBearbeitet] = useState<{
+    id: string;
+    vorname: string;
+    nachname: string;
+    zeigtVorname: boolean;
+    zeigtNachname: boolean;
+  } | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   const [meldung, setMeldung] = useState<{ text: string; fehler: boolean } | null>(null);
 
@@ -99,6 +114,63 @@ export function KindAnmelden({
       setZeigtVorname(true);
       setZeigtNachname(false);
       setMeldung({ text: 'Eingetragen.', fehler: false });
+      onGeaendert();
+    } catch (ursache) {
+      setMeldung({ text: beschreibeJugendFehler(ursache), fehler: true });
+    } finally {
+      setLaeuft(false);
+    }
+  }
+
+  /**
+   * Was **andere** von diesem Kind sehen.
+   *
+   * Dieselbe Regel wie in `api/src/jugendtraining.ts` (`holeKinder`): Der
+   * Anfragende bekommt seine eigenen Kinder ungefiltert, die Freigabe
+   * steuert nur die Sicht der anderen. Hier nachgebildet, damit vor dem
+   * Ändern dasteht, was gilt — und nicht zwei Schalterzustände, aus denen
+   * man es sich zusammenreimt.
+   */
+  function sichtbarerName(kindId: string): string {
+    const k = bearbeitet?.id === kindId ? bearbeitet : null;
+    const kind = meine.find((m) => m.id === kindId);
+    if (!kind) return 'nichts';
+
+    // Aus dem laufenden Formular, falls offen — sonst aus dem Stand der API.
+    const teile = (kind.anzeige ?? '').trim().split(/\s+/).filter(Boolean);
+    const vor = k ? k.vorname : (teile[0] ?? '');
+    const nach = k ? k.nachname : teile.slice(1).join(' ');
+    const zeigtV = k ? k.zeigtVorname : true;
+    const zeigtN = k ? k.zeigtNachname : false;
+
+    const sichtbar = [zeigtV ? vor : '', zeigtN ? nach : ''].filter(Boolean).join(' ');
+    return sichtbar || 'nichts';
+  }
+
+  function bearbeiten(kind: { id: string; anzeige: string }) {
+    const teile = kind.anzeige.trim().split(/\s+/).filter(Boolean);
+    setMeldung(null);
+    setBearbeitet({
+      id: kind.id,
+      vorname: teile[0] ?? '',
+      nachname: teile.slice(1).join(' '),
+      zeigtVorname: true,
+      zeigtNachname: false,
+    });
+  }
+
+  async function aenderungSpeichern() {
+    if (!bearbeitet) return;
+    setLaeuft(true);
+    try {
+      await aendereAnmeldung(api, trainingId, bearbeitet.id, {
+        vorname: bearbeitet.vorname.trim(),
+        nachname: bearbeitet.nachname.trim(),
+        zeigtVorname: bearbeitet.zeigtVorname,
+        zeigtNachname: bearbeitet.zeigtNachname,
+      });
+      setBearbeitet(null);
+      setMeldung({ text: 'Geändert.', fehler: false });
       onGeaendert();
     } catch (ursache) {
       setMeldung({ text: beschreibeJugendFehler(ursache), fehler: true });
@@ -158,12 +230,23 @@ export function KindAnmelden({
       */}
       {!laeuft &&
         meine.map((kind) => (
-          <View key={kind.id} style={styles.knopf}>
-            <ActionButton
-              label={`${kind.anzeige} austragen`}
-              tone="secondary"
-              onPress={() => void abmelden(kind.id)}
-            />
+          <View key={kind.id} style={styles.anmeldung}>
+            <View style={styles.anmeldungText}>
+              <Text style={[styles.anmeldungName, { color: palette.text }]}>{kind.anzeige}</Text>
+              {/* Die Freigabe im Klartext statt als zwei Schalterzustaende,
+                  die man sich zusammenreimen muss. */}
+              <Text style={[styles.anmeldungFreigabe, { color: palette.textMuted }]}>
+                Andere sehen: {sichtbarerName(kind.id)}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => bearbeiten(kind)}
+              accessibilityRole="button"
+              accessibilityLabel={`${kind.anzeige} ändern`}
+              hitSlop={8}
+            >
+              <Text style={[styles.aendern, { color: palette.primary }]}>Ändern</Text>
+            </Pressable>
           </View>
         ))}
 
@@ -247,6 +330,82 @@ export function KindAnmelden({
           </View>
         </>
       ) : null}
+
+      {/* Das Ändern-Blatt. **Austragen steht hier drin**, als letzte Zeile
+          und in `palette.danger` — vorher war es der einzige Knopf an einer
+          Stelle, an der eigentlich eine Korrektur gebraucht wird. Wer einen
+          Namen berichtigen wollte, fand nur „austragen". */}
+      <Blatt
+        offen={bearbeitet !== null}
+        beimSchliessen={() => setBearbeitet(null)}
+        leiste={
+          bearbeitet ? (
+            <ActionButton label="Speichern" onPress={() => void aenderungSpeichern()} />
+          ) : undefined
+        }
+      >
+        {bearbeitet ? (
+          <>
+            <Label>Anmeldung ändern</Label>
+
+            <Text style={[styles.feldLabel, { color: palette.textMuted }]}>Vorname</Text>
+            <TextInput
+              value={bearbeitet.vorname}
+              onChangeText={(wert) => setBearbeitet({ ...bearbeitet, vorname: wert })}
+              accessibilityLabel="Vorname"
+              style={[styles.feld, { color: palette.text, borderColor: palette.border, backgroundColor: palette.surface }]}
+            />
+
+            <Text style={[styles.feldLabel, { color: palette.textMuted }]}>Nachname</Text>
+            <TextInput
+              value={bearbeitet.nachname}
+              onChangeText={(wert) => setBearbeitet({ ...bearbeitet, nachname: wert })}
+              accessibilityLabel="Nachname"
+              style={[styles.feld, { color: palette.text, borderColor: palette.border, backgroundColor: palette.surface }]}
+            />
+
+            <View style={styles.schalterZeile}>
+              <Text style={[styles.schalterText, { color: palette.text }]}>Vorname zeigen</Text>
+              <Switch
+                value={bearbeitet.zeigtVorname}
+                onValueChange={(wert) => setBearbeitet({ ...bearbeitet, zeigtVorname: wert })}
+                trackColor={{ true: palette.primary }}
+                accessibilityLabel="Vorname zeigen"
+              />
+            </View>
+            <View style={styles.schalterZeile}>
+              <Text style={[styles.schalterText, { color: palette.text }]}>Nachname zeigen</Text>
+              <Switch
+                value={bearbeitet.zeigtNachname}
+                onValueChange={(wert) => setBearbeitet({ ...bearbeitet, zeigtNachname: wert })}
+                trackColor={{ true: palette.primary }}
+                accessibilityLabel="Nachname zeigen"
+              />
+            </View>
+
+            <Text style={[styles.anmeldungFreigabe, { color: palette.textMuted }]}>
+              Andere sehen dann: {sichtbarerName(bearbeitet.id)}
+            </Text>
+
+            {/* Die Frage, die sich in diesem Moment stellt. */}
+            <Text style={[styles.anmeldungFreigabe, { color: palette.textMuted }]}>
+              Der Platz bleibt bestehen — geändert wird die Anmeldung, nicht neu angemeldet.
+            </Text>
+
+            <Pressable
+              onPress={() => {
+                const id = bearbeitet.id;
+                setBearbeitet(null);
+                void abmelden(id);
+              }}
+              accessibilityRole="button"
+              style={styles.austragen}
+            >
+              <Text style={[styles.austragenText, { color: palette.danger }]}>Vom Training austragen</Text>
+            </Pressable>
+          </>
+        ) : null}
+      </Blatt>
     </Card>
   );
 }
@@ -264,6 +423,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   profilReihe: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  feldLabel: {
+    fontFamily: font.regular,
+    fontSize: fontSize.sm,
+    marginTop: spacing.md,
+  },
   feld: {
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
@@ -292,4 +456,22 @@ const styles = StyleSheet.create({
   knopf: {
     marginTop: spacing.lg,
   },
+  anmeldung: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    minHeight: 44,
+  },
+  anmeldungText: { flex: 1 },
+  anmeldungName: { fontFamily: font.semibold, fontSize: fontSize.md },
+  anmeldungFreigabe: {
+    fontFamily: font.regular,
+    fontSize: fontSize.xs,
+    lineHeight: 17,
+    marginTop: spacing.xs,
+  },
+  aendern: { fontFamily: font.semibold, fontSize: fontSize.sm },
+  austragen: { alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg, minHeight: 44 },
+  austragenText: { fontFamily: font.semibold, fontSize: fontSize.md },
 });

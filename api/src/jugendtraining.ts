@@ -507,6 +507,58 @@ export async function meldeKindAb(
 }
 
 /**
+ * Eine bestehende Anmeldung korrigieren.
+ *
+ * **Der teuerste Tippfehler der App**, bis es das gab: Wer sein Kind mit
+ * falschem Namen angemeldet hatte, konnte ihn nicht ändern. Austragen und
+ * neu anmelden ist kein Ausweg — bei einem vollen Training ist der Platz
+ * nach dem Austragen weg, und die Grenze von zwei Kindern je Konto hängt am
+ * Teilindex `jugendtraining_kind_hoechstens_zwei`, der die alte Zeile noch
+ * mitzählt, solange sie nicht storniert ist.
+ *
+ * `mitglied_id` steht **in der `WHERE`-Bedingung**, nicht in einer Prüfung
+ * davor. Sonst könnte jedes angemeldete Mitglied fremde Anmeldungen
+ * umbenennen — und ein Guide, der die vollen Namen ohnehin sieht, gleich
+ * mit. Sichtbarkeit ist nicht Besitz.
+ *
+ * **Ein abgesagtes Training wird nicht gesperrt.** Dort ist nichts mehr zu
+ * korrigieren, aber es schadet auch nichts: Die Anmeldung ist ohnehin
+ * gegenstandslos, und eine zusätzliche Bedingung wäre eine Regel, die
+ * niemand je auslöst und die beim Lesen Fragen aufwirft.
+ */
+export async function aendereAnmeldung(
+  ausfuehrer: pg.Pool | pg.PoolClient,
+  trainingId: string,
+  mitgliedId: string,
+  kindId: string,
+  kind: Partial<KindEingabe>,
+): Promise<boolean> {
+  // Beide Kennungen prüfen, wie in `meldeKindAb`: Ein unbrauchbarer Wert in
+  // der Adresse macht aus dem 404 sonst ein 500 mit Datenbankmeldung.
+  if (!istKennung(kindId) || !istKennung(trainingId)) return false;
+
+  const { rowCount } = await ausfuehrer.query(
+    `UPDATE jugendtraining_kind SET
+       vorname        = COALESCE($4, vorname),
+       nachname       = COALESCE($5, nachname),
+       zeigt_vorname  = COALESCE($6, zeigt_vorname),
+       zeigt_nachname = COALESCE($7, zeigt_nachname)
+     WHERE id = $3 AND training_id = $1 AND mitglied_id = $2
+       AND storniert_am IS NULL`,
+    [
+      trainingId,
+      mitgliedId,
+      kindId,
+      kind.vorname?.trim() ?? null,
+      kind.nachname?.trim() ?? null,
+      kind.zeigtVorname ?? null,
+      kind.zeigtNachname ?? null,
+    ],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/**
  * Die Teilnehmerliste.
  *
  * `alsGuide` entscheidet der Endpunkt anhand der Rolle. Gespeichert ist immer

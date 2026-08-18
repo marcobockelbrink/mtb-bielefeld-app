@@ -1277,6 +1277,43 @@ dein Kind auch anmelden.</p>
     return antwort.code(204).send();
   });
 
+  /**
+   * Eine bestehende Anmeldung korrigieren — Name oder Sichtbarkeit.
+   *
+   * Angemeldet sein genügt, eine Rolle braucht es nicht: Es sind die
+   * eigenen Kinder. **Ein Guide darf hier trotzdem nichts** — er sieht die
+   * vollen Namen, aber Sichtbarkeit ist nicht Besitz. Durchgesetzt wird das
+   * nicht hier, sondern in der `WHERE`-Bedingung von `aendereAnmeldung`.
+   */
+  app.patch('/jugendtraining/:id/kinder/:kindId', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id, kindId } = anfrage.params as { id: string; kindId: string };
+    const koerper = (anfrage.body ?? {}) as Record<string, unknown>;
+
+    // Leere Namen abweisen, statt sie durchzulassen: `COALESCE` würde einen
+    // leeren Text als Wert nehmen, und in der Teilnehmerliste stünde dann
+    // eine namenlose Zeile.
+    for (const feld of ['vorname', 'nachname'] as const) {
+      if (feld in koerper && (typeof koerper[feld] !== 'string' || koerper[feld].trim() === '')) {
+        return antwort.code(400).send({ fehler: 'Vor- und Nachname werden gebraucht.' });
+      }
+    }
+
+    const geaendert = await jugend.aendereAnmeldung(pool, id, ausweis.mitgliedId, kindId, {
+      ...(typeof koerper.vorname === 'string' ? { vorname: koerper.vorname } : {}),
+      ...(typeof koerper.nachname === 'string' ? { nachname: koerper.nachname } : {}),
+      ...(typeof koerper.zeigtVorname === 'boolean' ? { zeigtVorname: koerper.zeigtVorname } : {}),
+      ...(typeof koerper.zeigtNachname === 'boolean' ? { zeigtNachname: koerper.zeigtNachname } : {}),
+    });
+
+    // 404 auch für eine fremde Anmeldung: „Gibt es nicht" und „gehört dir
+    // nicht" dürfen sich für den Anfragenden nicht unterscheiden.
+    if (!geaendert) return antwort.code(404).send({ fehler: 'Diese Anmeldung gibt es nicht.' });
+    return antwort.code(204).send();
+  });
+
   // --- Fotoalben ------------------------------------------------------------
 
   /**

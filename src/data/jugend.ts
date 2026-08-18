@@ -105,6 +105,29 @@ export function meldeKindAb(api: ApiZugang, id: string, kindId: string): Promise
   );
 }
 
+/**
+ * Eine bestehende Anmeldung korrigieren — Name oder Sichtbarkeit.
+ *
+ * Der Unterschied zu „austragen und neu anmelden" ist der Platz: Bei einem
+ * vollen Training wäre er nach dem Austragen weg, und die Grenze von zwei
+ * Kindern je Konto zählt die alte Zeile mit, solange sie nicht storniert
+ * ist. Deshalb ändern statt ersetzen.
+ *
+ * Nur mitgeschickte Felder werden geändert (`COALESCE` am Server).
+ */
+export function aendereAnmeldung(
+  api: ApiZugang,
+  id: string,
+  kindId: string,
+  kind: Partial<KindEingabe>,
+): Promise<void> {
+  return api.sende(
+    `/jugendtraining/${encodeURIComponent(id)}/kinder/${encodeURIComponent(kindId)}`,
+    'PATCH',
+    kind,
+  );
+}
+
 export async function legeTrainingAn(
   api: ApiZugang,
   eingabe: TrainingEingabe,
