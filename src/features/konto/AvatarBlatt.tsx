@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ausDatei } from '../../data/dateiUpload';
 import { meldeDiagnose } from '../../data/diagnose';
 import { entferneAvatar, setzeAvatar } from '../../data/familie';
 import { useKonto } from '../../konto/KontoContext';
@@ -87,7 +88,7 @@ export function AvatarBlatt({
       });
 
       schritt = 'senden';
-      await setzeAvatar(api, mitgliedId, fertig.uri);
+      await setzeAvatar(api, mitgliedId, ausDatei(fertig.uri));
       await beimAendern();
       beimSchliessen();
     } catch (ursache) {

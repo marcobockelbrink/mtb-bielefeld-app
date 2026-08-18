@@ -86,6 +86,21 @@ export class ApiFehler extends Error {
   }
 }
 
+/**
+ * Der Upload einer Datei, von außen hereingereicht.
+ *
+ * **Warum als Funktion und nicht direkt hier.** Der native Upload braucht
+ * `expo-file-system`, und diese Datei ist bewusst frei von allem Nativen:
+ * Sechs Testdateien importieren sie, und ein Modul, das beim Import ein
+ * natives Gegenstück sucht, ließe sie alle scheitern. Dasselbe Muster wie
+ * `notifications/scheduler.ts` gegenüber `notifications/index.ts` —
+ * Token-Behandlung und Fehlerauswertung bleiben hier und prüfbar, das
+ * Gerät steckt in `dateiUpload.ts`.
+ */
+export interface DateiUpload {
+  (url: string, kopf: Record<string, string>): Promise<{ status: number; body: string }>;
+}
+
 export interface ApiAbhaengigkeiten {
   basisUrl: string;
   speicher: TokenSpeicher;
@@ -205,7 +220,29 @@ export class ApiZugang {
   /** Wirft einen `ApiFehler` mit dem Text der API, sonst gibt es den Körper. */
   async #auswerten<T>(antwort: Response): Promise<T> {
     const koerper = (await antwort.json().catch(() => ({}))) as Record<string, unknown>;
-    if (!antwort.ok) {
+    return this.#ausKoerper<T>(antwort.status, antwort.ok, koerper);
+  }
+
+  /**
+   * Dasselbe für einen Upload, der nicht über `fetch` lief.
+   *
+   * `datei.upload` liefert Status und Körper als Text; die Prüfung darauf
+   * ist aber wortgleich. Sie zweimal zu schreiben hieße, dass eine
+   * Verbesserung an den Fehlermeldungen künftig nur den halben Weg
+   * erreicht.
+   */
+  #ausText<T>(status: number, text: string): T {
+    let koerper: Record<string, unknown> = {};
+    try {
+      koerper = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      // Eine Antwort ohne JSON-Körper ist bei 204 der Normalfall.
+    }
+    return this.#ausKoerper<T>(status, status >= 200 && status < 300, koerper);
+  }
+
+  #ausKoerper<T>(status: number, gelungen: boolean, koerper: Record<string, unknown>): T {
+    if (!gelungen) {
       // `fehler` ist unser eigenes Feld. Anfragen, die schon Fastify selbst
       // abweist — bevor unser Code überhaupt läuft, etwa bei einem falsch
       // gesetzten `content-type` — kommen stattdessen mit `message` herein.
@@ -228,7 +265,7 @@ export class ApiZugang {
         typeof plaetzeWert === 'number' ? plaetzeWert : plaetzeWert === null ? null : undefined;
 
       throw new ApiFehler(
-        antwort.status,
+        status,
         nachricht,
         {
           belegt: typeof koerper.belegt === 'number' ? koerper.belegt : undefined,
@@ -417,9 +454,78 @@ export class ApiZugang {
     });
   }
 
-  /** Schickt eine Datei als Multipart — für den Foto-Upload. */
-  sendeDatei<T>(pfad: string, formular: FormData): Promise<T> {
-    return this.#mitToken<T>(pfad, { method: 'POST', body: formular });
+  /**
+   * Schickt eine Datei als Multipart — für Album- und Profilbilder.
+   *
+   * ## Warum nicht über `fetch` und `FormData`
+   *
+   * Weil es damit **nicht geht**, seit Expo SDK 54. Der Fehler hat eine
+   * Woche gekostet und lohnt die Erklärung.
+   *
+   * Das jahrelang übliche React-Native-Idiom ist
+   * `formular.append('datei', { uri, name, type })`. Expo ersetzt seit
+   * SDK 54 aber das globale `fetch` durch eine eigene Umsetzung, die den
+   * Multipart-Körper **in JavaScript** zusammenbaut
+   * (`expo/src/winter/fetch/convertFormData.ts`). Die kennt nur drei
+   * Arten von Teilen — `string`, `Blob`, oder ein Objekt mit `bytes()` —
+   * und wirft bei allem anderen:
+   *
+   *     Error: Unsupported FormDataPart implementation
+   *
+   * Im Quelltext daneben steht es unmissverständlich:
+   * „`uri` is not supported for React Native's FormData."
+   *
+   * **Das erklärt jede Beobachtung:** Der Fehler entsteht beim *Bauen*
+   * des Körpers, also bevor irgendeine Verbindung aufgemacht wird. Auf
+   * dem Server kam nie eine Anfrage an; ein Multipart-POST von Hand ging
+   * durch; das Netz war nachweislich in Ordnung. Und weil `fetch` dabei
+   * wirft, landete es in unserem `catch` und wurde als „keine Verbindung"
+   * gemeldet — die Meldung, die die Suche eine Woche lang in die falsche
+   * Richtung geschickt hat.
+   *
+   * ## Der Weg jetzt
+   *
+   * `expo-file-system` lädt nativ hoch (`datei.upload`), baut das
+   * Multipart selbst und geht an `fetch` vorbei. Nebenbei ist das der
+   * robustere Weg: Der Körper wird gestreamt, statt erst vollständig als
+   * Bytefolge im Arbeitsspeicher zu entstehen — bei einem 20-MB-Foto ein
+   * spürbarer Unterschied.
+   *
+   * Die Token-Erneuerung muss hier von Hand nachgebaut werden, weil der
+   * Aufruf nicht durch `#mitToken` läuft. Ohne sie schlüge jeder Upload
+   * fehl, der auf ein abgelaufenes Zugangs-Token trifft — und das gilt
+   * fünfzehn Minuten.
+   */
+  async sendeDatei<T>(pfad: string, hochladen: DateiUpload): Promise<T> {
+    const kopf = (): Record<string, string> =>
+      this.#zugang ? { authorization: `Bearer ${this.#zugang}` } : {};
+
+    let ergebnis;
+    try {
+      ergebnis = await hochladen(`${this.#basisUrl}${pfad}`, kopf());
+    } catch (fehler) {
+      // Dasselbe Muster wie in `#ruf`: Was hier wirft, ist kein Status,
+      // sondern ein gescheiterter Versuch — und der Originaltext ist die
+      // einzige Spur, wenn das Gerät nachweislich Netz hat.
+      throw new ApiFehler(
+        0,
+        'Keine Verbindung zum Server. Bitte prüfe deine Verbindung.',
+        undefined,
+        false,
+        true,
+        fehler instanceof Error ? `${fehler.name}: ${fehler.message}` : String(fehler),
+      );
+    }
+
+    if (ergebnis.status === 401) {
+      const erneuert = await this.#erneuern();
+      if (erneuert === 'erneuert') ergebnis = await hochladen(`${this.#basisUrl}${pfad}`, kopf());
+      else if (erneuert === 'voruebergehend') {
+        throw new ApiFehler(0, 'Der Verein ist gerade nicht erreichbar. Versuch es später noch einmal.');
+      }
+    }
+
+    return this.#ausText<T>(ergebnis.status, ergebnis.body);
   }
 
   /**

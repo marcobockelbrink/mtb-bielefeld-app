@@ -6,7 +6,7 @@
  * eigenständiges Konto und untersteht niemandem.
  */
 
-import type { ApiZugang } from './api';
+import type { ApiZugang, DateiUpload } from './api';
 
 export type ProfilStatus = 'aktiv' | 'einladung_offen';
 
@@ -71,10 +71,16 @@ export function statusZeile(profil: Profil): string {
  * Verkleinert wird **vor** dem Senden (wie bei den Albumbildern), den
  * quadratischen Zuschnitt auf 256×256 macht der Server.
  */
-export async function setzeAvatar(api: ApiZugang, mitgliedId: string, uri: string): Promise<string> {
-  const formular = new FormData();
-  formular.append('datei', { uri, name: 'avatar.jpg', type: 'image/jpeg' } as unknown as Blob);
-  const antwort = await api.sendeDatei<{ avatarUrl: string }>(`/avatar/${mitgliedId}`, formular);
+export async function setzeAvatar(
+  api: ApiZugang,
+  mitgliedId: string,
+  hochladen: DateiUpload,
+): Promise<string> {
+  // Der Upload kommt von außen herein, statt hier aus einer Adresse gebaut
+  // zu werden: `dateiUpload.ts` braucht `expo-file-system`, und diese Datei
+  // muss ohne React Native ladbar bleiben — `tests/familie.test.ts` prüft
+  // sie direkt. Genau daran ist der erste Umbau gescheitert.
+  const antwort = await api.sendeDatei<{ avatarUrl: string }>(`/avatar/${mitgliedId}`, hochladen);
   return antwort.avatarUrl;
 }
 

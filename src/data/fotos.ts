@@ -12,6 +12,8 @@
  */
 
 import { File } from 'expo-file-system';
+
+import { ausDatei } from './dateiUpload';
 import * as ImageManipulator from 'expo-image-manipulator';
 
 import type { ApiZugang } from './api';
@@ -163,19 +165,12 @@ export async function ladeHoch(
   albumId: string,
   uri: string,
 ): Promise<UploadErgebnis> {
-  const formular = new FormData();
-  // React Natives FormData nimmt `{uri, name, type}` — kein Blob nötig.
-  // Der Dateiname ist bewusst nichtssagend: Der Server vergibt ohnehin
-  // Kennungen, und `IMG_4711.jpg` hat in der Anfrage nichts verloren.
-  formular.append('datei', {
-    uri,
-    name: 'bild.jpg',
-    type: 'image/jpeg',
-  } as unknown as Blob);
-
+  // Nativ statt über `fetch` mit `FormData` — die Begründung steht in
+  // `dateiUpload.ts` und ist die Auflösung des Upload-Fehlers vom
+  // 11.–17.08.2026.
   const antwort = await api.sendeDatei<{ doppelt: true } | RohFoto>(
     `/fotoalbum/${albumId}/fotos`,
-    formular,
+    ausDatei(uri),
   );
 
   return 'doppelt' in antwort ? antwort : zuFoto(antwort);
