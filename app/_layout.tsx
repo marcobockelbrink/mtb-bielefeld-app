@@ -66,7 +66,11 @@ function AppStack() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="termin/[id]" options={{ title: 'Termin' }} />
-        <Stack.Screen name="jugend/[id]" options={{ title: 'Jugendtraining' }} />
+        {/* `jugend/[id]` ist seit dem Bearbeiten-Bildschirm ein Ordner:
+            `index` ist die Einzelansicht, daneben liegt `bearbeiten`. Ohne
+            beide Einträge stünde der rohe Routenpfad in der Kopfzeile. */}
+        <Stack.Screen name="jugend/[id]/index" options={{ title: 'Jugendtraining' }} />
+        <Stack.Screen name="jugend/[id]/bearbeiten" options={{ title: 'Training ändern' }} />
         <Stack.Screen name="news/[id]" options={{ title: 'Beitrag' }} />
         {/* Ohne Eintrag stünde der rohe Routenpfad in der Kopfzeile —
             „anmeldung/[token]" mitten im Anmelden, auf dem Gerät gesehen. */}

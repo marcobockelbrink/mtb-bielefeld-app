@@ -117,6 +117,41 @@ export async function legeTrainingAn(
   return { ...zuTraining(roh), gefragteGuides: roh.gefragteGuides ?? 0 };
 }
 
+/**
+ * Ein Training ändern — nur das, was wirklich anders ist.
+ *
+ * **„Nicht angegeben" heißt am Server „unverändert".** `aendereTraining`
+ * dort arbeitet mit `COALESCE` und `CASE WHEN $n::boolean`, prüft also die
+ * bloße Anwesenheit eines Feldes. Deshalb wird hier nur weitergegeben, was
+ * der Aufrufer wirklich gesetzt hat — schickte das Formular stur alle
+ * Felder, überschriebe ein leer gelassenes Hinweisfeld einen Hinweis, den
+ * niemand angefasst hat.
+ *
+ * `'endetAm' in eingabe` statt `eingabe.endetAm`: `null` ist hier ein
+ * gültiger Wert („kein Ende mehr") und muss vom Weglassen unterscheidbar
+ * bleiben.
+ *
+ * `elternInformieren` steuert die Mail an die angemeldeten Familien. Der
+ * Server verschickt sie nur bei einem veröffentlichten Training und nur,
+ * wenn sich etwas geändert hat, das Eltern angeht.
+ */
+export async function aendereTraining(
+  api: ApiZugang,
+  id: string,
+  eingabe: Partial<TrainingEingabe>,
+  elternInformieren = false,
+): Promise<Training> {
+  const roh = await api.sende<RohTraining>(`/jugendtraining/${encodeURIComponent(id)}`, 'PATCH', {
+    ...eingabe,
+    ...(eingabe.beginntAm ? { beginntAm: eingabe.beginntAm.toISOString() } : {}),
+    ...('endetAm' in eingabe
+      ? { endetAm: eingabe.endetAm ? eingabe.endetAm.toISOString() : null }
+      : {}),
+    elternInformieren,
+  });
+  return zuTraining(roh);
+}
+
 export async function veroeffentliche(api: ApiZugang, id: string): Promise<Training> {
   const roh = await api.sende<RohTraining>(
     `/jugendtraining/${encodeURIComponent(id)}/veroeffentlichen`,

@@ -9,21 +9,21 @@
  * gefiltert, sonst gäbe es zwei Wahrheiten über dieselbe Anmeldung.
  */
 
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
-import { TEILEN_BASIS_URL } from '../../src/config';
-import { holeTraining, type TrainingDetails } from '../../src/data/jugend';
-import { formatiereTrainingszeit } from '../../src/features/jugend/format';
-import { GuideKarte } from '../../src/features/jugend/GuideKarte';
-import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
-import { KindAnmelden } from '../../src/features/jugend/KindAnmelden';
-import { baueTeilenText } from '../../src/features/jugend/teilen';
-import { useKonto } from '../../src/konto/KontoContext';
-import { font, fontSize, spacing } from '../../src/theme';
-import { ActionButton, Banner, Card, DetailRow, EmptyState, Label, LoadingState } from '../../src/ui/components';
-import { useTheme } from '../../src/ui/theme';
+import { TEILEN_BASIS_URL } from '../../../src/config';
+import { holeTraining, type TrainingDetails } from '../../../src/data/jugend';
+import { formatiereTrainingszeit } from '../../../src/features/jugend/format';
+import { GuideKarte } from '../../../src/features/jugend/GuideKarte';
+import { beschreibeJugendFehler } from '../../../src/features/jugend/jugendFehler';
+import { KindAnmelden } from '../../../src/features/jugend/KindAnmelden';
+import { baueTeilenText } from '../../../src/features/jugend/teilen';
+import { useKonto } from '../../../src/konto/KontoContext';
+import { font, fontSize, spacing } from '../../../src/theme';
+import { ActionButton, Banner, Card, DetailRow, EmptyState, Label, LoadingState } from '../../../src/ui/components';
+import { useTheme } from '../../../src/ui/theme';
 
 export default function TrainingDetailScreen() {
   const { palette } = useTheme();
@@ -150,6 +150,22 @@ export default function TrainingDetailScreen() {
         <View style={styles.teilen}>
           <ActionButton label="Für die WhatsApp-Gruppe teilen" tone="secondary" onPress={() => void teilen()} />
           {teilenFehler ? <Banner tone="danger" text={teilenFehler} /> : null}
+        </View>
+      ) : null}
+
+      {/* Bearbeiten gibt es für Entwurf und veröffentlicht, **nicht** für
+          abgesagt: `aendereTraining` hat `WHERE … AND zustand <> 'abgesagt'`,
+          der Knopf liefe also ins Leere. Wie beim Teilen ist `rolle` reine
+          Anzeigehilfe — die API prüft den eigenen Aufruf selbst. */}
+      {(rolle === 'guide' || rolle === 'verwaltung') && training.zustand !== 'abgesagt' ? (
+        <View style={styles.teilen}>
+          <ActionButton
+            label="Training bearbeiten"
+            tone="secondary"
+            onPress={() =>
+              router.push({ pathname: '/jugend/[id]/bearbeiten', params: { id: training.id } })
+            }
+          />
         </View>
       ) : null}
 

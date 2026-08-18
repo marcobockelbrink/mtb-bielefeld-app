@@ -996,6 +996,19 @@ dein Kind auch anmelden.</p>
     }
   }
 
+  async function meldeAenderung(
+    training: jugend.Training,
+    aenderungen: jugendmails.Aenderung[],
+    eltern: string[],
+  ): Promise<void> {
+    const { betreff, text } = jugendmails.baueAenderung(training, aenderungen);
+    for (const adresse of eltern) {
+      await mailer.sende(adresse, betreff, text).catch((fehler) => {
+        log.error({ fehler: serialisiereFehler(fehler), adresse }, 'Änderungs-Mail nicht zugestellt');
+      });
+    }
+  }
+
   app.post('/jugendtraining', async (anfrage, antwort) => {
     // 403 und nicht 404: Wer angemeldet ist, darf erfahren, dass es diesen
     // Weg gibt — nur nicht, dass er ihn gehen darf. Ein 404 wäre hier
@@ -1111,6 +1124,13 @@ dein Kind auch anmelden.</p>
       return antwort.code(400).send({ fehler: 'Die Platzzahl muss eine ganze Zahl über null sein.' });
     }
 
+    // Den Stand **vor** der Änderung holen. Ohne ihn ließe sich hinterher
+    // nicht sagen, was sich geändert hat — und genau das ist der Inhalt der
+    // Mail an die Familien. Die Adressen kommen aus demselben Grund vorher,
+    // wie beim Absagen.
+    const vorher = await jugend.holeTraining(pool, id);
+    const eltern = vorher?.zustand === 'veroeffentlicht' ? await jugend.holeElternAdressen(pool, id) : [];
+
     const geaendert = await jugend.aendereTraining(pool, id, {
       ...(beginntAm ? { beginntAm } : {}),
       ...(typeof koerper.ort === 'string' ? { ort: koerper.ort.trim() } : {}),
@@ -1119,7 +1139,22 @@ dein Kind auch anmelden.</p>
       ...('plaetze' in koerper ? { plaetze } : {}),
     });
     if (!geaendert) return antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' });
-    return antwort.send(geaendert);
+
+    antwort.send(geaendert);
+
+    // Nur auf ausdrücklichen Wunsch, nur bei einem veröffentlichten
+    // Training und nur, wenn sich für die Familien wirklich etwas geändert
+    // hat. Beim **Entwurf** weiß niemand von dem Termin; eine Mail darüber
+    // wäre die erste Nachricht, die jemand davon hört. Und eine Mail über
+    // null Änderungen ist eine Mail zu viel — die Guides würden das Häkchen
+    // sonst bald grundsätzlich weglassen.
+    if (koerper.elternInformieren === true && vorher && eltern.length > 0) {
+      const aenderungen = jugendmails.findeAenderungen(vorher, geaendert);
+      if (aenderungen.length > 0) {
+        imHintergrund(() => meldeAenderung(geaendert, aenderungen, eltern));
+      }
+    }
+    return antwort;
   });
 
   app.post('/jugendtraining/:id/veroeffentlichen', async (anfrage, antwort) => {

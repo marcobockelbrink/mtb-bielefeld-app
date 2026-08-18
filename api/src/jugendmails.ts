@@ -105,6 +105,79 @@ export function baueAbsage(training: Training): Mailtext {
   return { betreff: 'Jugendtraining abgesagt', text };
 }
 
+/**
+ * Was sich zwischen zwei Ständen geändert hat, Feld für Feld.
+ *
+ * Getrennt von der Mail, damit die Aufzählung ohne Datenbank prüfbar ist.
+ *
+ * Verglichen werden nur die Felder, die ein Guide ändern kann und die für
+ * eine Familie eine Bedeutung haben. Zustand, Belegung und Guide-Zusagen
+ * ändern sich über andere Wege; `guidesNoetig` ist eine Angabe der Guides
+ * untereinander und stünde in einer Elternmail nur im Weg.
+ */
+export interface Aenderung {
+  feld: string;
+  vorher: string;
+  nachher: string;
+}
+
+function alsText(wert: number | string | null, leer: string): string {
+  return wert === null || wert === '' ? leer : String(wert);
+}
+
+export function findeAenderungen(vorher: Training, nachher: Training): Aenderung[] {
+  const liste: Aenderung[] = [];
+
+  if (vorher.beginntAm.getTime() !== nachher.beginntAm.getTime()) {
+    liste.push({ feld: 'Wann', vorher: formatiereTermin(vorher), nachher: formatiereTermin(nachher) });
+  }
+  if (vorher.ort !== nachher.ort) {
+    liste.push({ feld: 'Treffpunkt', vorher: vorher.ort, nachher: nachher.ort });
+  }
+  if (vorher.hinweis !== nachher.hinweis) {
+    liste.push({
+      feld: 'Hinweis',
+      vorher: alsText(vorher.hinweis, 'kein Hinweis'),
+      nachher: alsText(nachher.hinweis, 'kein Hinweis'),
+    });
+  }
+  if (vorher.plaetze !== nachher.plaetze) {
+    liste.push({
+      feld: 'Plätze',
+      vorher: alsText(vorher.plaetze, 'unbegrenzt'),
+      nachher: alsText(nachher.plaetze, 'unbegrenzt'),
+    });
+  }
+
+  return liste;
+}
+
+/**
+ * Die Mail an die angemeldeten Familien, wenn ein Guide etwas korrigiert.
+ *
+ * **Keine Aufforderung, sich neu anzumelden.** Der Platz bleibt bestehen;
+ * wer nach der Änderung nicht mehr kann, trägt sich selbst aus. Eine Mail,
+ * die zum Handeln auffordert, wo nichts zu tun ist, kostet acht Familien
+ * einen Gedanken und den Guide die Rückfragen.
+ */
+export function baueAenderung(nachher: Training, aenderungen: Aenderung[]): Mailtext {
+  const text = [
+    'Hallo,',
+    '',
+    `am Jugendtraining am ${formatiereTermin(nachher)} hat sich etwas geändert:`,
+    '',
+    ...aenderungen.map((a) => `${a.feld}: ${a.vorher} → ${a.nachher}`),
+    '',
+    'Der Platz bleibt bestehen — es ist nichts zu tun.',
+    'Wer nicht mehr kann, trägt sich in der App aus.',
+    '',
+    'Viele Grüße',
+    'MTB Bielefeld e.V.',
+  ].join('\r\n');
+
+  return { betreff: `Änderung: Jugendtraining am ${tagFormat.format(nachher.beginntAm)}`, text };
+}
+
 /** Die Adressen aller Mitglieder, die Jugendtrainings-Mails abonniert haben. */
 export async function holeAbonnenten(pool: pg.Pool): Promise<string[]> {
   const { rows } = await pool.query<{ email: string }>(
