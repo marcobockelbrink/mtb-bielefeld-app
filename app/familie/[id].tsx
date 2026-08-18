@@ -60,7 +60,7 @@ import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { useKonto } from '../../src/konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../../src/theme';
 import { Avatar } from '../../src/ui/Avatar';
-import { Banner, Card, Chip, Gruppe, Label, LoadingState, Zeile } from '../../src/ui/components';
+import { Banner, Card, Chip, Gruppe, LoadingState, Zeile } from '../../src/ui/components';
 import { useTheme } from '../../src/ui/theme';
 
 /** Welches Feld gerade offen zum Tippen ist. */

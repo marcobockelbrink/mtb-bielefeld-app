@@ -70,4 +70,11 @@ docs/appstore-screenshots/
 # Design-Handoffs: Referenz-Prototypen (HTML + fremde Laufzeit-JS), kein
 # Projektcode. Sie gehoerten nie ins Repository — mit 4c67a8c versehentlich
 # per `git add -A` hineingeraten und mit dem Folgecommit wieder entfernt.
+# Die Entwurfspakete des Designs gehoeren nicht ins Repository: Sie sind
+# Zulieferung, kein Projektbestand, und ihr mitgeliefertes `support.js`
+# loeste zweimal CodeQL-Warnungen aus (postMessage ohne Origin-Pruefung).
+# **Beide Muster noetig** — die neueren Ordner heissen `handoff_*` ohne
+# das Praefix `design_`, und genau daran ist es beim zweiten Mal wieder
+# vorbeigerutscht.
 design_handoff_*/
+handoff_*/

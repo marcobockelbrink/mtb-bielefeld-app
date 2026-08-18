@@ -22,7 +22,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { altersTag, holeProfile, statusZeile, type Profil } from '../../data/familie';
 import { useKonto } from '../../konto/KontoContext';
-import { font, fontSize, radius, spacing } from '../../theme';
+import { font, fontSize, spacing } from '../../theme';
 import { Avatar } from '../../ui/Avatar';
 import { Banner, Card, Gruppe, Zeile } from '../../ui/components';
 import { useTheme } from '../../ui/theme';

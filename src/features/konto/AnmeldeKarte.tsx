@@ -52,8 +52,6 @@ export function AnmeldeKarte() {
     api,
     zuletztEingeloest,
     einloesenFehlgeschlagen,
-    jugendBenachrichtigung,
-    setzeJugendBenachrichtigung,
   } = useKonto();
 
   const [email, setEmail] = useState('');
@@ -62,10 +60,6 @@ export function AnmeldeKarte() {
   const [avatarBlatt, setAvatarBlatt] = useState(false);
   const [angefordert, setAngefordert] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
-  // Eigene Fehlerzeile für den Abonnement-Schalter: Er lebt in derselben
-  // Karte wie das Anmeldeformular, aber unabhängig davon — ein Fehlschlag
-  // beim Umschalten hat nichts mit einem gescheiterten Anmeldeversuch zu tun.
-  const [jugendFehler, setJugendFehler] = useState<string | null>(null);
 
   // Der Stand von `zuletztEingeloest` beim ersten Einhängen der Karte.
   // `useRef` merkt sich nur den allerersten Aufrufwert — ändert sich
@@ -77,17 +71,6 @@ export function AnmeldeKarte() {
   const geradeEingeloggt = zuletztEingeloest !== null && zuletztEingeloest !== anfangswert;
 
   if (laedt) return null;
-
-  async function schalteJugendBenachrichtigung(an: boolean) {
-    setJugendFehler(null);
-    try {
-      await setzeJugendBenachrichtigung(an);
-    } catch (ursache) {
-      // `setzeJugendBenachrichtigung` hat die Anzeige schon zurückgenommen —
-      // hier fehlt nur noch der Satz, warum.
-      setJugendFehler(beschreibeJugendFehler(ursache));
-    }
-  }
 
   if (angemeldet) {
     // Design „6b": eine ruhige Zeile — Adresse links, Abmelden rechts als
