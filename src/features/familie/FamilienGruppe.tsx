@@ -18,16 +18,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import {
-  aendereProfil,
-  altersTag,
-  holeProfile,
-  loescheProfil,
-  statusZeile,
-  type Profil,
-} from '../../data/familie';
+import { altersTag, holeProfile, statusZeile, type Profil } from '../../data/familie';
 import { useKonto } from '../../konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../../theme';
 import { Avatar } from '../../ui/Avatar';
@@ -58,34 +51,6 @@ export function FamilienGruppe() {
     void laden();
   }, [laden]);
 
-  function profilMenue(profil: Profil) {
-    Alert.alert(profil.name ?? 'Profil', undefined, [
-      { text: 'Abbrechen', style: 'cancel' },
-      {
-        text: profil.kannBilderHochladen ? 'Bilder-Upload sperren' : 'Bilder-Upload erlauben',
-        onPress: () =>
-          void aendereProfil(api, profil.id, { kannBilderHochladen: !profil.kannBilderHochladen })
-            .then(laden, (u: unknown) => setFehler(beschreibeJugendFehler(u))),
-      },
-      {
-        text: 'Profil löschen',
-        style: 'destructive',
-        onPress: () =>
-          Alert.alert('Profil löschen?', `${profil.name} verliert den Zugang — das geht nicht zurück.`, [
-            { text: 'Abbrechen', style: 'cancel' },
-            {
-              text: 'Löschen',
-              style: 'destructive',
-              onPress: () =>
-                void loescheProfil(api, profil.id).then(laden, (u: unknown) =>
-                  setFehler(beschreibeJugendFehler(u)),
-                ),
-            },
-          ]),
-      },
-    ]);
-  }
-
   if (!angemeldet) return null;
 
 
@@ -108,7 +73,14 @@ export function FamilienGruppe() {
 
         {profile?.map((profil) => (
           <Zeile key={profil.id}>
-            <Pressable onPress={() => profilMenue(profil)} style={styles.profilZeile}>
+            {/* Das Chevron versprach einen Bildschirm und oeffnete ein
+                Alert-Menue mit zwei Punkten. Jetzt loest es ein. */}
+            <Pressable
+              onPress={() => router.push(`/familie/${profil.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`${profil.name ?? 'Profil'} bearbeiten`}
+              style={styles.profilZeile}
+            >
               {/* `profil.avatarUrl` ist ein Serverpfad, keine ladbare Adresse —
                   ohne `bildQuelle` blieb es bei den Initialen, obwohl ein
                   Bild gesetzt war. */}
