@@ -27,7 +27,30 @@ mehr, welche was geändert hat.
 begrenzt. Ein Build ist außerdem nicht gratis in Zeit: Bauen, Apple-
 Verarbeitung und Installieren kosten ihn jedes Mal Aufmerksamkeit.
 
-**How to apply:** Nach einem fertigen Schwung committen und pushen, dann
-**fragen**, ob ein Release soll — nicht bauen und hinterher berichten.
-Vor dem Bau prüfen, ob sich mehrere offene Punkte bündeln lassen.
+## Nachtrag 18.08.2026: Pushen ist nicht mehr umsonst
+
+Die Regel oben griff ins Leere, sobald Xcode Cloud dazukam. Dessen
+Workflow startete **bei jedem Push auf `main`** — an einem Nachmittag
+fünf Läufe, von denen ich keinen angestoßen hatte. „Nicht bauen" heißt
+seither nicht mehr „`eas build` nicht aufrufen".
+
+Marco hat es daraufhin selbst zur Regel erhoben: *„Wir sollten uns
+angewöhnen nur noch Releases auf Wunsch zu erstellen."*
+
+Dazu kam an dem Tag ein zweiter Grund, der nichts mit dem Kontingent zu
+tun hat: Die Aktion „TestFlight-externe Tests" wartet auf Apples Beta App
+Review. Läufe stehen dadurch **stunden- bis tagelang** auf „läuft" und
+stapeln sich, während der Bau selbst längst fertig ist.
+
+**How to apply:**
+
+- Nach einem fertigen Schwung committen und pushen, dann **fragen**, ob
+  gebaut werden soll — nicht bauen und hinterher berichten.
+- Die Startbedingung des Workflows gehört auf **manuell**. Solange sie auf
+  „bei jedem Push" steht, ist jeder Push ein Release, ob gewollt oder
+  nicht. Das ist eine Einstellung bei Apple, die Marco setzen muss — bis
+  dahin ist jeder Push begründungspflichtig.
+- Mehrere Punkte in **einen** Build bündeln. Wer vier Fassungen an einem
+  Tag installiert, weiß am Ende nicht mehr, welche was geändert hat.
+
 Verwandt: [[testflight-und-eas]]
