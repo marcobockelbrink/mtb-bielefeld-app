@@ -22,6 +22,26 @@ Welt als die Wirklichkeit:
 - Ein Test suchte über `start.getHours()` und funktionierte nur auf einem
   Rechner in Bielefelder Zeitzone. Die CI läuft in UTC.
 
+## Und die banalste Variante: die Ausgabe abgeschnitten
+
+Am 18.08.2026 fast wieder passiert, aus einem viel dümmeren Grund. Ich
+rufe die Tests gern als `npm test 2>&1 | tail -4` auf, weil die volle
+Ausgabe lang ist. Vitest schreibt aber **erst** die Fehlerberichte und
+**dann** die Zusammenfassung:
+
+    Test Files  1 failed | 40 passed (41)
+          Tests  444 passed (444)
+
+Mit `tail -4` blieb davon nur die zweite Zeile stehen — „444 passed",
+und das las sich wie ein voller Erfolg. Tatsächlich lud eine ganze
+Testdatei nicht mehr, weil ich React Native in eine Datei gezogen hatte,
+die ohne Gerät ladbar bleiben muss.
+
+**Deshalb nie `tail` auf eine Testausgabe**, sondern
+`grep -E "Test Files|Tests "` — das holt beide Zeilen, egal wie lang der
+Bericht davor ist. Eine bestandene Zahl ohne die Dateizeile daneben ist
+keine Auskunft.
+
 **Why:** „Grün" ist eine Tatsachenbehauptung über den Zustand des Projekts,
 nicht über meinen Rechner. Wer sie glaubt, merged darauf.
 

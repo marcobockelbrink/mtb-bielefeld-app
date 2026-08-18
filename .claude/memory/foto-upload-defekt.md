@@ -1,67 +1,64 @@
 ---
 name: foto-upload-defekt
-description: "Foto- und Avatar-Upload scheitert auf dem Gerät vor dem Senden; Ursache am 16.08.2026 noch offen, Netzweg beweisbar in Ordnung"
-metadata: 
-  node_type: memory
+description: "Der Foto- und Avatar-Upload war eine Woche kaputt — gelöst am 18.08.2026; hier steht, was die Untersuchung gekostet hat"
+metadata:
   type: project
-  originSessionId: be554ade-3ea1-4298-8237-c78dec3c4d02
-  modified: 2026-08-16T17:11:28.679Z
 ---
 
-Gemeldet am 16.08.2026: „Server nicht erreichbar, keine Verbindung" —
-bei Albumbildern **wie** beim Profilbild.
+**Gelöst am 18.08.2026 in Fassung 0.11.8.** Die Ursache und der Weg, der
+trägt, stehen in [[expo-fetch-kennt-kein-uri-formdata]] — kurz: Expos
+eigenes `fetch` kennt das `{uri, name, type}`-Idiom nicht mehr, der
+Multipart-Körper scheiterte schon beim Bauen.
 
-## Was nachgemessen ist (nicht vermutet)
+Dieser Eintrag bleibt für das, was die Untersuchung gelehrt hat.
 
-- Auf dem Prüfserver kam in einer Woche **kein einziger** Upload an,
-  während jede andere Anfrage derselben App ankam (`POST /jugendtraining`,
-  `POST /jugendtraining/…/kinder`, `PUT …/guide`, `PATCH /verwaltung/…`,
-  sogar `DELETE /avatar/…`).
-- Ein Multipart-POST von Hand kommt durch:
-  `curl -X POST https://api-dev.bockelbrink.net/fotoalbum/<id>/fotos -F "datei=@bild.jpg"`
-  → **401**, ordentlich beantwortet. Caddy, `rate_limit` (60/min für
-  `/fotoalbum*`) und `request_body max_size 25MB` sind damit unschuldig.
-- `ExpoImageManipulator.framework` **liegt im gebauten Paket** (im .ipa
-  nachgesehen), `NSPhotoLibraryUsageDescription` steht im Info.plist,
-  ATS erlaubt HTTPS.
-- `ios/` ist nicht versioniert, EAS macht also ein frisches `prebuild` —
-  kein fehlender Pod.
-
-**Schluss:** Die Anfrage verlässt das Telefon nie. Der Fehler passiert
-vor dem Senden, also in `ImagePicker` → `ImageManipulator` → FormData.
-
-## Warum es so lange unauffindbar war
+## Die Meldung war der Fehler
 
 `beschreibeJugendFehler` beantwortete **jeden** Fehler, der kein
-`ApiFehler` war, mit „Der Verein ist gerade nicht erreichbar." Damit
-zeigte die App aufs Netz, während der Fehler auf dem Gerät lag.
+`ApiFehler` war, mit „Der Verein ist gerade nicht erreichbar." Und der
+`catch` um `fetch` setzte `ohneNetz: true` für jeden geworfenen Fehler,
+ohne zu prüfen, ob überhaupt kein Netz da war. Die App zeigte „Kein Netz"
+auf einem Telefon mit vollem 5G — und niemand kam darauf, woanders als im
+Netz zu suchen.
 
-Seit 0.11.3+ (Commit 610e3c5): Auffangzweig sagt „Da ist etwas
-schiefgegangen.", und `src/features/fotos/uploadFehler.ts` unterscheidet
-**vorbereiten** (Gerät) von **senden** (Netz) und gibt den technischen
-Text des Geräts mit.
+**Ein Auffangbecken, das jeden unbekannten Fehler in eine konkrete
+Behauptung übersetzt, macht aus einem lösbaren Problem ein
+unauffindbares.** Das ist die teuerste Lehre der Woche.
 
-## Was fehlt
+Seither: `ApiFehler.ursprung` hebt den Originaltext auf, `useVerbunden()`
+misst den Netzzustand wirklich (mit `NetInfo.fetch()`, nicht nur dem
+Listener — der meldet sich erst bei einer *Änderung*), und der
+Verbindungshinweis erscheint nur bei **gemessener** Offline-Lage.
 
-Der Wortlaut der echten Ausnahme vom Gerät. **Von diesem Rechner aus
-nicht reproduzierbar** — der lokale Bau scheitert am
-`resource fork … detritus`-Signaturfehler, siehe [[testflight-und-eas]]
-und [[repo-liegt-in-projekte]].
+## Was das Ausschließen gebracht hat
 
-Die bessere Meldung ist seit **0.11.4** in TestFlight und in 0.11.5
-weiterhin enthalten; bis zum Abend des 16.08.2026 hat Marco sie nicht
-zurückgemeldet. **Danach zuerst fragen** — ohne diesen Satz kommt die
-Untersuchung nicht weiter, und es ist der letzte offene Fehler aus der
-Beta. Am schnellsten über das Profilbild: derselbe Weg wie beim Album,
-aber ohne Warteschlange dazwischen.
+Nichts davon war die Ursache, aber alles davon ist jetzt geprüft und muss
+nie wieder untersucht werden: Netzweg (Multipart-POST von Hand kommt
+durch), Caddy, `rate_limit`, `request_body max_size`, das native
+Bildmodul im gebauten Paket, `NSPhotoLibraryUsageDescription`, ATS, und
+die Adresse aus `saveAsync` (eine saubere
+`file:///…/Caches/ImageManipulator/<uuid>.jpeg`).
 
-**Why:** Ohne diese Messungen fängt jede Untersuchung wieder beim Netz
-an — dort ist nachweislich nichts. Und die Erfahrung dahinter gilt über
-diesen Fehler hinaus: Ein Auffangbecken, das jeden unbekannten Fehler in
-eine konkrete Behauptung übersetzt, macht aus einem lösbaren Problem ein
-unauffindbares.
+## Zwei eigene Fehler dabei
 
-**How to apply:** Zuerst nach der Meldung fragen, die jetzt erscheint.
-Steht dort „Das Bild ließ sich auf dem Gerät nicht vorbereiten: …", ist
-es die Bildverarbeitung; steht dort „…nicht senden: …", ist es fetch.
-Verwandt: [[mtb-server-offene-punkte]], [[lokal-gruen-ist-nicht-ci-gruen]]
+- **Eine Endlosschleife**: `stapelHochladen` rief am Ende `laden()`, und
+  `laden()` stieß die Schlange wieder an. Bei jedem Fehlschlag drehte das
+  im Sekundentakt, und das Kreuz zum Abwählen war nicht zu treffen.
+- **Ein wirkungsloser erster Fix**: Die ehrliche Meldung hing an
+  `verbunden === true`, und der Wert blieb `null`, weil NetInfo sich nur
+  bei Änderungen meldet. Marco sah zweimal dieselbe falsche Meldung,
+  obwohl „behoben" im Commit stand.
+
+## Noch aufzuräumen
+
+`POST /diagnose` (API) und `src/data/diagnose.ts` waren eine Behelfsbrücke,
+damit das Gerät den Fehlertext selbst meldet. **Sie gehören wieder raus**,
+sobald Marco den funktionierenden Upload bestätigt hat.
+
+**Why:** Damit die nächste Untersuchung nicht bei null anfängt — und damit
+die Lehre über die Fehlermeldungen nicht mit dem Fehler verschwindet.
+
+**How to apply:** Bei einem neuen Upload-Problem zuerst
+[[expo-fetch-kennt-kein-uri-formdata]] lesen. Und generell: Auffangbecken
+dürfen sagen „ich weiß es nicht", aber nichts behaupten, was sie nicht
+gemessen haben.

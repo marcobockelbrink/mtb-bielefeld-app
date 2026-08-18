@@ -5,7 +5,8 @@
 - [Server: offene Punkte](mtb-server-offene-punkte.md) — Hetzner trägt allein und verschickt echte Mail; Aufbau liegt in `~/mtb-bielefeld-app/betrieb`, es fehlt die Vereinsmaschine
 - [Git-Refs-Duplikate auf macOS](git-refs-duplikate-macos.md) — „bad object refs/heads/main 2" blockiert jedes pull; die Datei mit Leerzeichen ist die Ursache
 - [Releases sparsam bauen](releases-sparsam-bauen.md) — nicht pro Schwung ein Build; EAS-Kontingent ist knapp, vorher fragen
-- [Foto-Upload defekt](foto-upload-defekt.md) — scheitert auf dem Gerät vor dem Senden; Netzweg nachweislich in Ordnung, Ursache offen
+- [Expos fetch kennt kein uri-FormData](expo-fetch-kennt-kein-uri-formdata.md) — `{uri,name,type}` wirft seit SDK 54; Dateien nativ über expo-file-system hochladen
+- [Foto-Upload defekt](foto-upload-defekt.md) — gelöst am 18.08.2026; was die Woche Suche gelehrt hat, und was noch aufzuräumen ist
 - [Handoffs gegen den Code prüfen](handoffs-gegen-den-code-pruefen.md) — jede fünfte Anweisung setzt etwas voraus, das es nicht gibt (Passwörter, Fristen, U-Gruppen)
 - [Simulator mit idb](simulator-mit-idb.md) — tippt und liest die Oberfläche; vier Fallen, die alle stumm falsche Ergebnisse liefern
 - [age-Schlüssel für Sicherungen](age-schluessel-fuer-sicherungen.md) — privater Teil nur lokal in ~/.ssh, bewusst nirgends im Repository
