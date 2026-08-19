@@ -187,11 +187,14 @@ export default function TrainingBearbeitenScreen() {
       <Stack.Screen
         options={{
           title: 'Training ändern',
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()} accessibilityLabel="Abbrechen" hitSlop={8}>
-              <Text style={[styles.abbrechen, { color: palette.primary }]}>Abbrechen</Text>
-            </Pressable>
-          ),
+          // **Kein eigenes „Abbrechen" links.** Es stand hier, tat aber
+          // nichts anderes als der Zurück-Pfeil, den es verdeckte — und ließ
+          // die Kopfzeile einseitig aussehen: links ein Wort, rechts nichts.
+          // Auf iOS gehört „Abbrechen" nach oben links, wenn rechts
+          // „Sichern" steht; dieser Bildschirm ist aber kein Blatt, das sich
+          // über alles legt, sondern einer wie jeder andere. Die eine
+          // Formularaktion sitzt unten, wo auch das Kästchen für die Mail
+          // steht — beides gehört zusammen.
         }}
       />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.rahmen}>
@@ -417,7 +420,6 @@ export default function TrainingBearbeitenScreen() {
 const styles = StyleSheet.create({
   rahmen: { flex: 1 },
   inhalt: { gap: spacing.md, padding: spacing.lg, paddingBottom: spacing.xxl },
-  abbrechen: { fontFamily: font.regular, fontSize: fontSize.md },
   feldLabel: { fontFamily: font.regular, fontSize: fontSize.sm, marginTop: spacing.md },
   alterWert: { fontFamily: font.regular, fontSize: fontSize.xs, marginTop: spacing.xs },
   durchgestrichen: { textDecorationLine: 'line-through' },

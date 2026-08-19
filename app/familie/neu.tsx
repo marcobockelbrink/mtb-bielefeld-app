@@ -172,11 +172,9 @@ export default function NeuesFamilienmitgliedScreen() {
       <Stack.Screen
         options={{
           title: istKind ? 'Kind anlegen' : 'Erwachsenen einladen',
-          headerLeft: () => (
-            <Pressable onPress={() => router.back()} accessibilityLabel="Abbrechen" hitSlop={8}>
-              <Text style={[styles.abbrechen, { color: palette.primary }]}>Abbrechen</Text>
-            </Pressable>
-          ),
+          // Kein eigenes „Abbrechen" links — dieselbe Begründung wie in
+          // `app/jugend/[id]/bearbeiten.tsx`: Es verdeckte den Zurück-Pfeil,
+          // tat dasselbe und ließ die Kopfzeile einseitig aussehen.
         }}
       />
       <KeyboardAvoidingView
@@ -384,10 +382,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
-  },
-  abbrechen: {
-    fontFamily: font.regular,
-    fontSize: fontSize.md,
   },
   erklaerung: {
     fontFamily: font.regular,
