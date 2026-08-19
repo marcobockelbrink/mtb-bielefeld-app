@@ -1,0 +1,96 @@
+# Der **Vereinsstand** neben dem Prüfstand — eigene Datenbank, eigene
+# Bildablage, eigener Name.
+#
+#     docker compose -f betrieb/docker-compose.yml \
+#                    -f betrieb/docker-compose.vorlaeufig.yml \
+#                    -f betrieb/docker-compose.verein.yml up -d --build
+#
+# ## Wozu
+#
+# Vorbereitung auf die Fassung im App Store. Bis hierher sprachen dev- und
+# prod-Fassung der App entweder mit demselben Aufbau oder mit gar keinem;
+# ab jetzt hat `app.mtb-bielefeld.de` **eigene Daten**. Echte
+# Mitgliederangaben liegen damit nicht zwischen Testeinträgen, und ein
+# Zurücksetzen der Prüfdatenbank rührt sie nicht an.
+#
+# ## Dieselbe Maschine, und das ist Absicht
+#
+# Beide Stände laufen vorerst auf demselben Hetzner. Das ist kein Endzustand
+# — die Vereinsmaschine kommt später —, aber es trennt schon das, worauf es
+# ankommt: **Daten**. Was sie sich teilen, ist Rechenzeit, Caddy und der
+# Mailzugang; was sie **nicht** teilen, sind Datenbank und Bilder.
+#
+# ## Was hier bewusst fehlt
+#
+# **Kein eigener Mailpit.** Der Vereinsstand verschickt über denselben
+# echten Mailserver wie der Prüfstand — er soll ja das Verhalten der
+# späteren Fassung zeigen, und dazu gehört, dass Mail wirklich ankommt.
+# **Deshalb: Wer hier ein Mitglied einlädt, lädt es wirklich ein.**
+#
+# **Keine Sicherung.** `betrieb/sichern.sh` sichert bis auf Weiteres nur den
+# Prüfstand. Bevor hier die ersten echten Mitgliederdaten liegen, muss das
+# nachgezogen sein — eine Datenbank ohne Sicherung ist eine Frage der Zeit,
+# keine Frage des Ob.
+
+services:
+  postgres-verein:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${VEREIN_POSTGRES_USER:?VEREIN_POSTGRES_USER fehlt in betrieb/.env}
+      POSTGRES_PASSWORD: ${VEREIN_POSTGRES_PASSWORD:?VEREIN_POSTGRES_PASSWORD fehlt in betrieb/.env}
+      POSTGRES_DB: ${VEREIN_POSTGRES_DB:?VEREIN_POSTGRES_DB fehlt in betrieb/.env}
+    # Wie beim Prüfstand keine Portfreigabe: Auf die Datenbank kommt nur,
+    # wer im Compose-Netz ist.
+    volumes:
+      - betrieb-postgres-verein:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${VEREIN_POSTGRES_USER} -d ${VEREIN_POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api-verein:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${VEREIN_POSTGRES_USER}:${VEREIN_POSTGRES_PASSWORD}@postgres-verein:5432/${VEREIN_POSTGRES_DB}
+      # Derselbe Mailweg wie beim Prüfstand — hier ohne Rückfall auf
+      # Mailpit: Ein Vereinsstand, dessen Anmeldelinks in einem Abfangdienst
+      # landen, sähe funktionierend aus und wäre es nicht.
+      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST fehlt — der Vereinsstand verschickt echte Mail}
+      SMTP_PORT: ${SMTP_PORT:?SMTP_PORT fehlt}
+      SMTP_BENUTZER: ${SMTP_BENUTZER:?SMTP_BENUTZER fehlt}
+      SMTP_PASSWORT: ${SMTP_PASSWORT:?SMTP_PASSWORT fehlt}
+      MAIL_ABSENDER: ${MAIL_ABSENDER:?MAIL_ABSENDER fehlt}
+      # **Das Schema der Vereinsfassung**, nicht das der dev-Fassung. Steht
+      # hier `mtbie-dev://`, kommt der Anmeldelink an und kein Telefon kann
+      # ihn einlösen — die Fehlermeldung nennt dann einen ungültigen Link,
+      # nicht die Ursache. Siehe CLAUDE.md, Falle 6.
+      APP_BASIS_URL: ${VEREIN_APP_BASIS_URL:-mtbie://}
+      API_BASIS_URL: ${VEREIN_API_BASIS_URL:?VEREIN_API_BASIS_URL fehlt (https://app.mtb-bielefeld.de)}
+      VERTRAUTER_PROXY: ${VERTRAUTER_PROXY:-}
+      FOTO_WURZEL: /fotos
+    volumes:
+      - betrieb-fotos-verein:/fotos
+    depends_on:
+      postgres-verein:
+        condition: service_healthy
+
+  caddy:
+    environment:
+      # Der zweite Name und **seine eigene** App-Kennung. Die AASA-Datei
+      # gehört zur Domain, nicht zum Server: Unter `app-dev…` muss
+      # `…app.dev` stehen, unter `app…` die Kennung ohne Zusatz. Eine
+      # gemeinsame wäre für genau eine der beiden falsch, und iOS verwirft
+      # sie dann stumm.
+      VEREIN_DOMAIN: ${VEREIN_DOMAIN:?VEREIN_DOMAIN fehlt in betrieb/.env}
+      VEREIN_AASA_APP_ID: ${VEREIN_AASA_APP_ID:?VEREIN_AASA_APP_ID fehlt (<Team-ID>.de.mtbbielefeld.app)}
+    depends_on:
+      - api-verein
+
+volumes:
+  betrieb-postgres-verein:
+  betrieb-fotos-verein:

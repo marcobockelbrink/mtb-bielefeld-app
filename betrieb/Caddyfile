@@ -181,3 +181,58 @@
 		reverse_proxy api:3000
 	}
 }
+
+# --- Der Vereinsstand ------------------------------------------------------
+#
+# Zweiter Name, zweiter Aufbau: eigene Datenbank, eigene Bildablage
+# (`betrieb/docker-compose.verein.yml`). Bis der Verein eine eigene Maschine
+# hat, laufen beide hier — getrennt ist, worauf es ankommt: die Daten.
+#
+# **Ohne den Vereinsstand ist dieser Block harmlos.** `VEREIN_DOMAIN` hat in
+# `docker-compose.yml` die Vorgabe `localhost:8443`; der Block existiert dann
+# zwar, ist aber von außen nicht erreichbar, und `api-verein` löst Caddy erst
+# beim ersten Zugriff auf. Ohne Vorgabe stünde hier eine leere Adresse, und
+# **Caddy startet gar nicht** — auch nicht für den Prüfstand.
+{$VEREIN_DOMAIN} {
+	# Dieselben Grenzen wie nebenan. Die Zonennamen tragen `-verein`, weil
+	# sie sonst mit denen des Prüfstands zusammenfielen: Ein Elternteil,
+	# das dort schon zehn Anfragen gestellt hat, wäre hier ohne eigenes
+	# Zutun ausgesperrt.
+	rate_limit {
+		zone anmeldung-verein {
+			match {
+				path /anmeldung/* /sitzung* /konto* /gast/* /t/* /e/*
+			}
+			key {remote_host}
+			events 10
+			window 1m
+		}
+
+		zone schreiben-verein {
+			match {
+				path /jugendtraining* /termine/* /fotoalbum* /foto/* /familie* /avatar/*
+				method POST PATCH DELETE PUT
+			}
+			key {remote_host}
+			events 60
+			window 1m
+		}
+	}
+
+	request_body {
+		max_size 25MB
+	}
+
+	# **Eigene App-Kennung.** Die AASA-Datei gehört zur Domain: Unter
+	# `app-dev…` steht `…app.dev`, hier die Kennung ohne Zusatz. Eine
+	# gemeinsame wäre für genau eine der beiden falsch, und iOS verwirft sie
+	# dann stumm — der geteilte Link öffnete nur den Browser.
+	handle /.well-known/apple-app-site-association {
+		header Content-Type application/json
+		respond `{"applinks":{"apps":[],"details":[{"appID":"{$VEREIN_AASA_APP_ID}","paths":["/t/*","/e/*"]}]}}` 200
+	}
+
+	handle {
+		reverse_proxy api-verein:3000
+	}
+}

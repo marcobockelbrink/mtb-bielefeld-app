@@ -103,6 +103,13 @@ services:
       # stumm, und der geteilte Link öffnet nur den Browser. Nachgemessen,
       # nicht vermutet: Genau so ist es beim ersten Versuch passiert.
       AASA_APP_ID: ${AASA_APP_ID:-}
+      # Der zweite Site-Block im Caddyfile braucht **immer** eine Adresse:
+      # Eine leere ist keine gültige, und Caddy startete dann auch für den
+      # Prüfstand nicht. `localhost:8443` ist von außen unerreichbar und
+      # damit die harmlose Vorgabe; `docker-compose.verein.yml` verlangt
+      # den echten Namen dann ausdrücklich.
+      VEREIN_DOMAIN: ${VEREIN_DOMAIN:-localhost:8443}
+      VEREIN_AASA_APP_ID: ${VEREIN_AASA_APP_ID:-}
     ports:
       - '127.0.0.1:80:80'
     volumes:
