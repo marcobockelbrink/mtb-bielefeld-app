@@ -171,10 +171,18 @@ async function laeufe(anzahl = 10) {
   if (!produkte.data?.length) scheitere('Kein Xcode-Cloud-Produkt gefunden. Ist der Workflow angelegt?');
 
   const produkt = produkte.data[0];
-  const runs = await hole(`/ciProducts/${produkt.id}/buildRuns?limit=${Math.max(anzahl, 20)}`);
-  const sortiert = (runs.data ?? [])
-    .sort((a, b) => (b.attributes?.number ?? 0) - (a.attributes?.number ?? 0))
-    .slice(0, anzahl);
+  // **`sort=-number` gehört in die Abfrage, nicht ans Ergebnis.** Ohne die
+  // Angabe liefert Apple die *ältesten* Läufe zuerst; das Sortieren danach
+  // ordnete also nur die erste Seite und zeigte die neuesten Läufe nie an.
+  //
+  // Das ist kein Schönheitsfehler gewesen: Am 19.08.2026 standen sechs
+  // Läufe seit einem Tag auf RUNNING, und diese Liste behauptete drei —
+  // die anderen drei lagen auf Seite zwei. Ein Werkzeug, das den Überblick
+  // geben soll und dabei still etwas weglässt, ist schlimmer als keines.
+  const runs = await hole(
+    `/ciProducts/${produkt.id}/buildRuns?limit=${Math.min(Math.max(anzahl, 1), 200)}&sort=-number`,
+  );
+  const sortiert = (runs.data ?? []).slice(0, anzahl);
 
   console.log(`Produkt: ${produkt.attributes?.name ?? produkt.id}\n`);
   for (const lauf of sortiert) {
