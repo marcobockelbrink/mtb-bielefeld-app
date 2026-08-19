@@ -31,9 +31,8 @@ import { useKonto } from '../../konto/KontoContext';
 import { font, fontSize, radius, spacing } from '../../theme';
 import { Avatar } from '../../ui/Avatar';
 import { ActionButton, Banner, Card, Label } from '../../ui/components';
-import { AvatarBlatt } from './AvatarBlatt';
 import { useTheme } from '../../ui/theme';
-import { beschreibeJugendFehler } from '../jugend/jugendFehler';
+import { AvatarBlatt } from './AvatarBlatt';
 
 export function AnmeldeKarte() {
   const { palette } = useTheme();
