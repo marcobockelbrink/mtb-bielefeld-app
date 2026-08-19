@@ -64,7 +64,6 @@ import { useImWlan, useVerbunden } from '../../src/features/fotos/netzZustand';
 import { useUploadEinstellungen } from '../../src/features/fotos/uploadEinstellungen';
 import { entferne, fuegeHinzu, fuerAlbum, vermerkeFehlschlag, type Auftrag } from '../../src/features/fotos/warteschlange';
 import { kopiereInsAppVerzeichnis, liesSchlange, loescheKopie, schreibSchlange } from '../../src/features/fotos/warteschlangeSpeicher';
-import { meldeDiagnose } from '../../src/data/diagnose';
 import { beschreibeUploadFehler, type UploadSchritt } from '../../src/features/fotos/uploadFehler';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
 import { useKonto } from '../../src/konto/KontoContext';
@@ -247,16 +246,6 @@ export default function AlbumScreen() {
         // Ohne diesen Satz sah ein 413 („Bild zu groß") aus wie „steht in
         // der Schlange" — der Fehler aus dem Bericht vom 15.08.2026.
         if (!keinNetz) setFehler(beschreibeUploadFehler(ursache, schritt, verbunden));
-        // Behelfsbrücke, solange der Upload-Fehler ungeklärt ist: Der
-        // technische Text geht ins Serverprotokoll, damit niemand ihn
-        // abtippen muss. Siehe `data/diagnose.ts`.
-        meldeDiagnose(
-          api,
-          `foto/${schritt}`,
-          `${ursache instanceof Error ? `${ursache.name}: ${ursache.message}` : String(ursache)}`
-            + ` | ursprung=${ursache instanceof ApiFehler ? (ursache.ursprung ?? '-') : '-'}`
-            + ` | verbunden=${String(verbunden)} | uri=${auftrag.uri.slice(0, 120)}`,
-        );
       }
       // Abgewählte hier herauswerfen, nicht nur beim Überspringen: Diese
       // Zeile ist es, die sie sonst wieder in den Speicher schriebe.

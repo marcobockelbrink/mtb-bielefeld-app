@@ -434,44 +434,6 @@ export function baueApp({
 
   app.get('/gesundheit', async () => ({ zustand: 'bereit' }));
 
-  /**
-   * Ein Fehler, den nur ein echtes Telefon sieht, ins Serverprotokoll.
-   *
-   * **Warum es das gibt.** Der Foto-Upload scheitert auf dem Gerät, und
-   * zwar in dem Moment, in dem `fetch` wirft — die Anfrage kommt hier also
-   * nie an. Alles von außen Prüfbare ist geprüft: Netzweg, Caddy, Grenzen,
-   * natives Modul, Berechtigungen. Was übrig bleibt, kann nur das Telefon
-   * sagen, und der Weg dahin war bisher: Marco liest die Meldung ab und
-   * tippt sie ab. Das kostet ihn jedes Mal einen Anlauf und mich eine
-   * Fassung.
-   *
-   * **Was hier ankommt**, ist ausschließlich der technische Text der
-   * Ausnahme und der Bereich, in dem sie auftrat — keine Bildinhalte.
-   * Angemeldet sein muss man trotzdem, sonst wäre das ein offenes
-   * Schreibfeld ins Protokoll.
-   *
-   * **Das ist eine Behelfsbrücke.** Sobald der Upload-Fehler gefunden ist,
-   * gehört sie wieder entfernt; ein Endpunkt, dessen einziger Zweck eine
-   * einzelne Untersuchung war, verrottet sonst still im Betrieb.
-   */
-  app.post('/diagnose', async (anfrage, antwort) => {
-    const betrachter = await holeBetrachter(anfrage);
-    if (!betrachter) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
-
-    const { bereich, text } = (anfrage.body ?? {}) as { bereich?: unknown; text?: unknown };
-    if (typeof bereich !== 'string' || typeof text !== 'string') {
-      return antwort.code(400).send({ fehler: 'bereich und text müssen Zeichenketten sein.' });
-    }
-
-    // Gekappt, damit niemand das Protokoll vollschreiben kann — weder aus
-    // Versehen noch mit Absicht.
-    anfrage.log.warn(
-      { bereich: bereich.slice(0, 60), text: text.slice(0, 500), mitglied: betrachter.id },
-      'DIAGNOSE vom Geraet',
-    );
-    return antwort.code(204).send();
-  });
-
   app.post('/anmeldung/anfordern', async (anfrage, antwort) => {
     const { email, einladungscode } = (anfrage.body ?? {}) as AnfordernKoerper;
 
