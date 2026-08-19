@@ -65,7 +65,7 @@ describe('loeseEin', () => {
     await api.loeseEin('magic');
 
     expect(await speicher.lies()).toBe('e1');
-    expect(await api.istAngemeldet()).toBe(true);
+    expect(await api.sitzungsstand()).toBe('angemeldet');
   });
 
   it('wirft bei ungültigem Link', async () => {
@@ -116,7 +116,7 @@ describe('hole', () => {
 
     await expect(api.hole('/konto')).rejects.toBeInstanceOf(ApiFehler);
     expect(await speicher.lies()).toBeNull();
-    expect(await api.istAngemeldet()).toBe(false);
+    expect(await api.sitzungsstand()).toBe('abgemeldet');
   });
 
   it('reicht Belegung und Plätze aus einer 409-Antwort weiter', async () => {
@@ -143,7 +143,7 @@ describe('abmelden', () => {
     await api.abmelden();
 
     expect(await speicher.lies()).toBeNull();
-    expect(await api.istAngemeldet()).toBe(false);
+    expect(await api.sitzungsstand()).toBe('abgemeldet');
   });
 });
 
@@ -219,7 +219,7 @@ describe('Erneuerung: nur 401 löscht das Token', () => {
 
     await expect(api.hole('/konto')).rejects.toBeInstanceOf(ApiFehler);
     expect(await speicher.lies()).toBe('e0');
-    expect(await api.istAngemeldet()).toBe(true);
+    expect(await api.sitzungsstand()).toBe('angemeldet');
   });
 
   it('löscht das Erneuerungs-Token, wenn die Erneuerung selbst mit 401 scheitert', async () => {
@@ -230,7 +230,48 @@ describe('Erneuerung: nur 401 löscht das Token', () => {
 
     await expect(api.hole('/konto')).rejects.toBeInstanceOf(ApiFehler);
     expect(await speicher.lies()).toBeNull();
-    expect(await api.istAngemeldet()).toBe(false);
+    expect(await api.sitzungsstand()).toBe('abgemeldet');
+  });
+});
+
+describe('sitzungsstand', () => {
+  /**
+   * **Der Fall, der die Sitzung scheinbar verlieren ließ.** Der
+   * Schlüsselbund gibt seine Inhalte nur bei entsperrtem Gerät heraus;
+   * fragt die App zu früh, kommt ein Fehler und kein leeres Ergebnis.
+   *
+   * Vorher gab `istAngemeldet()` ein `boolean` zurück und ließ den Fehler
+   * nach oben durch, wo der Startbildschirm ihn an ein `.then()` hängte,
+   * das nie lief — die Anmeldekarte stand da, obwohl das Token unberührt
+   * im Schlüsselbund lag. Von außen sah das aus wie eine abgelaufene
+   * Sitzung; in Wahrheit galt sie noch achtundfünfzig Tage.
+   */
+  it('meldet „unbekannt", wenn der Schlüsselbund gar nicht antwortet', async () => {
+    const { impl } = fetchMit([]);
+    const api = new ApiZugang({
+      basisUrl: 'http://test',
+      fetchImpl: impl,
+      speicher: {
+        lies: async () => {
+          throw new Error('Keychain gesperrt');
+        },
+        schreib: async () => {},
+        loesche: async () => {},
+      },
+    });
+
+    // Ausdrücklich **nicht** 'abgemeldet': Es ist unbekannt, ob ein Token
+    // da ist — der Aufrufer soll noch einmal fragen, nicht die
+    // Anmeldekarte zeigen.
+    expect(await api.sitzungsstand()).toBe('unbekannt');
+  });
+
+  it('unterscheidet „nichts gespeichert" davon', async () => {
+    // Ein leerer Schlüsselbund ist eine vollständige Antwort und keine
+    // Störung — sonst wiederholte der Startbildschirm bei jedem
+    // frisch installierten Gerät dreimal vergeblich.
+    const { api } = zugang([], null);
+    expect(await api.sitzungsstand()).toBe('abgemeldet');
   });
 });
 

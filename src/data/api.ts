@@ -133,6 +133,13 @@ const ZEITGRENZE_MS = 15000;
  */
 type Erneuerung = 'erneuert' | 'sitzung-vorbei' | 'voruebergehend';
 
+/**
+ * Was der Schlüsselbund über die Sitzung sagt — siehe `sitzungsstand()`.
+ * `'unbekannt'` ist der Fall, den es vorher nicht gab und der dadurch
+ * stillschweigend als „abgemeldet" durchging.
+ */
+export type Sitzungsstand = 'angemeldet' | 'abgemeldet' | 'unbekannt';
+
 export class ApiZugang {
   readonly #basisUrl: string;
   readonly #speicher: TokenSpeicher;
@@ -309,8 +316,33 @@ export class ApiZugang {
     await this.#speicher.schreib(paar.erneuerung);
   }
 
-  async istAngemeldet(): Promise<boolean> {
-    return (await this.#speicher.lies()) !== null;
+  /**
+   * Liegt ein Erneuerungs-Token im Schlüsselbund?
+   *
+   * **Drei Antworten, nicht zwei** — seit dem 19.08.2026. Vorher gab diese
+   * Stelle ein `boolean` zurück und ließ einen Lesefehler einfach nach oben
+   * durch. Der Startbildschirm hängte sich daran ein `.then()`, das dann nie
+   * lief: `angemeldet` blieb auf seinem Anfangswert `false` stehen, und die
+   * App zeigte die Anmeldekarte — **obwohl das Token unberührt im
+   * Schlüsselbund lag**. Wer sich daraufhin neu anmeldet, hat nichts
+   * verloren, aber auch nichts verstanden; von außen sieht es aus, als wäre
+   * die Sitzung abgelaufen.
+   *
+   * Ein Lesefehler ist etwas anderes als „kein Token da". Der Schlüsselbund
+   * gibt seine Inhalte nur bei entsperrtem Gerät heraus (`WHEN_UNLOCKED`);
+   * fragt die App zu früh — etwa gleich nach einem Neustart, bevor der Code
+   * eingegeben wurde —, kommt ein Fehler und kein leeres Ergebnis.
+   * `'unbekannt'` heißt deshalb „noch einmal fragen", nicht „abgemeldet".
+   */
+  async sitzungsstand(): Promise<Sitzungsstand> {
+    try {
+      return (await this.#speicher.lies()) !== null ? 'angemeldet' : 'abgemeldet';
+    } catch (fehler) {
+      // Nicht verschlucken: Auf iOS und Android darf das nicht vorkommen,
+      // und wer die Meldung sieht, sucht nicht mehr beim Server.
+      console.warn('Der Schlüsselbund war nicht lesbar.', fehler);
+      return 'unbekannt';
+    }
   }
 
   /**

@@ -197,7 +197,7 @@ if (!token) {
 
 await api.loeseEin(token);
 pruefe('loeseEin nimmt den Token an', true);
-pruefe('istAngemeldet meldet true', await api.istAngemeldet());
+pruefe('sitzungsstand meldet angemeldet', (await api.sitzungsstand()) === 'angemeldet');
 pruefe('Erneuerungs-Token liegt im Speicher', abgelegt !== null);
 pruefe('Es ist nicht der Magic Link selbst', abgelegt !== token);
 
@@ -363,7 +363,7 @@ if (!token2) {
   process.exit(1);
 }
 await api2.loeseEin(token2);
-pruefe('Das zweite Konto ist angemeldet — ohne Guide-Rolle', await api2.istAngemeldet());
+pruefe('Das zweite Konto ist angemeldet — ohne Guide-Rolle', (await api2.sitzungsstand()) === 'angemeldet');
 
 const alsMitgliedGesehen = await holeTraining(api2, training.id);
 // Nicht nur `anzeige` vergleichen: die **ganze** Antwort durchsuchen. Der
@@ -628,7 +628,7 @@ abschnitt('Universal Links: liefert der Server apple-app-site-association aus?')
 abschnitt('Abmelden');
 await api.abmelden();
 pruefe('Der Speicher ist leer', abgelegt === null);
-pruefe('istAngemeldet meldet false', !(await api.istAngemeldet()));
+pruefe('sitzungsstand meldet abgemeldet', (await api.sitzungsstand()) === 'abgemeldet');
 
 // --- Zusammenfassung -------------------------------------------------------
 console.log('');

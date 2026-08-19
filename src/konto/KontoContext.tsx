@@ -126,17 +126,41 @@ export function KontoProvider({
   // brauchen.
   const zuletztVersuchterToken = useRef<string | null>(null);
 
-  // Beim Start einmal in den Schlüsselbund sehen.
+  /**
+   * Beim Start in den Schlüsselbund sehen — und bei einem Lesefehler noch
+   * einmal.
+   *
+   * Der Schlüsselbund gibt seine Inhalte nur bei entsperrtem Gerät heraus.
+   * Startet die App zu früh — gleich nach einem Neustart, bevor der Code
+   * eingegeben wurde —, ist die Antwort ein Fehler und kein leeres
+   * Ergebnis. Ohne die Wiederholung stünde dann die Anmeldekarte da,
+   * obwohl das Token unberührt liegt: eine Zwangsabmeldung, die keine ist
+   * und die niemand erklären kann.
+   *
+   * Drei Versuche mit wachsendem Abstand, zusammen gut anderthalb Sekunden.
+   * Bleibt es dabei, gilt „abgemeldet" — falsch, aber die einzige Anzeige,
+   * aus der heraus man überhaupt etwas tun kann.
+   */
   useEffect(() => {
     let abgebrochen = false;
-    void api
-      .istAngemeldet()
-      .then((wert) => {
-        if (!abgebrochen) setAngemeldet(wert);
-      })
-      .finally(() => {
-        if (!abgebrochen) setLaedt(false);
-      });
+
+    void (async () => {
+      for (const abstandMs of [200, 600, 0]) {
+        const stand = await api.sitzungsstand();
+        if (abgebrochen) return;
+        if (stand !== 'unbekannt') {
+          setAngemeldet(stand === 'angemeldet');
+          setLaedt(false);
+          return;
+        }
+        // Der letzte Durchgang hat den Abstand 0 — er wartet nicht mehr,
+        // sondern fällt gleich unten heraus.
+        if (abstandMs > 0) await new Promise((weiter) => setTimeout(weiter, abstandMs));
+        if (abgebrochen) return;
+      }
+      setLaedt(false);
+    })();
+
     return () => {
       abgebrochen = true;
     };
