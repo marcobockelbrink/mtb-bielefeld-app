@@ -61,15 +61,26 @@
 # Braucht das Modul caddy-ratelimit — `betrieb/caddy/Dockerfile` baut es ein.
 # Geprüft wird das alles von `betrieb/pruefe-begrenzung.sh`.
 
-# Der zweite Name ist **optional**. Ist `API_DOMAIN_ZUSATZ` leer oder nicht
-# gesetzt, expandiert der Platzhalter zu nichts, und es bleibt bei einem
-# Namen — lokal (`:80`) ist genau das der Fall. Steht ein Name darin, holt
-# Caddy auch dafür ein Zertifikat und bedient beide Adressen aus demselben
-# Aufbau.
+# Die weiteren Namen sind **optional**. Ist `API_DOMAIN_ZUSATZ` leer oder
+# nicht gesetzt, expandiert der Platzhalter zu nichts, und es bleibt bei
+# einem Namen — lokal (`:80`) ist genau das der Fall.
 #
-# Gebraucht wird das für den Übergang: `api.bockelbrink.net` zeigt seit dem
-# 08.08.2026 auf diese Maschine, wurde hier aber nicht bedient — der Name
-# lieferte kein Zertifikat, während der DNS-Eintrag längst hierher wies.
+# **Mehrere Namen gehen, durch Leerzeichen getrennt.** Caddy ersetzt den
+# Platzhalter vor dem Zerlegen der Datei, und die Leerzeichen im Wert
+# trennen dabei ganz normal — aus einer Variablen mit zwei Namen werden zwei
+# Adressen. Nachgewiesen am 19.08.2026 mit `caddy adapt`; es ist nicht
+# offensichtlich, und die naheliegende Annahme („der Wert ist ein Token")
+# wäre falsch gewesen.
+#
+# Hier stehen die **alten Adressen**, unter denen die App früher erreichbar
+# war. Sie bleiben stehen, denn eine App trägt ihre Serveradresse fest
+# eingebaut in sich: Wer nicht aktualisiert, spricht bis in alle Zukunft den
+# Namen an, der beim Bauen galt. Fällt der weg, ist diese Fassung nicht
+# langsamer, sondern **tot** — und zwar mit einer Meldung über den Server,
+# die niemanden auf den Gedanken bringt, dass eine Aktualisierung hilft.
+#
+# Welche Fassung welchen Namen kennt, steht in `betrieb/.env.beispiel` über
+# `API_DOMAIN_ZUSATZ`.
 {$API_DOMAIN} {$API_DOMAIN_ZUSATZ} {
 	rate_limit {
 		zone anmeldung {

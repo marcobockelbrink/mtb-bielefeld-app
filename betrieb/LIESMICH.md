@@ -104,8 +104,17 @@ curl http://localhost/konto -H "Authorization: Bearer <zugang>"
 ```bash
 betrieb/pruefe-ablauf.sh      # der ganze Weg oben, jeder Schritt hart geprüft
 betrieb/pruefe-begrenzung.sh  # die beiden Ratenbegrenzungs-Schichten
+betrieb/pruefe-adressen.sh    # jede Adresse, die eine ausgelieferte App kennt
 npm run rauchprobe            # die Module der App gegen diese laufende API
 ```
+
+`pruefe-adressen.sh` ist der einzige davon, der gegen den **Server** läuft
+und nicht gegen den örtlichen Aufbau: Es geht um die alten Domainnamen, und
+die gibt es nur dort. Eine App trägt ihre Serveradresse fest eingebaut in
+sich — wer nicht aktualisiert, spricht für immer den Namen an, der beim Bauen
+seiner Fassung galt. Fällt der weg, ist diese Fassung nicht langsamer,
+sondern tot. Das Skript holt die Namen aus `app.config.js` und prüft für
+jeden, dass er antwortet und dieselbe Universal-Links-Datei liefert.
 
 Die ersten beiden prüfen die API von außen, mit `curl`. Die **Rauchprobe**
 prüft etwas anderes: Sie lädt dieselben Module, die auf dem Telefon laufen

@@ -28,10 +28,14 @@
  * fällt dagegen sofort auf: Er heißt „MTB Bielefeld (dev)".
  *
  * Die Adressen stehen hier **und** in `src/config.ts` — hier für das
- * Betriebssystem, dort für die App selbst. Beide Stellen müssen dieselbe
- * Domain nennen; laufen sie auseinander, öffnet ein geteilter Link den
- * Browser statt der App, und keine Prüfung im Projekt merkt es außer der
- * Rauchprobe.
+ * Betriebssystem, dort für die App selbst. Die **erste** Adresse muss an
+ * beiden Stellen dieselbe sein; laufen sie auseinander, öffnet ein geteilter
+ * Link den Browser statt der App, und keine Prüfung im Projekt merkt es
+ * außer der Rauchprobe.
+ *
+ * Dahinter stehen unter `frueher` die alten Namen desselben Standes. Sie
+ * nehmen nur noch entgegen, was ältere Fassungen verschickt haben — die App
+ * selbst spricht ausschließlich die erste an.
  */
 
 // ESM und nicht CommonJS: `package.json` trägt `"type": "module"`, damit ist
@@ -45,12 +49,29 @@ const UMGEBUNGEN = {
     // Startbildschirm, eindeutig genug neben der echten App.
     name: 'MTB BI (dev)',
     domain: 'app-dev.mtb-bielefeld.de',
+    // Die Adressen, unter denen dieser Stand **früher** erreichbar war. Sie
+    // zeigen bis heute auf dieselbe Maschine und liefern dieselbe
+    // AASA-Datei (`betrieb/Caddyfile`, `API_DOMAIN_ZUSATZ`).
+    //
+    // Nötig, weil ein Teilen-Link die Adresse trägt, die in der **sendenden**
+    // Fassung eingebaut war. Ohne diese Zeilen öffnete ein Link aus 0.12.0
+    // in 0.12.1 den Browser statt der App — und im Verein laufen immer
+    // mehrere Fassungen nebeneinander, weil nicht jeder gleich aktualisiert.
+    //
+    //   api-dev.bockelbrink.net   07.08.2026 bis 0.12.0
+    //   api.bockelbrink.net       davor, als es nur einen Stand gab
+    frueher: ['api-dev.bockelbrink.net', 'api.bockelbrink.net'],
     schema: 'mtbie-dev',
   },
   prod: {
     kennung: 'de.mtbbielefeld.app',
     name: 'MTB Bielefeld',
     domain: 'app.mtb-bielefeld.de',
+    // **Leer, und das muss so bleiben.** Von dieser Fassung war nie eine im
+    // Umlauf, es gibt also keine alte Adresse einzusammeln. Und die dev-Namen
+    // gehören hier auf keinen Fall hin: Sie zeigen auf den Prüfstand, und ein
+    // geteilter Link würde die Vereinsfassung mit dessen Daten füttern.
+    frueher: [],
     schema: 'mtbie',
   },
 };
@@ -83,7 +104,9 @@ export function baueKonfiguration(umgebung) {
         infoPlist: {
           ITSAppUsesNonExemptEncryption: false,
         },
-        associatedDomains: [`applinks:${u.domain}`],
+        // Die eigene Adresse zuerst, die alten dahinter — iOS wertet alle
+        // aus, aber die Reihenfolge sagt dem Lesenden, welche gilt.
+        associatedDomains: [u.domain, ...u.frueher].map((d) => `applinks:${d}`),
       },
       android: {
         adaptiveIcon: {
@@ -97,10 +120,10 @@ export function baueKonfiguration(umgebung) {
           {
             action: 'VIEW',
             autoVerify: true,
-            data: [
-              { scheme: 'https', host: u.domain, pathPrefix: '/t' },
-              { scheme: 'https', host: u.domain, pathPrefix: '/e' },
-            ],
+            data: [u.domain, ...u.frueher].flatMap((host) => [
+              { scheme: 'https', host, pathPrefix: '/t' },
+              { scheme: 'https', host, pathPrefix: '/e' },
+            ]),
             category: ['BROWSABLE', 'DEFAULT'],
           },
         ],

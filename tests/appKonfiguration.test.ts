@@ -27,26 +27,48 @@ describe('app.config.js', () => {
     expect(prod.name).toBe('MTB Bielefeld');
   });
 
-  // Der teuerste Fehler wäre eine prod-Fassung, die auf den dev-Server
-  // zeigt — oder umgekehrt eine dev-Fassung, die Vereinsdaten anfasst. Jede
-  // Umgebung meldet deshalb nur ihre eigene Domain an.
-  it('meldet je Umgebung nur die eigene Domain an', () => {
+  // Die eigene Adresse zuerst, dahinter die alten Namen desselben Standes.
+  // Ohne die alten öffnete ein Teilen-Link aus einer älteren Fassung den
+  // Browser statt der App — der Link trägt die Adresse, die beim Bauen der
+  // **sendenden** Fassung galt, und im Verein laufen mehrere nebeneinander.
+  it('meldet die eigene Domain und die früheren Namen an', () => {
     expect(baueKonfiguration('dev').expo.ios.associatedDomains).toEqual([
       'applinks:app-dev.mtb-bielefeld.de',
+      'applinks:api-dev.bockelbrink.net',
+      'applinks:api.bockelbrink.net',
     ]);
+    // Von der Vereinsfassung war nie eine im Umlauf — nichts einzusammeln.
     expect(baueKonfiguration('prod').expo.ios.associatedDomains).toEqual([
       'applinks:app.mtb-bielefeld.de',
     ]);
   });
 
-  it('hält Android auf derselben Domain wie iOS', () => {
+  /**
+   * **Der teuerste Fehler dieser Datei**, und der einzige, den die Liste
+   * oben überhaupt möglich macht: ein `bockelbrink`-Name in der
+   * Vereinsfassung. Die alten Namen zeigen auf den Prüfstand; stünde einer
+   * davon in prod, öffnete ein geteilter Link die Vereinsfassung auf
+   * Prüfdaten — und niemand merkte es, weil es ja funktioniert.
+   */
+  it('lässt keine Domain der einen Umgebung in die andere', () => {
+    const domains = (u: 'dev' | 'prod') =>
+      baueKonfiguration(u).expo.ios.associatedDomains.join(' ');
+
+    expect(domains('prod')).not.toContain('bockelbrink');
+    expect(domains('prod')).not.toContain('-dev');
+    expect(domains('dev')).not.toContain('applinks:app.mtb-bielefeld.de');
+  });
+
+  it('hält Android auf denselben Domains wie iOS', () => {
     for (const umgebung of ['dev', 'prod'] as const) {
       const konfig = baueKonfiguration(umgebung).expo;
-      const [angemeldet] = konfig.ios.associatedDomains;
-      expect(konfig.android.intentFilters[0].data).toEqual([
-        { scheme: 'https', host: angemeldet.replace('applinks:', ''), pathPrefix: '/t' },
-        { scheme: 'https', host: angemeldet.replace('applinks:', ''), pathPrefix: '/e' },
-      ]);
+      const hosts = konfig.ios.associatedDomains.map((d: string) => d.replace('applinks:', ''));
+      expect(konfig.android.intentFilters[0].data).toEqual(
+        hosts.flatMap((host: string) => [
+          { scheme: 'https', host, pathPrefix: '/t' },
+          { scheme: 'https', host, pathPrefix: '/e' },
+        ]),
+      );
     }
   });
 
@@ -75,16 +97,20 @@ describe('app.config.js', () => {
    * statt der App — und keine andere Prüfung im Projekt sieht das, auch
    * die Rauchprobe nicht: Die kennt nur `RAUCHPROBE_BASIS` und vergleicht
    * die ausgelieferte `appID`, nie die Adresse aus `waehleApiAdresse`.
+   *
+   * Geprüft wird die **erste** Adresse. Die dahinter sind alte Namen, die
+   * nur noch entgegennehmen, was ältere Fassungen verschickt haben; die
+   * App selbst spricht ausschließlich die erste an.
    */
-  it('nennt dieselbe Domain wie src/config.ts — je Umgebung', () => {
+  it('nennt an erster Stelle dieselbe Domain wie src/config.ts', () => {
     for (const umgebung of ['dev', 'prod'] as const) {
       const konfig = baueKonfiguration(umgebung).expo;
       const ausConfig = new URL(
         waehleApiAdresse({ ueberschrieben: undefined, umgebung, imEntwicklungsbau: false }),
       ).host;
 
-      expect(konfig.ios.associatedDomains).toEqual([`applinks:${ausConfig}`]);
-      expect(konfig.android.intentFilters[0].data).toEqual([
+      expect(konfig.ios.associatedDomains[0]).toBe(`applinks:${ausConfig}`);
+      expect(konfig.android.intentFilters[0].data.slice(0, 2)).toEqual([
         { scheme: 'https', host: ausConfig, pathPrefix: '/t' },
         { scheme: 'https', host: ausConfig, pathPrefix: '/e' },
       ]);
