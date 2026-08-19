@@ -52,8 +52,23 @@ export interface TrainingDetails extends Training {
    * Sichtbarkeit ist nicht Besitz.
    */
   kinder: Array<{ id: string; anzeige: string; eigene: boolean }>;
-  /** Nur für Guides — sonst schickt die API das Feld gar nicht. */
-  guides?: Array<{ mitgliedId: string; email: string; zusage: boolean }>;
+  /**
+   * Nur für Guides — sonst schickt die API das Feld gar nicht.
+   *
+   * **Alle Gefragten, nicht nur die Antwortenden** (Handoff 14):
+   * `zusage: null` heißt „gefragt, aber still". Vorher fehlten die Stillen
+   * ganz, und eine halb beantwortete Liste war von einer vollständigen
+   * nicht zu unterscheiden.
+   *
+   * `name` ist `null`, solange niemand einen hinterlegt hat — dann zeigt
+   * die Liste die Adresse.
+   */
+  guides?: Array<{
+    mitgliedId: string;
+    email: string;
+    name: string | null;
+    zusage: boolean | null;
+  }>;
   /**
    * Wie viele Guides zugesagt haben — anders als `guides` auch für
    * gewöhnliche Mitglieder gesetzt, die die Namen nicht sehen dürfen

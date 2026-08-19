@@ -9,7 +9,7 @@
  * gefiltert, sonst gäbe es zwei Wahrheiten über dieselbe Anmeldung.
  */
 
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
@@ -154,21 +154,10 @@ export default function TrainingDetailScreen() {
         </View>
       ) : null}
 
-      {/* Bearbeiten gibt es für Entwurf und veröffentlicht, **nicht** für
-          abgesagt: `aendereTraining` hat `WHERE … AND zustand <> 'abgesagt'`,
-          der Knopf liefe also ins Leere. Wie beim Teilen ist `rolle` reine
-          Anzeigehilfe — die API prüft den eigenen Aufruf selbst. */}
-      {(rolle === 'guide' || rolle === 'verwaltung') && training.zustand !== 'abgesagt' ? (
-        <View style={styles.teilen}>
-          <ActionButton
-            label="Training bearbeiten"
-            tone="secondary"
-            onPress={() =>
-              router.push({ pathname: '/jugend/[id]/bearbeiten', params: { id: training.id } })
-            }
-          />
-        </View>
-      ) : null}
+      {/* „Training bearbeiten" stand bis Handoff 14 hier — jetzt im Block
+          „Als Organisator" in `GuideKarte`, zusammen mit Veröffentlichen und
+          Absagen. Es ist eine Handlung am ganzen Training, keine an der
+          eigenen Zusage, und die beiden Ebenen sahen vorher gleich aus. */}
 
       <Card>
         <Label>Training</Label>

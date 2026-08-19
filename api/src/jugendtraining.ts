@@ -373,31 +373,69 @@ export async function setzeGuideAntwort(
   return rows.length === 0 ? 'unbekannt' : 'abgesagt';
 }
 
+/** Eine Zeile der Guide-Liste. `zusage: null` heißt „gefragt, aber still". */
+export interface GuideAntwort {
+  mitgliedId: string;
+  email: string;
+  /** `null`, solange das Mitglied keinen Namen hinterlegt hat. */
+  name: string | null;
+  zusage: boolean | null;
+}
+
 /**
- * Wer geantwortet hat — mit Adresse, denn mehr als die Adresse speichert
- * diese API über ein Mitglied nicht.
+ * Wer gefragt wurde und was daraus geworden ist.
+ *
+ * **Alle Gefragten, nicht nur die Antwortenden** — seit dem 19.08.2026
+ * (Handoff 14). Vorher stand hier nur `jugendtraining_guide`, also
+ * ausschließlich, wer getippt hatte. Wer gefragt wurde und schwieg, kam in
+ * der Antwort gar nicht vor; die Liste war damit von einer vollständigen
+ * nicht zu unterscheiden, und „vier von fünf haben noch nicht geantwortet"
+ * sah aus wie „es gibt nur einen Guide".
+ *
+ * Gefragt wird, wer zusagen kann: `guide` und `verwaltung` — dieselbe Regel
+ * wie in `holeGuideAdressen`, aus der auch die Anfrage-Mails gehen.
+ *
+ * Das `OR g.zusage IS NOT NULL` hält jemanden in der Liste, der geantwortet
+ * hat und die Rolle danach verloren hat. Seine Zusage verschwände sonst aus
+ * der Anzeige, während sie in `guideZusagen` weiterzählte — zwei Zahlen auf
+ * demselben Bildschirm, die einander widersprechen.
+ *
+ * `name` kommt mit, weil die Liste ihn anzeigt. Eine Mailadresse ist eine
+ * Kennung, kein Name; „t.mueller82@gmx.de" sagt in einer Guide-Liste
+ * weniger als „Thomas".
  *
  * Sichtbar nur für Guides; das entscheidet der Endpunkt.
  */
 export async function holeGuideAntworten(
   ausfuehrer: pg.Pool | pg.PoolClient,
   trainingId: string,
-): Promise<Array<{ mitgliedId: string; email: string; zusage: boolean }>> {
+): Promise<GuideAntwort[]> {
   if (!istKennung(trainingId)) return [];
 
   const { rows } = await ausfuehrer.query<{
     mitglied_id: string;
     email: string;
-    zusage: boolean;
+    name: string | null;
+    zusage: boolean | null;
   }>(
-    `SELECT g.mitglied_id, m.email, g.zusage
-       FROM jugendtraining_guide g
-       JOIN mitglied m ON m.id = g.mitglied_id
-      WHERE g.training_id = $1
-      ORDER BY g.geantwortet_am`,
+    // Beantwortetes zuerst, in der Reihenfolge der Antworten; die Stillen
+    // danach nach Adresse. `NULLS LAST` ist tragend — ohne die Angabe
+    // sortiert Postgres NULL bei aufsteigender Ordnung ans Ende, aber das
+    // ist eine Voreinstellung und keine Zusage.
+    `SELECT m.id AS mitglied_id, m.email, m.name, g.zusage
+       FROM mitglied m
+       LEFT JOIN jugendtraining_guide g
+         ON g.mitglied_id = m.id AND g.training_id = $1
+      WHERE m.rolle IN ('guide', 'verwaltung') OR g.zusage IS NOT NULL
+      ORDER BY g.geantwortet_am ASC NULLS LAST, m.email`,
     [trainingId],
   );
-  return rows.map((z) => ({ mitgliedId: z.mitglied_id, email: z.email, zusage: z.zusage }));
+  return rows.map((z) => ({
+    mitgliedId: z.mitglied_id,
+    email: z.email,
+    name: z.name,
+    zusage: z.zusage,
+  }));
 }
 
 /** Alle Adressen mit der Rolle `guide` — die Empfänger der Anfrage-Mail. */

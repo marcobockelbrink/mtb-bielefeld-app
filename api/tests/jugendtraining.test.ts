@@ -208,8 +208,41 @@ describe('Guide-Antworten', () => {
 
     const antworten = await holeGuideAntworten(pool, id);
     expect(antworten).toEqual([
-      { mitgliedId: guideId, email: 'trainer@example.org', zusage: true },
+      { mitgliedId: guideId, email: 'trainer@example.org', name: null, zusage: true },
     ]);
+  });
+
+  it('führt einen Gefragten ohne Antwort als offen', async () => {
+    // Seit Handoff 14: Wer gefragt wurde und schweigt, steht mit
+    // `zusage: null` in der Liste. Vorher kam er gar nicht vor — und
+    // „vier von fünf haben noch nicht geantwortet" sah aus wie „es gibt
+    // nur einen Guide".
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+
+    const antworten = await holeGuideAntworten(pool, id);
+    expect(antworten).toHaveLength(1);
+    expect(antworten[0]?.zusage).toBeNull();
+  });
+
+  it('liefert den Namen mit, wo einer hinterlegt ist', async () => {
+    // Eine Mailadresse ist eine Kennung, kein Name.
+    await pool.query("UPDATE mitglied SET name = 'Thomas' WHERE id = $1", [guideId]);
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+
+    expect((await holeGuideAntworten(pool, id))[0]?.name).toBe('Thomas');
+  });
+
+  it('behält jemanden, der geantwortet und danach die Rolle verloren hat', async () => {
+    // Sonst verschwände seine Zusage aus der Anzeige, während sie in
+    // `guideZusagen` weiterzählt — zwei Zahlen auf demselben Bildschirm,
+    // die einander widersprechen.
+    const { id } = await legeTrainingAn(pool, eingabe(), guideId, jetzt);
+    await setzeGuideAntwort(pool, id, guideId, true, jetzt);
+    await pool.query("UPDATE mitglied SET rolle = 'mitglied' WHERE id = $1", [guideId]);
+
+    const antworten = await holeGuideAntworten(pool, id);
+    expect(antworten).toHaveLength(1);
+    expect(antworten[0]?.zusage).toBe(true);
   });
 
   it('überschreibt eine frühere Antwort, statt eine zweite anzulegen', async () => {
@@ -238,7 +271,11 @@ describe('Guide-Antworten', () => {
     await sageAb(pool, id, 'Gewitter', jetzt);
 
     expect(await setzeGuideAntwort(pool, id, guideId, true, jetzt)).toBe('abgesagt');
-    expect(await holeGuideAntworten(pool, id)).toHaveLength(0);
+    // Der Guide steht weiter in der Liste — er wurde ja gefragt —, aber
+    // ohne Antwort. Vor Handoff 14 war die Liste hier leer.
+    const antworten = await holeGuideAntworten(pool, id);
+    expect(antworten).toHaveLength(1);
+    expect(antworten[0]?.zusage).toBeNull();
   });
 
   it('lässt eine frühere Zusage nach der Absage unangetastet', async () => {
