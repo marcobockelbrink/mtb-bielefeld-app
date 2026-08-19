@@ -26,15 +26,41 @@ export interface TrainingsEntwurf {
 export const HALTBAR_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
+ * Womit das Formular startet, ohne dass jemand etwas getan hat.
+ *
+ * `hatInhalt` braucht das, um Vorbelegtes von Eingetipptem zu
+ * unterscheiden. Als ISO-Zeichenketten, weil der Entwurf so aussieht.
+ */
+export interface Vorbelegung {
+  datum: string | null;
+  uhrzeit: string | null;
+}
+
+/**
  * Leer ist leer — ein Entwurf ohne Inhalt lohnt kein Anbieten.
  *
- * `guidesNoetig` zählt bewusst **nicht** mit: Das Feld ist mit „2"
- * vorbelegt, und ein unangetastetes Formular wäre sonst immer „gefüllt".
+ * **Vorbelegt ist nicht gefüllt.** `guidesNoetig` zählt aus diesem Grund
+ * schon immer nicht mit: Das Feld startet auf „2", und ein unangetastetes
+ * Formular wäre sonst dauernd „gefüllt".
+ *
+ * Seit dem 19.08.2026 gilt dasselbe für Tag und Uhrzeit. Das Formular
+ * startet auf dem nächsten Sonntag um 10:30 (Handoff 14) — ohne die
+ * `vorbelegung` hier gälte jedes geöffnete und sofort wieder verlassene
+ * Formular als Entwurf, und beim nächsten Anlegen fragte die App
+ * zuverlässig nach einem „gefundenen Entwurf", der nur aus der eigenen
+ * Voreinstellung besteht. Ein Hinweis, den man dreimal wegtippt, wird
+ * beim vierten Mal auch dann weggetippt, wenn wirklich etwas drinsteht.
+ *
+ * Ohne `vorbelegung` aufgerufen zählt jeder gesetzte Wert — das ist der
+ * alte Stand und für Entwürfe richtig, die vor der Umstellung entstanden.
  */
-export function hatInhalt(entwurf: TrainingsEntwurf): boolean {
+export function hatInhalt(entwurf: TrainingsEntwurf, vorbelegung?: Vorbelegung): boolean {
+  const abweichend = (wert: string | null, vorgabe: string | null | undefined) =>
+    wert !== null && wert !== vorgabe;
+
   return (
-    entwurf.datum !== null ||
-    entwurf.uhrzeit !== null ||
+    abweichend(entwurf.datum, vorbelegung?.datum) ||
+    abweichend(entwurf.uhrzeit, vorbelegung?.uhrzeit) ||
     entwurf.ort.trim() !== '' ||
     entwurf.hinweis.trim() !== '' ||
     entwurf.plaetze.trim() !== ''

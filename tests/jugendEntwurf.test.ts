@@ -45,6 +45,47 @@ describe('hatInhalt', () => {
   it('hält reine Leerzeichen nicht für Inhalt', () => {
     expect(hatInhalt(entwurf({ ort: '   ' }))).toBe(false);
   });
+
+  /**
+   * **Die Falle an der Vorbelegung** (Handoff 14): Seit das Formular auf
+   * dem nächsten Sonntag um 10:30 startet, sind `datum` und `uhrzeit`
+   * gesetzt, ohne dass jemand etwas getan hat. Ohne die zweite Angabe
+   * gälte jedes einmal geöffnete Formular als Entwurf — und beim nächsten
+   * Anlegen fragte die App nach einem „gefundenen Entwurf", der nur aus der
+   * eigenen Voreinstellung besteht.
+   *
+   * Ein Hinweis, den man dreimal wegtippt, wird beim vierten Mal auch dann
+   * weggetippt, wenn wirklich etwas drinsteht.
+   */
+  const vorbelegung = {
+    datum: '2026-08-23T00:00:00.000Z',
+    uhrzeit: '2026-08-19T08:30:00.000Z',
+  };
+
+  it('zählt die vorbelegten Tag und Uhrzeit nicht als Inhalt', () => {
+    expect(hatInhalt(entwurf(vorbelegung), vorbelegung)).toBe(false);
+  });
+
+  it('erkennt einen verschobenen Tag trotz Vorbelegung', () => {
+    // Wer den Sonntag gegen „Heute" tauscht, hat sehr wohl etwas getan.
+    const verschoben = entwurf({ ...vorbelegung, datum: '2026-08-19T00:00:00.000Z' });
+    expect(hatInhalt(verschoben, vorbelegung)).toBe(true);
+  });
+
+  it('erkennt eine geänderte Uhrzeit trotz Vorbelegung', () => {
+    const spaeter = entwurf({ ...vorbelegung, uhrzeit: '2026-08-19T15:30:00.000Z' });
+    expect(hatInhalt(spaeter, vorbelegung)).toBe(true);
+  });
+
+  it('lässt andere Felder unberührt von der Vorbelegung', () => {
+    expect(hatInhalt(entwurf({ ...vorbelegung, ort: 'Eisgrund' }), vorbelegung)).toBe(true);
+  });
+
+  it('zählt ohne Vorbelegung jeden gesetzten Wert — für alte Entwürfe', () => {
+    // Entwürfe von vor der Umstellung kennen keine Vorbelegung. Sie sollen
+    // weiter angeboten werden; ihr Tag ist von Hand gesetzt worden.
+    expect(hatInhalt(entwurf({ datum: '2026-09-01T00:00:00.000Z' }))).toBe(true);
+  });
 });
 
 describe('istFrisch', () => {

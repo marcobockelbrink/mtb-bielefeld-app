@@ -121,7 +121,7 @@ export default function TrainingBearbeitenScreen() {
       .catch(() => setVergangene([]));
   }, [api]);
 
-  const datumChips = useMemo(() => datumsVorschlaege(vergangene, jetzt), [vergangene, jetzt]);
+  const datumChips = useMemo(() => datumsVorschlaege(jetzt), [jetzt]);
   const zeitChips = useMemo(() => uhrzeitVorschlaege(vergangene), [vergangene]);
   const ortChips = useMemo(() => ortsVorschlaege(vergangene), [vergangene]);
 

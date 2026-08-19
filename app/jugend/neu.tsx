@@ -67,7 +67,9 @@ import {
   alsUhrzeit,
   baueZeitpunkt,
   datumsVorschlaege,
+  naechsterTrainingstag,
   ortsVorschlaege,
+  REGELZEIT,
   uhrzeitVorschlaege,
 } from '../../src/features/jugend/vorschlaege';
 import { useKonto } from '../../src/konto/KontoContext';
@@ -87,8 +89,40 @@ export default function NeuesTrainingScreen() {
   const insets = useSafeAreaInsets();
   const { api } = useKonto();
 
-  const [datum, setDatum] = useState<Date | null>(null);
-  const [uhrzeit, setUhrzeit] = useState<Date | null>(null);
+  /**
+   * Vorbelegt statt leer: nächster Sonntag, 10:30.
+   *
+   * „Da ist immer Training, zu 90 %" — dann ist ein leeres Formular in neun
+   * von zehn Fällen zwei Tipps zu viel. Wer außer der Reihe einträgt, tippt
+   * einmal auf „Heute" oder auf die Uhr; wer den Regelfall einträgt, muss
+   * gar nichts mehr anfassen.
+   *
+   * `useState` mit einer **Funktion**, nicht mit dem fertigen Wert: Sonst
+   * liefe die Rechnung bei jedem Rendern erneut, und ein frisches
+   * `Date`-Objekt in jeder Runde ließe den Chip aufblinken, dessen Auswahl
+   * über die Datumsfelder verglichen wird.
+   *
+   * Fällt der Sonntag auf morgen — an einem Samstag —, gibt es keinen
+   * eigenen Chip dafür, aber „Morgen" trägt denselben Tag und steht
+   * ausgewählt da. Das ist genau der Fall aus den Akzeptanzkriterien.
+   */
+  const [datum, setDatum] = useState<Date | null>(() => naechsterTrainingstag(new Date()));
+  const [uhrzeit, setUhrzeit] = useState<Date | null>(() =>
+    alsUhrzeit(REGELZEIT.stunde, REGELZEIT.minute, new Date()),
+  );
+
+  /**
+   * Womit das Formular gestartet ist — in der Form, die der Entwurf hat.
+   *
+   * `useState` und nicht `useMemo`: Der Wert darf sich über die Lebenszeit
+   * des Bildschirms **nicht** ändern, auch nicht beim Rendern über
+   * Mitternacht hinweg. Sonst hielte `hatInhalt` die alte Vorbelegung
+   * plötzlich für eine Eingabe.
+   */
+  const [vorbelegung] = useState(() => ({
+    datum: naechsterTrainingstag(new Date()).toISOString(),
+    uhrzeit: alsUhrzeit(REGELZEIT.stunde, REGELZEIT.minute, new Date()).toISOString(),
+  }));
   const [ort, setOrt] = useState('');
   const [hinweis, setHinweis] = useState('');
   // Zahlen sind jetzt Zahlen, keine Zeichenketten mehr — der Zähler kann
@@ -127,10 +161,14 @@ export default function NeuesTrainingScreen() {
 
   useEffect(() => {
     void liesEntwurf().then((entwurf) => {
-      if (entwurf && hatInhalt(entwurf) && istFrisch(entwurf, new Date())) setGefunden(entwurf);
+      if (entwurf && hatInhalt(entwurf, vorbelegung) && istFrisch(entwurf, new Date()))
+        setGefunden(entwurf);
       else if (entwurf) void loescheEntwurf();
     });
-  }, []);
+    // `vorbelegung` ist über die Lebenszeit des Bildschirms fest — es steht
+    // hier, damit die Abhängigkeit vollständig ist, nicht weil sich der
+    // Effekt je wiederholte.
+  }, [vorbelegung]);
 
   // Die Vorschläge kommen aus der Liste, die die Jugendseite ohnehin holt —
   // kein neuer Endpunkt. Scheitert es, bleiben eben nur „Heute" und
@@ -143,7 +181,7 @@ export default function NeuesTrainingScreen() {
   }, [api]);
 
   const jetzt = useMemo(() => new Date(), []);
-  const datumChips = useMemo(() => datumsVorschlaege(vergangene, jetzt), [vergangene, jetzt]);
+  const datumChips = useMemo(() => datumsVorschlaege(jetzt), [jetzt]);
   const zeitChips = useMemo(() => uhrzeitVorschlaege(vergangene), [vergangene]);
   const ortChips = useMemo(() => ortsVorschlaege(vergangene), [vergangene]);
 
@@ -162,11 +200,11 @@ export default function NeuesTrainingScreen() {
       guidesNoetig: zahlInEntwurf(guidesNoetig),
       standAm: Date.now(),
     };
-    if (hatInhalt(entwurf)) {
+    if (hatInhalt(entwurf, vorbelegung)) {
       void schreibEntwurf(entwurf);
       setGesichert(true);
     }
-  }, [datum, uhrzeit, ort, hinweis, plaetze, guidesNoetig]);
+  }, [datum, uhrzeit, ort, hinweis, plaetze, guidesNoetig, vorbelegung]);
 
   function entwurfUebernehmen(entwurf: TrainingsEntwurf) {
     setDatum(entwurf.datum ? new Date(entwurf.datum) : null);

@@ -101,13 +101,43 @@ function nachHaeufigkeit<T>(werte: T[]): T[] {
     .map(([wert]) => wert);
 }
 
+/** Der Wochentag, an dem der Verein trainiert. `0` ist Sonntag. */
+const TRAININGSTAG = 0;
+
+/** Wann ein Training üblicherweise beginnt — siehe `uhrzeitVorschlaege`. */
+export const REGELZEIT = { stunde: 10, minute: 30 };
+
 /**
- * „Heute", „Morgen" und der nächste übliche Trainingstag.
+ * Der nächste Sonntag — **immer in der Zukunft**, nie heute.
  *
- * Der dritte Vorschlag fällt weg, wenn er auf heute oder morgen fiele —
- * zwei Chips mit demselben Tag wären eine Auswahl ohne Wahl.
+ * An einem Sonntag ist der Vorschlag der Sonntag in sieben Tagen. „Heute"
+ * hat seinen eigenen Chip; ein zweiter mit demselben Tag wäre eine Auswahl
+ * ohne Wahl.
  */
-export function datumsVorschlaege(trainings: Training[], jetzt: Date): DatumsVorschlag[] {
+export function naechsterTrainingstag(jetzt: Date): Date {
+  const heute = tagesbeginn(jetzt);
+  const versatz = (TRAININGSTAG - heute.getDay() + 7) % 7 || 7;
+  return tagePlus(heute, versatz);
+}
+
+/**
+ * „Heute", „Morgen" und der nächste Sonntag.
+ *
+ * **Der Wochentag ist fest, nicht abgeleitet** — seit dem 19.08.2026. Vorher
+ * stand hier der häufigste Wochentag der letzten zehn Trainings, und das
+ * ergab in der Praxis den Samstag: Aus wenigen Datensätzen gerechnet
+ * gewinnt eine Handvoll Ausnahmen gegen die Regel. Aus dem Verein kam die
+ * Ansage klar: „Statt Samstag eher ein Sonntag. Da ist immer Training, zu
+ * 90 %."
+ *
+ * Ein Vorschlag darf falsch liegen, aber nicht **selbstbewusst** falsch
+ * liegen. Die Historie versprach eine Genauigkeit, die zehn Zeilen nicht
+ * hergeben; ein festes „Sonntag" verspricht nichts und trifft öfter.
+ *
+ * Der dritte Vorschlag fällt weg, wenn er auf morgen fiele — an einem
+ * Samstag also. Dann bleiben „Heute" und „Morgen".
+ */
+export function datumsVorschlaege(jetzt: Date): DatumsVorschlag[] {
   const heute = tagesbeginn(jetzt);
   const morgen = tagePlus(heute, 1);
 
@@ -116,38 +146,50 @@ export function datumsVorschlaege(trainings: Training[], jetzt: Date): DatumsVor
     { schluessel: 'morgen', label: 'Morgen', datum: morgen },
   ];
 
-  const wochentage = jüngste(trainings).map((training) => training.beginntAm.getDay());
-  const ueblich = nachHaeufigkeit(wochentage)[0];
-  if (ueblich === undefined) return vorschlaege;
-
-  // Der nächste Tag mit diesem Wochentag, frühestens übermorgen: Heute und
-  // morgen haben schon ihre eigenen Chips.
-  let versatz = 2;
-  while (tagePlus(heute, versatz).getDay() !== ueblich) versatz += 1;
-  const naechster = tagePlus(heute, versatz);
-
-  vorschlaege.push({
-    schluessel: `wochentag-${ueblich}`,
-    label: tagesLabel(naechster),
-    datum: naechster,
-  });
+  const sonntag = naechsterTrainingstag(jetzt);
+  if (sonntag.getTime() !== morgen.getTime()) {
+    vorschlaege.push({ schluessel: 'trainingstag', label: tagesLabel(sonntag), datum: sonntag });
+  }
 
   return vorschlaege;
 }
 
-/** Die zuletzt genutzten Uhrzeiten, häufigste zuerst. */
+/** Ohne jede Historie: die Zeiten, die der Verein selbst genannt hat. */
+const REGELZEITEN = ['10:30', '10:00', '11:30'];
+
+function alsVorschlag(label: string): UhrzeitVorschlag {
+  const [stunde, minute] = label.split(':').map(Number);
+  return { schluessel: label, label, stunde: stunde!, minute: minute! };
+}
+
+/**
+ * Die Uhrzeiten zur Auswahl — **10:30 immer zuerst**, dahinter die zuletzt
+ * genutzten.
+ *
+ * Dass die Regelzeit fest vorn steht, ist kein Schönheitsfehler, sondern
+ * folgt aus dem Vorbelegen: Das Formular startet auf 10:30 (siehe
+ * `REGELZEIT`), und ein vorbelegter Wert ohne zugehörigen Chip sähe aus wie
+ * gar keine Auswahl. Stünden hier nur die häufigsten Zeiten der Historie,
+ * wäre in einer Woche mit drei Abendterminen kein Chip gefüllt und der
+ * Guide fragte sich, was denn nun eingetragen ist.
+ *
+ * Die Historie geht damit nicht verloren, sie rückt eine Stelle weiter:
+ * Trainiert der Verein tatsächlich um 17:30, steht das direkt daneben und
+ * ist ein Antippen entfernt.
+ */
 export function uhrzeitVorschlaege(trainings: Training[]): UhrzeitVorschlag[] {
   const zeiten = jüngste(trainings).map(
     (training) =>
       `${String(training.beginntAm.getHours()).padStart(2, '0')}:${String(training.beginntAm.getMinutes()).padStart(2, '0')}`,
   );
 
-  return nachHaeufigkeit(zeiten)
-    .slice(0, HOECHSTENS)
-    .map((label) => {
-      const [stunde, minute] = label.split(':').map(Number);
-      return { schluessel: label, label, stunde: stunde!, minute: minute! };
-    });
+  const regelzeit = `${String(REGELZEIT.stunde).padStart(2, '0')}:${String(REGELZEIT.minute).padStart(2, '0')}`;
+  const gereiht = nachHaeufigkeit(zeiten).filter((label) => label !== regelzeit);
+  // Ohne Historie füllen die genannten Regelzeiten die Reihe auf; mit
+  // Historie treten sie beiseite.
+  const rest = gereiht.length > 0 ? gereiht : REGELZEITEN.filter((l) => l !== regelzeit);
+
+  return [regelzeit, ...rest].slice(0, HOECHSTENS).map(alsVorschlag);
 }
 
 /**

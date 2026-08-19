@@ -33,54 +33,60 @@ function training(jahr: number, monat: number, tag: number, stunde: number, minu
 const JETZT = new Date(2026, 7, 19, 14, 30);
 
 describe('datumsVorschlaege', () => {
-  it('bietet immer Heute und Morgen an', () => {
-    const v = datumsVorschlaege([], JETZT);
-    expect(v.map((e) => e.label)).toEqual(['Heute', 'Morgen']);
+  it('bietet Heute, Morgen und den nächsten Sonntag an', () => {
+    // Mittwoch der 19. — der kommende Sonntag ist der 23.
+    const v = datumsVorschlaege(JETZT);
+    expect(v.map((e) => e.schluessel)).toEqual(['heute', 'morgen', 'trainingstag']);
+    // Die Beschriftung kommt aus `toLocaleDateString` und sieht je nach
+    // Plattform etwas anders aus („So 23.8." / „So., 23.8."). Geprüft wird
+    // deshalb der Tag, nicht die Schreibweise — sonst bräche der Test an
+    // einer anderen ICU-Fassung, ohne dass etwas kaputt wäre.
+    expect(v[2]!.label).toContain('23.8.');
     expect(v[0]!.datum).toEqual(new Date(2026, 7, 19));
     expect(v[1]!.datum).toEqual(new Date(2026, 7, 20));
+    expect(v[2]!.datum).toEqual(new Date(2026, 7, 23));
   });
 
   it('setzt die Uhrzeit auf Mitternacht — wie der Datumswähler', () => {
     // Sonst schleppte der Chip die aktuelle Uhrzeit mit, und `baueZeitpunkt`
     // nähme zwar nur den Tag, aber ein Entwurf sähe seltsam aus.
-    const heute = datumsVorschlaege([], JETZT)[0]!.datum;
+    const heute = datumsVorschlaege(JETZT)[0]!.datum;
     expect([heute.getHours(), heute.getMinutes(), heute.getSeconds()]).toEqual([0, 0, 0]);
   });
 
-  it('schlägt zusätzlich den üblichen Trainingstag vor', () => {
-    // Vier Dienstage, zwei Donnerstage → Dienstag ist der übliche Tag.
-    const trainings = [
-      training(2026, 8, 18, 17, 30, 'Kalkofen'), // Di
-      training(2026, 8, 11, 17, 30, 'Kalkofen'), // Di
-      training(2026, 8, 4, 17, 30, 'Kalkofen'), // Di
-      training(2026, 7, 28, 17, 30, 'Kalkofen'), // Di
-      training(2026, 8, 13, 18, 0, 'Johannisberg'), // Do
-      training(2026, 8, 6, 18, 0, 'Johannisberg'), // Do
-    ];
-
-    const v = datumsVorschlaege(trainings, JETZT);
-    expect(v).toHaveLength(3);
-    // Der nächste Dienstag nach Mittwoch dem 19. ist der 25.
-    expect(v[2]!.datum).toEqual(new Date(2026, 7, 25));
-    expect(v[2]!.schluessel).toBe('wochentag-2');
+  it('nimmt an einem Sonntag den Sonntag in sieben Tagen', () => {
+    // Nicht heute: „Heute" hat seinen eigenen Chip, und ein zweiter mit
+    // demselben Tag wäre eine Auswahl ohne Wahl.
+    const v = datumsVorschlaege(new Date(2026, 7, 23, 9, 0));
+    expect(v[2]!.datum).toEqual(new Date(2026, 7, 30));
   });
 
-  it('lässt den dritten Vorschlag weg, wenn er auf heute oder morgen fiele', () => {
-    // Übliche Tage: Donnerstag. Heute ist Mittwoch, morgen Donnerstag —
-    // ein dritter Chip mit demselben Tag wäre eine Auswahl ohne Wahl.
-    const donnerstage = [
-      training(2026, 8, 13, 18, 0, 'Kalkofen'),
-      training(2026, 8, 6, 18, 0, 'Kalkofen'),
-    ];
-    const v = datumsVorschlaege(donnerstage, JETZT);
-    // Der nächste Donnerstag frühestens übermorgen ist der 27., nicht der 20.
-    expect(v[2]!.datum).toEqual(new Date(2026, 7, 27));
-    expect(v[2]!.datum.getDay()).toBe(4);
+  it('lässt den Sonntags-Chip an einem Samstag weg', () => {
+    // Dann ist er deckungsgleich mit „Morgen", und „Morgen" steht schon da.
+    const v = datumsVorschlaege(new Date(2026, 7, 22, 9, 0));
+    expect(v.map((e) => e.schluessel)).toEqual(['heute', 'morgen']);
+  });
+
+  it('leitet den Wochentag nicht mehr aus der Historie ab', () => {
+    // Der eigentliche Grund fuer die Aenderung: Ein paar Samstage in Folge
+    // zogen den Vorschlag auf Samstag. Aus dem Verein kam „zu 90 % Sonntag"
+    // — die Historie versprach eine Genauigkeit, die zehn Zeilen nicht
+    // hergeben. Die Signatur nimmt die Trainings deshalb gar nicht mehr an.
+    const v = datumsVorschlaege(JETZT);
+    expect(v[2]!.datum.getDay()).toBe(0);
+    expect(v[2]!.schluessel).toBe('trainingstag');
   });
 
   it('springt bei „Morgen" korrekt über einen Monatswechsel', () => {
     const silvester = new Date(2026, 11, 31, 20, 0);
-    expect(datumsVorschlaege([], silvester)[1]!.datum).toEqual(new Date(2027, 0, 1));
+    expect(datumsVorschlaege(silvester)[1]!.datum).toEqual(new Date(2027, 0, 1));
+  });
+
+  it('trifft den Sonntag auch über den Jahreswechsel', () => {
+    // Donnerstag, 31.12.2026 — der Sonntag ist der 3.1.2027.
+    expect(datumsVorschlaege(new Date(2026, 11, 31, 20, 0))[2]!.datum).toEqual(
+      new Date(2027, 0, 3),
+    );
   });
 
   it('trifft über die Zeitumstellung hinweg den richtigen Tag', () => {
@@ -89,31 +95,55 @@ describe('datumsVorschlaege', () => {
     // damit womöglich am falschen Tag. Über die Datumsfelder gerechnet
     // stimmt es — dieselbe Falle wie bei den Serienterminen.
     const vorher = new Date(2026, 9, 24, 23, 30);
-    const morgen = datumsVorschlaege([], vorher)[1]!.datum;
-    expect(morgen.getDate()).toBe(25);
-    expect(morgen.getMonth()).toBe(9);
-    expect(morgen.getHours()).toBe(0);
+    const v = datumsVorschlaege(vorher);
+    expect(v[1]!.datum.getDate()).toBe(25);
+    expect(v[1]!.datum.getMonth()).toBe(9);
+    expect(v[1]!.datum.getHours()).toBe(0);
+    // Der 24.10. ist ein Samstag, der Umstellungstag also „Morgen" — und
+    // damit ohne eigenen Chip. Genau die Nacht, in der es zählt.
+    expect(v).toHaveLength(2);
   });
 });
 
 describe('uhrzeitVorschlaege', () => {
-  it('sortiert nach Häufigkeit', () => {
-    const trainings = [
+  it('stellt 10:30 immer voran', () => {
+    // Die Regelzeit des Vereins. Sie muss dabei sein, weil das Formular
+    // damit vorbelegt startet — ein vorbelegter Wert ohne zugehörigen Chip
+    // sähe aus wie gar keine Auswahl.
+    const abends = [
       training(2026, 8, 18, 17, 30, 'A'),
-      training(2026, 8, 11, 18, 0, 'A'),
+      training(2026, 8, 11, 17, 30, 'A'),
+      training(2026, 8, 4, 18, 0, 'A'),
+    ];
+    expect(uhrzeitVorschlaege(abends).map((u) => u.label)).toEqual(['10:30', '17:30', '18:00']);
+  });
+
+  it('sortiert die übrigen nach Häufigkeit', () => {
+    const trainings = [
+      training(2026, 8, 18, 18, 0, 'A'),
+      training(2026, 8, 11, 17, 30, 'A'),
       training(2026, 8, 4, 17, 30, 'A'),
       training(2026, 7, 28, 17, 30, 'A'),
     ];
-    expect(uhrzeitVorschlaege(trainings).map((u) => u.label)).toEqual(['17:30', '18:00']);
+    expect(uhrzeitVorschlaege(trainings).map((u) => u.label)).toEqual(['10:30', '17:30', '18:00']);
+  });
+
+  it('nennt 10:30 nicht zweimal, wenn der Verein ohnehin um 10:30 fährt', () => {
+    const trainings = [
+      training(2026, 8, 18, 10, 30, 'A'),
+      training(2026, 8, 11, 10, 30, 'A'),
+      training(2026, 8, 4, 11, 0, 'A'),
+    ];
+    expect(uhrzeitVorschlaege(trainings).map((u) => u.label)).toEqual(['10:30', '11:00']);
   });
 
   it('füllt die Stunde mit einer Null auf', () => {
-    expect(uhrzeitVorschlaege([training(2026, 8, 18, 9, 5, 'A')])[0]!.label).toBe('09:05');
+    expect(uhrzeitVorschlaege([training(2026, 8, 18, 9, 5, 'A')])[1]!.label).toBe('09:05');
   });
 
   it('zerlegt die Beschriftung wieder in Stunde und Minute', () => {
-    const [erster] = uhrzeitVorschlaege([training(2026, 8, 18, 9, 5, 'A')]);
-    expect([erster!.stunde, erster!.minute]).toEqual([9, 5]);
+    const zweiter = uhrzeitVorschlaege([training(2026, 8, 18, 9, 5, 'A')])[1];
+    expect([zweiter!.stunde, zweiter!.minute]).toEqual([9, 5]);
   });
 
   it('bietet höchstens drei an', () => {
@@ -128,11 +158,14 @@ describe('uhrzeitVorschlaege', () => {
       training(2026, 8, 18, 18, 0, 'A'), // jünger
       training(2026, 8, 11, 17, 30, 'A'),
     ];
-    expect(uhrzeitVorschlaege(trainings)[0]!.label).toBe('18:00');
+    expect(uhrzeitVorschlaege(trainings)[1]!.label).toBe('18:00');
   });
 
-  it('kommt mit einer leeren Liste zurecht', () => {
-    expect(uhrzeitVorschlaege([])).toEqual([]);
+  it('bietet ohne Historie die drei genannten Regelzeiten an', () => {
+    // Aus dem Verein: „Uhrzeit-Vorschlag ist super, meist 10:30." Ein leerer
+    // Bildschirm wäre für ein frisches Konto der schlechtere Start als drei
+    // Zeiten, von denen eine fast immer stimmt.
+    expect(uhrzeitVorschlaege([]).map((u) => u.label)).toEqual(['10:30', '10:00', '11:30']);
   });
 });
 
@@ -166,7 +199,7 @@ describe('baueZeitpunkt', () => {
     // **Die Zusage des ganzen Umbaus.** Wenn hier etwas abwiche, entstünden
     // je nach Bedienweg verschiedene Trainings — und niemand käme darauf.
     const ausChips = baueZeitpunkt(
-      datumsVorschlaege([], JETZT)[1]!.datum, // „Morgen"
+      datumsVorschlaege(JETZT)[1]!.datum, // „Morgen"
       alsUhrzeit(17, 30, JETZT),
     );
     const ausWaehlern = baueZeitpunkt(
