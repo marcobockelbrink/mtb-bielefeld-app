@@ -44,13 +44,13 @@ const UMGEBUNGEN = {
     // (dev)" wurde abgeschnitten und sah kaputt aus. Kurz genug für den
     // Startbildschirm, eindeutig genug neben der echten App.
     name: 'MTB BI (dev)',
-    domain: 'api-dev.bockelbrink.net',
+    domain: 'app-dev.mtb-bielefeld.de',
     schema: 'mtbie-dev',
   },
   prod: {
     kennung: 'de.mtbbielefeld.app',
     name: 'MTB Bielefeld',
-    domain: 'api.mtb-bielefeld.de',
+    domain: 'app.mtb-bielefeld.de',
     schema: 'mtbie',
   },
 };

@@ -7,7 +7,7 @@
     "dev-testflight": {
       "distribution": "store",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-dev.bockelbrink.net"
+        "EXPO_PUBLIC_API_URL": "https://app-dev.mtb-bielefeld.de"
       }
     },
     "prod": {

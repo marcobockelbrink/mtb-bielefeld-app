@@ -147,8 +147,8 @@ eines Mitglieds auf einen fremden Server richten.
 | Befehl | API | Name auf dem Telefon |
 | --- | --- | --- |
 | `npm start` | `http://localhost` | MTB Bielefeld (dev) |
-| `npm run start:dev` | `https://api-dev.bockelbrink.net` | MTB Bielefeld (dev) |
-| `npm run vorbereiten:prod` + Bau | `https://api.mtb-bielefeld.de` | MTB Bielefeld |
+| `npm run start:dev` | `https://app-dev.mtb-bielefeld.de` | MTB Bielefeld (dev) |
+| `npm run vorbereiten:prod` + Bau | `https://app.mtb-bielefeld.de` | MTB Bielefeld |
 
 Die dev-Fassung trägt eine eigene Bündelkennung
 (`de.mtbbielefeld.app.dev`) und ein eigenes Adressschema (`mtbie-dev`).
@@ -165,7 +165,7 @@ EXPO_PUBLIC_APP_UMGEBUNG=prod npx expo run:ios --configuration Release
 
 `npm` setzt eine so vorangestellte Variable nur für den einen Befehl. Wer
 sie im zweiten Schritt vergisst, bekommt eine App, die außen „MTB
-Bielefeld" heißt und `api.mtb-bielefeld.de` angemeldet hat, innen aber mit
+Bielefeld" heißt und `app.mtb-bielefeld.de` angemeldet hat, innen aber mit
 dem Prüfserver spricht — grüne Tests, fehlerfreies Bündel, und niemand
 sieht es.
 

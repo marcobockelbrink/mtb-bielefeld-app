@@ -12,7 +12,7 @@ metadata:
 
 | | Prüfserver | Vorgänger |
 | --- | --- | --- |
-| Domain | `api-dev.bockelbrink.net` | `api.bockelbrink.net` |
+| Domain | `app-dev.mtb-bielefeld.de` | `api.bockelbrink.net` |
 | Maschine | Hetzner, `78.47.128.71` | Contabo, `169.58.129.20` |
 | Zugang | `ssh mtb-hetzner` | `ssh mtb` |
 
@@ -29,7 +29,7 @@ Datenbank (12 Migrationen von null), nichts ist von Contabo mitgewandert.
 (Commits d0fe880, 40a82fb), Caddy hat das Zertifikat geholt, beide Namen
 liefern `{"zustand":"bereit"}`. Es ist **derselbe Aufbau und dieselbe
 Datenbank** — kein zweiter Stapel, kein prod. Der echte prod-Endpunkt
-entsteht weiterhin später als `api.mtb-bielefeld.de` auf der
+entsteht weiterhin später als `app.mtb-bielefeld.de` auf der
 Vereinsmaschine; der Apple-Entwicklerzugang ist seit dem 11.08.2026
 vorhanden (bezahlt), es fehlen noch SMTP und die Maschine selbst.
 
@@ -44,7 +44,7 @@ Beim Messen die Falle beachten: Der Systemauflöser hielt
 prompt einen 200er. Gegen `@1.1.1.1` prüfen, und die Maschine mit
 `curl --resolve <name>:443:<ip>` festnageln.
 
-Der Vereinsserver (`api.mtb-bielefeld.de`) existiert noch nicht.
+Der Vereinsserver (`app.mtb-bielefeld.de`) existiert noch nicht.
 
 ## Was fehlt — und nur von außen kommen kann
 
@@ -78,7 +78,7 @@ Der Vereinsserver (`api.mtb-bielefeld.de`) existiert noch nicht.
   die ganze Kette außer dem echten Schlüssel.
 - **Ein zweiter Zugang zu den Servern.** Es kommt genau ein Mensch von
   genau einem Rechner hinein.
-- **Die Maschine des Vereins** und **`api.mtb-bielefeld.de` im DNS**.
+- **Die Maschine des Vereins** und **`app.mtb-bielefeld.de` im DNS**.
 - ~~Apple-Konto~~ **erledigt**: Team `755278A9P4`, siehe
   [[testflight-und-eas]] — Universal Links am 12.08.2026 auf echtem
   iPhone nachgewiesen.
@@ -123,7 +123,7 @@ AAAA-Eintrag.
 ## Zwei Merkregeln, die Zeit gekostet haben
 
 **DNS gegen `@1.1.1.1` prüfen, nie gegen den Systemauflöser.** Der hielt
-`api-dev.bockelbrink.net` zwischenzeitlich auf der Contabo-Adresse fest,
+`app-dev.mtb-bielefeld.de` zwischenzeitlich auf der Contabo-Adresse fest,
 und ich habe daraufhin Falsches in einen Plan geschrieben.
 
 **Vor einem Umgebungswechsel `pkill -f "expo start"`.** `expo run:ios`

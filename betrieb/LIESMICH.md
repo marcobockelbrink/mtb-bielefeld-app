@@ -141,7 +141,7 @@ Drei Dinge müssen dafür stimmen, und alle drei sind nicht offensichtlich:
 ssh -f -N -L 8026:127.0.0.1:8025 mtb-hetzner   # Mailpit hängt dort an 127.0.0.1
 
 DOCKER_HOST=ssh://mtb-hetzner \
-RAUCHPROBE_BASIS=https://api-dev.bockelbrink.net \
+RAUCHPROBE_BASIS=https://app-dev.mtb-bielefeld.de \
 RAUCHPROBE_MAILPIT=http://localhost:8026 \
 npm run rauchprobe
 ```

@@ -16,7 +16,7 @@ Mitglieder darin stehen, wäre das nicht mehr einzufangen.
 
 | | Prüfserver (dev) | Verein (prod) |
 | --- | --- | --- |
-| Adresse | `api-dev.bockelbrink.net` | `api.mtb-bielefeld.de` |
+| Adresse | `app-dev.mtb-bielefeld.de` | `app.mtb-bielefeld.de` |
 | Maschine | Hetzner, `78.47.128.71` | steht noch aus |
 | Zugang | `ssh mtb-hetzner` | — |
 | Bündelkennung der App | `de.mtbbielefeld.app.dev` | `de.mtbbielefeld.app` |
@@ -40,7 +40,7 @@ durchlaufen, und das prüft sonst niemand.
 | | |
 | --- | --- |
 | Anbieter | Hetzner Cloud, Falkenstein |
-| Adresse | `78.47.128.71` — `api-dev.bockelbrink.net` |
+| Adresse | `78.47.128.71` — `app-dev.mtb-bielefeld.de` |
 | System | Ubuntu 24.04 LTS, nacktes Image |
 | Ausstattung | 2 Kerne, 3,8 GB RAM, 38 GB Platte, x86_64 |
 | Eingerichtet | 7. August 2026 |

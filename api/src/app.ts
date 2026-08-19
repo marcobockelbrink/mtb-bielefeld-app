@@ -817,7 +817,7 @@ export function baueApp({
       const stornoToken = ergebnis.stornoToken;
       const terminTitel = termin.title;
       imHintergrund(async () => {
-        const basis = process.env.API_BASIS_URL ?? 'https://api.mtb-bielefeld.de';
+        const basis = process.env.API_BASIS_URL ?? 'https://app.mtb-bielefeld.de';
         try {
           await mailer.sende(
             gastEmail,
@@ -1658,7 +1658,7 @@ dein Kind auch anmelden.</p>
         mailer,
         email,
         jetzt(),
-        process.env.API_BASIS_URL ?? 'https://api.mtb-bielefeld.de',
+        process.env.API_BASIS_URL ?? 'https://app.mtb-bielefeld.de',
         process.env.TESTFLIGHT_LINK,
       ),
     );
@@ -1757,7 +1757,7 @@ dein Kind auch anmelden.</p>
           typeof koerper?.kannBilderHochladen === 'boolean' ? koerper.kannBilderHochladen : undefined,
       },
       jetzt(),
-      process.env.API_BASIS_URL ?? 'https://api.mtb-bielefeld.de',
+      process.env.API_BASIS_URL ?? 'https://app.mtb-bielefeld.de',
     );
 
     if (!ergebnis.ok) {

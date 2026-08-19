@@ -20,13 +20,13 @@ describe('waehleApiAdresse', () => {
 
   it('zeigt in der dev-Fassung auf den Prüfserver', () => {
     expect(waehleApiAdresse({ ueberschrieben: undefined, umgebung: 'dev', imEntwicklungsbau: false })).toBe(
-      'https://api-dev.bockelbrink.net',
+      'https://app-dev.mtb-bielefeld.de',
     );
   });
 
   it('zeigt in der prod-Fassung auf den Vereinsserver', () => {
     expect(waehleApiAdresse({ ueberschrieben: undefined, umgebung: 'prod', imEntwicklungsbau: false })).toBe(
-      'https://api.mtb-bielefeld.de',
+      'https://app.mtb-bielefeld.de',
     );
   });
 
@@ -57,7 +57,7 @@ describe('waehleApiAdresse', () => {
   it('nimmt alles außer dem ausdrücklichen „prod" als dev', () => {
     for (const eingabe of [undefined, '', 'produktion', 'PROD']) {
       expect(waehleApiAdresse({ ueberschrieben: undefined, umgebung: eingabe, imEntwicklungsbau: false })).toBe(
-        'https://api-dev.bockelbrink.net',
+        'https://app-dev.mtb-bielefeld.de',
       );
     }
   });

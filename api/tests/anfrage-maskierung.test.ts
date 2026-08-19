@@ -36,7 +36,7 @@ describe('serialisiereAnfrage', () => {
       method: 'GET',
       url: '/gast/storno/geheim-abc123',
       headers: { 'accept-version': '1.x' },
-      host: 'api.mtb-bielefeld.de',
+      host: 'app.mtb-bielefeld.de',
       ip: '9.9.9.9',
       socket: { remotePort: 51234 },
     });
@@ -45,7 +45,7 @@ describe('serialisiereAnfrage', () => {
       method: 'GET',
       url: '/gast/storno/[maskiert]',
       version: '1.x',
-      host: 'api.mtb-bielefeld.de',
+      host: 'app.mtb-bielefeld.de',
       remoteAddress: '9.9.9.9',
       remotePort: 51234,
     });
@@ -58,7 +58,7 @@ describe('serialisiereAnfrage', () => {
       method: 'POST',
       url: '/anmeldung/anfordern',
       headers: {},
-      host: 'api.mtb-bielefeld.de',
+      host: 'app.mtb-bielefeld.de',
       ip: '9.9.9.9',
       socket: { remotePort: 51234 },
     });

@@ -346,7 +346,7 @@ bleiben Sache des Simulators.
 ### Drei Ziele, und die Voreinstellung ist die harmlose
 
 Seit dem 07.08.2026 gibt es **dev und prod getrennt**: ein Prüfserver
-(`api-dev.bockelbrink.net`) und der Vereinsserver, mit eigener Datenbank
+(`app-dev.mtb-bielefeld.de`) und der Vereinsserver, mit eigener Datenbank
 je Seite. Solange beide dieselbe benutzten, war jeder Versuch ein Eingriff
 in Vereinsdaten — und ab dem Tag, an dem echte Mitglieder darin stehen,
 wäre das nicht mehr einzufangen.
@@ -354,8 +354,8 @@ wäre das nicht mehr einzufangen.
 | Ziel | API | Bündelkennung | Name auf dem Telefon |
 | --- | --- | --- | --- |
 | lokal (`npm start`) | `http://localhost` | `de.mtbbielefeld.app.dev` | MTB Bielefeld (dev) |
-| dev (`npm run start:dev`) | `https://api-dev.bockelbrink.net` | `de.mtbbielefeld.app.dev` | MTB Bielefeld (dev) |
-| prod (`npm run bau:prod`) | `https://api.mtb-bielefeld.de` | `de.mtbbielefeld.app` | MTB Bielefeld |
+| dev (`npm run start:dev`) | `https://app-dev.mtb-bielefeld.de` | `de.mtbbielefeld.app.dev` | MTB Bielefeld (dev) |
+| prod (`npm run bau:prod`) | `https://app.mtb-bielefeld.de` | `de.mtbbielefeld.app` | MTB Bielefeld |
 
 Zwei Entscheidungen dahinter, beide bewusst:
 
@@ -382,7 +382,7 @@ geteilte Link öffnet nur den Browser.
 **Am 07.08.2026 auf dem Simulator nachgemessen**, zweimal: Gegen den
 Vorgängerserver öffnete `xcrun simctl openurl booted
 "https://api.bockelbrink.net/t/<id>"` die App unmittelbar beim Training,
-nicht Safari. Gegen den Prüfserver `api-dev.bockelbrink.net` fragte iOS
+nicht Safari. Gegen den Prüfserver `app-dev.mtb-bielefeld.de` fragte iOS
 stattdessen „In ‚MTB Bielefeld (dev)' öffnen?" — auch das ist der
 Nachweis, denn diesen Dialog gibt es nur bei zugeordneter Domain; ohne
 Zuordnung ginge wortlos Safari auf. Am selben Tag mit `idb`

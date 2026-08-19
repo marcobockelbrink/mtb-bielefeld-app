@@ -32,10 +32,10 @@ describe('app.config.js', () => {
   // Umgebung meldet deshalb nur ihre eigene Domain an.
   it('meldet je Umgebung nur die eigene Domain an', () => {
     expect(baueKonfiguration('dev').expo.ios.associatedDomains).toEqual([
-      'applinks:api-dev.bockelbrink.net',
+      'applinks:app-dev.mtb-bielefeld.de',
     ]);
     expect(baueKonfiguration('prod').expo.ios.associatedDomains).toEqual([
-      'applinks:api.mtb-bielefeld.de',
+      'applinks:app.mtb-bielefeld.de',
     ]);
   });
 

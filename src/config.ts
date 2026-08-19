@@ -137,7 +137,7 @@ export function waehleApiAdresse({
 }): string {
   if (ueberschrieben) return ueberschrieben;
   if (imEntwicklungsbau) return 'http://localhost';
-  return umgebung === 'prod' ? 'https://api.mtb-bielefeld.de' : 'https://api-dev.bockelbrink.net';
+  return umgebung === 'prod' ? 'https://app.mtb-bielefeld.de' : 'https://app-dev.mtb-bielefeld.de';
 }
 
 /**
@@ -148,7 +148,7 @@ export function waehleApiAdresse({
  * Umweg. Fällt sie aus, bleibt die App vollständig benutzbar.
  *
  * **Drei Ziele statt zweier** (seit dem 07.08.2026): örtlich beim
- * Entwickeln, der Prüfserver `api-dev.bockelbrink.net` in der dev-Fassung,
+ * Entwickeln, der Prüfserver `app-dev.mtb-bielefeld.de` in der dev-Fassung,
  * der Vereinsserver in der prod-Fassung. Solange beide dieselbe Datenbank
  * benutzten, war jeder Versuch ein Eingriff in Vereinsdaten — und ab dem
  * Tag, an dem echte Mitglieder darin stehen, wäre das nicht mehr

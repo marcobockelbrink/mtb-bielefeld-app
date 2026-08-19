@@ -83,7 +83,7 @@ Farbwerte nicht anderswo hinschreiben — `tools/logo-assets.py` liest sie aus
 ### 6. Ohne Angabe ist es ein dev-Bau
 
 Seit dem 7. August 2026 gibt es zwei Server: den Prüfserver
-`api-dev.bockelbrink.net` und den Vereinsserver. Welchen die App anspricht,
+`app-dev.mtb-bielefeld.de` und den Vereinsserver. Welchen die App anspricht,
 entscheidet **eine Variable beim Bauen**:
 
 ```bash
@@ -101,7 +101,7 @@ EXPO_PUBLIC_APP_UMGEBUNG=prod npx expo run:ios --configuration Release
 ```
 
 Fehlt sie im zweiten, heißt die App außen „MTB Bielefeld", hat
-`api.mtb-bielefeld.de` angemeldet — und spricht innen mit dem Prüfserver.
+`app.mtb-bielefeld.de` angemeldet — und spricht innen mit dem Prüfserver.
 
 **Zwei Dinge schreibt `expo prebuild` still um**, und beide sind schon
 mehrfach zurückgenommen und wieder erschienen:
