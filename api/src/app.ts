@@ -1099,7 +1099,7 @@ dein Kind auch anmelden.</p>
       ...('endetAm' in koerper ? { endetAm } : {}),
       ...('hinweis' in koerper ? { hinweis: koerper.hinweis === null ? null : String(koerper.hinweis) } : {}),
       ...('plaetze' in koerper ? { plaetze } : {}),
-    });
+    }, { mitgliedId: erlaubnis.ausweis.mitgliedId, jetzt: jetzt() });
     if (!geaendert) return antwort.code(404).send({ fehler: 'Dieses Training gibt es nicht.' });
 
     antwort.send(geaendert);

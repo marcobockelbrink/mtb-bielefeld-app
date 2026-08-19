@@ -55,6 +55,15 @@ export interface Training {
   zustand: Zustand;
   absagegrund: string | null;
   angelegtVon: string;
+  /**
+   * Wann zuletzt geändert — `null` heißt „seit dem Anlegen unverändert".
+   *
+   * Nur `holeTraining` liefert die beiden Felder; die Liste lässt sie weg,
+   * weil die Zeile „Zuletzt geändert" nur in der Einzelansicht steht.
+   */
+  geaendertAm?: Date | null;
+  /** Der Name der ändernden Person, nicht ihre Kennung — für die Anzeige. */
+  geaendertVon?: string | null;
 }
 
 interface Zeile {
@@ -68,6 +77,8 @@ interface Zeile {
   zustand: Zustand;
   absagegrund: string | null;
   angelegt_von: string;
+  geaendert_am?: Date | null;
+  geaendert_von_name?: string | null;
 }
 
 const SPALTEN = `id, beginnt_am, endet_am, ort, hinweis, plaetze,
@@ -85,6 +96,12 @@ function zuTraining(zeile: Zeile): Training {
     zustand: zeile.zustand,
     absagegrund: zeile.absagegrund,
     angelegtVon: zeile.angelegt_von,
+    // Nur mitgeben, wenn die Abfrage sie geholt hat: `undefined` heißt
+    // „nicht abgefragt", `null` heißt „nie geändert". Die beiden
+    // gleichzusetzen hieße, jede Liste als unverändert auszuweisen.
+    ...(zeile.geaendert_am !== undefined
+      ? { geaendertAm: zeile.geaendert_am, geaendertVon: zeile.geaendert_von_name ?? null }
+      : {}),
   };
 }
 
@@ -124,8 +141,20 @@ export async function holeTraining(
   // einer gültigen, aber unbekannten Kennung: kein Orakel über Kennungen.
   if (!istKennung(id)) return null;
 
+  // Nur hier mit `geaendert_*` und dem Namen dazu: Die Zeile „Zuletzt
+  // geändert" steht in der Einzelansicht, nicht in der Liste. Ein `LEFT
+  // JOIN` je Karte wäre Aufwand für etwas, das dort niemand sieht.
+  //
+  // `LEFT`, nicht `INNER`: `geaendert_von` ist im Normalfall NULL, und ein
+  // innerer Verbund ließe damit **jedes unveränderte Training**
+  // verschwinden.
   const { rows } = await ausfuehrer.query<Zeile>(
-    `SELECT ${SPALTEN} FROM jugendtraining WHERE id = $1`,
+    `SELECT t.id, t.beginnt_am, t.endet_am, t.ort, t.hinweis, t.plaetze,
+            t.guides_noetig, t.zustand, t.absagegrund, t.angelegt_von,
+            t.geaendert_am, m.name AS geaendert_von_name
+       FROM jugendtraining t
+       LEFT JOIN mitglied m ON m.id = t.geaendert_von
+      WHERE t.id = $1`,
     [id],
   );
   return rows[0] ? zuTraining(rows[0]) : null;
@@ -174,6 +203,14 @@ export async function aendereTraining(
   ausfuehrer: pg.Pool | pg.PoolClient,
   id: string,
   eingabe: Partial<TrainingEingabe>,
+  /**
+   * Wer ändert und wann — für die Zeile „Zuletzt geändert" in der App.
+   *
+   * Optional, damit bestehende Aufrufe (und Tests) unverändert bleiben;
+   * ohne die Angabe bleibt der bisherige Stand stehen, statt ihn mit `NULL`
+   * zu überschreiben.
+   */
+  wer?: { mitgliedId: string; jetzt: Date },
 ): Promise<Training | null> {
   if (!istKennung(id)) return null;
 
@@ -194,7 +231,9 @@ export async function aendereTraining(
        ort           = COALESCE($5, ort),
        hinweis       = CASE WHEN $6::boolean THEN $7 ELSE hinweis END,
        plaetze       = CASE WHEN $8::boolean THEN $9 ELSE plaetze END,
-       guides_noetig = COALESCE($10, guides_noetig)
+       guides_noetig = COALESCE($10, guides_noetig),
+       geaendert_am   = COALESCE($11, geaendert_am),
+       geaendert_von  = COALESCE($12, geaendert_von)
      WHERE id = $1 AND zustand <> 'abgesagt'
      RETURNING ${SPALTEN}`,
     [
@@ -208,6 +247,8 @@ export async function aendereTraining(
       'plaetze' in eingabe,
       eingabe.plaetze ?? null,
       eingabe.guidesNoetig ?? null,
+      wer?.jetzt ?? null,
+      wer?.mitgliedId ?? null,
     ],
   );
   return rows[0] ? zuTraining(rows[0]) : null;

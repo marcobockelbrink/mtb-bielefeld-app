@@ -29,6 +29,13 @@ export interface Training {
   zustand: Zustand;
   absagegrund: string | null;
   belegt: number;
+  /**
+   * Wann zuletzt geändert — `null`/fehlend heißt „seit dem Anlegen
+   * unverändert". Nur die Einzelansicht liefert es.
+   */
+  geaendertAm?: Date | null;
+  /** Der Name der ändernden Person, nicht ihre Kennung. */
+  geaendertVon?: string | null;
 }
 
 export interface TrainingDetails extends Training {
@@ -67,6 +74,8 @@ interface RohTraining {
   zustand: Zustand;
   absagegrund: string | null;
   belegt?: number;
+  geaendertAm?: string | null;
+  geaendertVon?: string | null;
 }
 
 function zuTraining(roh: RohTraining): Training {
@@ -75,6 +84,12 @@ function zuTraining(roh: RohTraining): Training {
     beginntAm: new Date(roh.beginntAm),
     endetAm: roh.endetAm ? new Date(roh.endetAm) : null,
     belegt: roh.belegt ?? 0,
+    // `undefined` heißt „nicht mitgeliefert" (Liste), `null` heißt „nie
+    // geändert". Die beiden gleichzusetzen hieße, jede Karte in der Liste
+    // als unverändert auszuweisen — was zufällig stimmt, aber aus dem
+    // falschen Grund.
+    geaendertAm: roh.geaendertAm ? new Date(roh.geaendertAm) : (roh.geaendertAm as null | undefined),
+    geaendertVon: roh.geaendertVon,
   };
 }
 

@@ -271,3 +271,43 @@ describe('PATCH /jugendtraining/:id — die Mail an die Familien', () => {
     expect(aenderungsmails(mailer)).toHaveLength(0);
   });
 });
+
+describe('PATCH /jugendtraining/:id — „Zuletzt geändert"', () => {
+  it('hält fest, wann und von wem geändert wurde', async () => {
+    // Punkt 5 aus Handoff 12/13: Damit eine Änderung auch bemerkt, wer die
+    // Mail übersieht.
+    const app = bauen();
+    const guide = await mitgliedMitToken('guide@example.org', 'guide');
+    await pool.query("UPDATE mitglied SET name = 'Marco' WHERE email = 'guide@example.org'");
+    const training = await veroeffentlichtesTraining(app, guide.zugang);
+
+    const vorher = (
+      await app.inject({
+        method: 'GET',
+        url: `/jugendtraining/${training.id}`,
+        headers: { authorization: `Bearer ${guide.zugang}` },
+      })
+    ).json();
+    // Frisch angelegt heißt: nie geändert.
+    expect(vorher.geaendertAm).toBeNull();
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/jugendtraining/${training.id}`,
+      headers: { authorization: `Bearer ${guide.zugang}` },
+      payload: { ort: 'Johannisberg' },
+    });
+
+    const danach = (
+      await app.inject({
+        method: 'GET',
+        url: `/jugendtraining/${training.id}`,
+        headers: { authorization: `Bearer ${guide.zugang}` },
+      })
+    ).json();
+
+    expect(danach.geaendertAm).not.toBeNull();
+    // Der **Name**, nicht die Kennung — die Zeile in der App zeigt ihn an.
+    expect(danach.geaendertVon).toBe('Marco');
+  });
+});

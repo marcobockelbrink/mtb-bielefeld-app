@@ -17,6 +17,7 @@ import { TEILEN_BASIS_URL } from '../../../src/config';
 import { holeTraining, type TrainingDetails } from '../../../src/data/jugend';
 import { formatiereTrainingszeit } from '../../../src/features/jugend/format';
 import { GuideKarte } from '../../../src/features/jugend/GuideKarte';
+import { beschreibeAenderung } from '../../../src/features/jugend/geaendert';
 import { beschreibeJugendFehler } from '../../../src/features/jugend/jugendFehler';
 import { KindAnmelden } from '../../../src/features/jugend/KindAnmelden';
 import { baueTeilenText } from '../../../src/features/jugend/teilen';
@@ -177,6 +178,16 @@ export default function TrainingDetailScreen() {
           label={training.guideZusagen === 1 ? 'Guide' : 'Guides'}
           value={`${training.guideZusagen} zugesagt`}
         />
+
+        {/* „Zuletzt geändert" — damit eine Änderung auch bemerkt, wer die
+            Mail übersieht. Vorher stand der neue Stand einfach da, als wäre
+            er immer so gewesen. Steht ganz unten und leise: Es ist eine
+            Fußnote, keine Angabe zum Training. */}
+        {beschreibeAenderung(training.geaendertAm, training.geaendertVon, new Date()) ? (
+          <Text style={[styles.geaendert, { color: palette.textMuted }]}>
+            {beschreibeAenderung(training.geaendertAm, training.geaendertVon, new Date())}
+          </Text>
+        ) : null}
       </Card>
 
       {/*
@@ -221,6 +232,12 @@ export default function TrainingDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  geaendert: {
+    fontFamily: font.regular,
+    fontSize: fontSize.xs,
+    lineHeight: 17,
+    marginTop: spacing.md,
+  },
   inhalt: {
     gap: spacing.lg,
     padding: spacing.lg,
