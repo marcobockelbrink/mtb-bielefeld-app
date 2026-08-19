@@ -90,7 +90,7 @@ export function AnmeldeKarte() {
           >
             <Avatar
               name={kontoName ?? kontoEmail ?? '?'}
-              uri={avatarUrl ? api.bildQuelle(avatarUrl).uri : null}
+              quelle={avatarUrl ? api.bildQuelle(avatarUrl) : null}
               size={56}
             />
             <View style={[styles.kamera, { backgroundColor: palette.primary, borderColor: palette.surface }]}>

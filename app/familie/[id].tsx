@@ -189,7 +189,7 @@ export default function FamilienprofilScreen() {
         <View style={styles.bildbereich}>
           <Avatar
             name={profil.name ?? '?'}
-            uri={profil.avatarUrl ? api.bildQuelle(profil.avatarUrl).uri : null}
+            quelle={profil.avatarUrl ? api.bildQuelle(profil.avatarUrl) : null}
             size={92}
           />
           <Pressable onPress={() => setAvatarBlatt(true)} accessibilityRole="button" hitSlop={8}>

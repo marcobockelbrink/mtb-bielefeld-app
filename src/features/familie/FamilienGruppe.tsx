@@ -86,7 +86,7 @@ export function FamilienGruppe() {
                   Bild gesetzt war. */}
               <Avatar
                 name={profil.name ?? '?'}
-                uri={profil.avatarUrl ? api.bildQuelle(profil.avatarUrl).uri : null}
+                quelle={profil.avatarUrl ? api.bildQuelle(profil.avatarUrl) : null}
                 size={40}
               />
               <View style={styles.profilText}>

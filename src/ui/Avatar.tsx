@@ -8,6 +8,22 @@
  *
  * Initialen und Farbwahl stehen in `avatarFarben.ts` — ohne React Native und
  * damit ohne Gerät prüfbar. Hier bleibt nur die Darstellung.
+ *
+ * ## Warum `quelle` und nicht `uri`
+ *
+ * Die API liefert Profilbilder **nur mit Token** aus (`GET /avatar/:id`).
+ * Eine nackte Adresse bekommt 401, und `Image` zeigt dann stillschweigend
+ * nichts — kein Fehler, kein Platzhalter, nur ein leerer Kreis.
+ *
+ * Genau das ist passiert: Alle Aufrufstellen reichten
+ * `api.bildQuelle(pfad).uri` herein und warfen die Kopfzeilen weg. **Das
+ * Profilbild war dadurch nie sichtbar**, seit es die Funktion gibt — bei den
+ * Albumbildern fiel es nicht auf, weil `FotoRaster` und `AlbumKarte` das
+ * ganze Objekt übergeben (`source={api.bildQuelle(...)}`).
+ *
+ * Deshalb nimmt diese Komponente jetzt die **vollständige Quelle** entgegen,
+ * so wie `bildQuelle` sie liefert. Eine Adresse ohne ihre Kopfzeilen lässt
+ * sich damit gar nicht mehr übergeben; der Fehler kann nicht wiederkommen.
  */
 
 import { Image, StyleSheet, Text, View } from 'react-native';
@@ -17,20 +33,23 @@ import { farbpaarFuer, initialen } from './avatarFarben';
 
 export function Avatar({
   name,
-  uri,
+  quelle,
   size = 40,
 }: {
   name: string;
-  /** `null` ist ein gültiger Dauerzustand — dann stehen die Initialen. */
-  uri?: string | null;
+  /**
+   * Das Ergebnis von `api.bildQuelle(pfad)` — Adresse **samt** Kopfzeilen.
+   * `null` ist ein gültiger Dauerzustand, dann stehen die Initialen.
+   */
+  quelle?: { uri: string; headers?: Record<string, string> } | null;
   size?: number;
 }) {
   const paar = farbpaarFuer(name);
 
-  if (uri) {
+  if (quelle) {
     return (
       <Image
-        source={{ uri }}
+        source={quelle}
         style={[styles.kreis, { width: size, height: size, borderRadius: size / 2 }]}
         accessibilityLabel={`Profilbild von ${name}`}
       />

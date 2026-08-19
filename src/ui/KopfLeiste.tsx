@@ -74,7 +74,7 @@ export function KopfLeiste() {
           liefert die API nur mit Token aus. */}
       <Avatar
         name={name ?? email ?? ''}
-        uri={avatarUrl ? api.bildQuelle(avatarUrl).uri : null}
+        quelle={avatarUrl ? api.bildQuelle(avatarUrl) : null}
         size={34}
       />
     </Pressable>

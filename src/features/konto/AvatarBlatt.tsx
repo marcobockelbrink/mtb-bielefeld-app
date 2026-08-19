@@ -120,7 +120,7 @@ export function AvatarBlatt({
   return (
     <Blatt offen={offen} beimSchliessen={beimSchliessen}>
       <View style={styles.kopf}>
-        <Avatar name={name} uri={avatarUrl ? api.bildQuelle(avatarUrl).uri : null} size={84} />
+        <Avatar name={name} quelle={avatarUrl ? api.bildQuelle(avatarUrl) : null} size={84} />
         <Text style={[styles.titel, { color: palette.text }]}>Profilbild für {name}</Text>
       </View>
 
