@@ -62,7 +62,14 @@ import { FotoRaster } from '../../src/features/fotos/FotoRaster';
 import { darfJetztHochladen } from '../../src/features/fotos/netz';
 import { useImWlan, useVerbunden } from '../../src/features/fotos/netzZustand';
 import { useUploadEinstellungen } from '../../src/features/fotos/uploadEinstellungen';
-import { entferne, fuegeHinzu, fuerAlbum, vermerkeFehlschlag, type Auftrag } from '../../src/features/fotos/warteschlange';
+import {
+  entferne,
+  fuegeHinzu,
+  fuerAlbum,
+  rundeIstDurch,
+  vermerkeFehlschlag,
+  type Auftrag,
+} from '../../src/features/fotos/warteschlange';
 import { kopiereInsAppVerzeichnis, liesSchlange, loescheKopie, schreibSchlange } from '../../src/features/fotos/warteschlangeSpeicher';
 import { beschreibeUploadFehler, type UploadSchritt } from '../../src/features/fotos/uploadFehler';
 import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
@@ -181,6 +188,14 @@ export default function AlbumScreen() {
     setFehler(null);
     let doppelte = 0;
     let schlange = await liesSchlange();
+    /**
+     * Wie jeder Auftrag dieser Runde ausgegangen ist.
+     *
+     * Neben `setZustaende` und nicht daraus gelesen: Die Schleife sähe den
+     * React-State erst nach dem nächsten Rendern — dieselbe Falle, für die
+     * es weiter oben schon `pausiertRef` und `laeuftHochRef` gibt.
+     */
+    const ausgang: Record<string, string> = {};
 
     for (const auftrag of auftraege) {
       // Pausieren greift zwischen zwei Bildern — das laufende wird nicht
@@ -214,6 +229,7 @@ export default function AlbumScreen() {
             bytes,
           )
         ) {
+          ausgang[auftrag.id] = 'wartetAufWlan';
           setZustaende((alt) => ({ ...alt, [auftrag.id]: 'wartetAufWlan' }));
           continue;
         }
@@ -223,6 +239,7 @@ export default function AlbumScreen() {
         if ('doppelt' in ergebnis) doppelte += 1;
         loescheKopie(auftrag);
         schlange = entferne(schlange, auftrag.id);
+        ausgang[auftrag.id] = 'hochgeladen';
         setZustaende((alt) => ({ ...alt, [auftrag.id]: 'hochgeladen' }));
         setErledigteRunde((alt) => (alt.some((a) => a.id === auftrag.id) ? alt : [...alt, auftrag]));
       } catch (ursache) {
@@ -242,6 +259,7 @@ export default function AlbumScreen() {
         // Auskunft gegeben hatte.
         const keinNetz =
           ursache instanceof ApiFehler && ursache.ohneNetz && verbunden === false;
+        ausgang[auftrag.id] = keinNetz ? 'keinNetz' : 'fehlgeschlagen';
         setZustaende((alt) => ({ ...alt, [auftrag.id]: keinNetz ? 'keinNetz' : 'fehlgeschlagen' }));
         // Ohne diesen Satz sah ein 413 („Bild zu groß") aus wie „steht in
         // der Schlange" — der Fehler aus dem Bericht vom 15.08.2026.
@@ -259,6 +277,30 @@ export default function AlbumScreen() {
     setLaeuftHoch(false);
     // **Ohne `false` hier dreht sich die Schlange endlos** — siehe `laden`.
     await laden(false);
+
+    /*
+      Die Fortschrittskarte räumt sich selbst ab, sobald die Runde restlos
+      durch ist — **erst nach `laden()`**, denn bis dahin steht das Bild
+      noch nicht im Raster, und die Seite sähe für einen Moment leer aus.
+
+      Aus der Beta, mit Bildschirmfoto: Nach dem Hochladen stand dasselbe
+      Foto zweimal da — oben in der Karte mit „HOCHGELADEN", unten im
+      Raster mit „neu". Beides stimmte, zusammen sah es aus wie ein
+      Fehler. Die Karte hat ihre Arbeit getan, sobald das Bild unten
+      steht.
+
+      Übersprungene Doppelte bleiben davon unberührt: Ihr Hinweis ist ein
+      eigenes Banner und die einzige Stelle, an der sie überhaupt
+      vorkommen.
+    */
+    const durch = rundeIstDurch(
+      auftraege.filter((a) => !entfernteRef.current.has(a.id)).map((a) => ausgang[a.id] ?? 'offen'),
+    );
+    if (durch && !pausiertRef.current) {
+      setErledigteRunde([]);
+      setZustaende({});
+      setFehler(null);
+    }
   }
 
   /** Kopiert die Auswahl ins App-Verzeichnis und stellt sie in die Schlange. */

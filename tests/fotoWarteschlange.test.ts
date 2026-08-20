@@ -8,6 +8,7 @@ import {
   vermerkeFehlschlag,
   zuJson,
   type Auftrag,
+  rundeIstDurch,
 } from '../src/features/fotos/warteschlange';
 
 function auftrag(id: string, albumId = 'album-1'): Auftrag {
@@ -45,5 +46,41 @@ describe('die Warteschlange', () => {
     expect(
       ausJson('[{"id":"a","albumId":"x","uri":"file:///a.jpg","versuche":0},{"id":"halb"}]'),
     ).toHaveLength(1);
+  });
+});
+
+
+describe('rundeIstDurch', () => {
+  /**
+   * Der Anlass kam aus der Beta mit einem Bildschirmfoto: Nach dem
+   * Hochladen stand dasselbe Foto **zweimal** auf der Seite — oben in der
+   * Fortschrittskarte mit „HOCHGELADEN", unten im Raster mit „neu".
+   * Beides stimmte, und zusammen sah es aus wie ein Fehler.
+   */
+  it('meldet eine restlos hochgeladene Runde als durch', () => {
+    expect(rundeIstDurch(['hochgeladen', 'hochgeladen'])).toBe(true);
+  });
+
+  it('hält an, solange etwas auf WLAN wartet', () => {
+    // Die Karte muss stehen bleiben: Das Bild liegt noch auf dem Gerät und
+    // wartet. Verschwände sie, wäre es lautlos weg.
+    expect(rundeIstDurch(['hochgeladen', 'wartetAufWlan'])).toBe(false);
+  });
+
+  it('hält an bei Fehlschlag und fehlendem Netz', () => {
+    // Beide verlangen eine Entscheidung — erneut versuchen oder verwerfen.
+    expect(rundeIstDurch(['fehlgeschlagen'])).toBe(false);
+    expect(rundeIstDurch(['hochgeladen', 'keinNetz'])).toBe(false);
+  });
+
+  it('hält an, wenn ein Auftrag gar nicht drankam', () => {
+    // Beim Pausieren bleiben die übrigen unangetastet stehen.
+    expect(rundeIstDurch(['hochgeladen', 'offen'])).toBe(false);
+  });
+
+  it('hält eine leere Runde nicht für fertig', () => {
+    // Dann gab es nichts zu tun, und „fertig" wäre eine Aussage über
+    // nichts.
+    expect(rundeIstDurch([])).toBe(false);
   });
 });

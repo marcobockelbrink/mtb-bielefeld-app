@@ -67,3 +67,29 @@ export function ausJson(roh: string | null): Auftrag[] {
 export function zuJson(schlange: Auftrag[]): string {
   return JSON.stringify(schlange);
 }
+
+/**
+ * Ist eine Upload-Runde restlos durch?
+ *
+ * Entscheidet, ob die Fortschrittskarte verschwinden darf. Der Anlass kam
+ * aus der Beta am 19.08.2026, mit einem Bildschirmfoto: Nach dem Hochladen
+ * stand dasselbe Foto **zweimal** auf der Seite — einmal in der
+ * Fortschrittskarte mit dem Stempel „HOCHGELADEN", einmal im Raster
+ * darunter mit dem Stempel „neu". Beides stimmte, und zusammen sah es aus
+ * wie ein Fehler.
+ *
+ * Die Karte hat ihre Arbeit getan, sobald das Bild unten steht: Das Raster
+ * ist die bessere Rückmeldung, denn es zeigt, was wirklich beim Verein
+ * angekommen ist.
+ *
+ * **Nur bei `hochgeladen`, ausnahmslos.** `wartetAufWlan`, `keinNetz` und
+ * `fehlgeschlagen` verlangen eine Entscheidung — verschwände die Karte
+ * auch dann, wäre das Bild lautlos weg, und niemand käme auf die Idee,
+ * dass es noch auf dem Gerät liegt und wartet.
+ *
+ * Eine leere Runde ist **nicht** durch: Dann gab es nichts zu tun, und
+ * „fertig" wäre eine Aussage über nichts.
+ */
+export function rundeIstDurch(zustaende: string[]): boolean {
+  return zustaende.length > 0 && zustaende.every((zustand) => zustand === 'hochgeladen');
+}
