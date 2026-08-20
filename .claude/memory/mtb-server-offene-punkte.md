@@ -1,11 +1,11 @@
 ---
 name: mtb-server-offene-punkte
-description: "Hetzner ist der Prüfserver und verschickt echte Mail; es fehlen noch Sicherungsziel und Vereinsmaschine — Stand 13.08.2026"
+description: "Hetzner ist der Prüfserver und verschickt echte Mail; Sicherungen laufen, es fehlt der Vereinsstand — Stand 20.08.2026"
 metadata:
   node_type: memory
   type: project
   originSessionId: 9594adb8-6d4b-46e0-b2ff-87ebf8679fee
-  modified: 2026-08-16T17:11:56.934Z
+  modified: 2026-08-20T00:00:00.000Z
 ---
 
 ## Was läuft
@@ -162,3 +162,43 @@ CodeQL-Funde am 13.08. abgearbeitet: sechs Härtungen, vier begründete
 Fehlalarme. Die zwei Dependabot-Warnungen sind die bekannten
 image-size-Advisories ohne Fix (Ausnahme bis 01.11. in
 tools/audit-mit-ausnahmen.mjs).
+
+
+## Stand nach dem 19.08.2026
+
+**Die Adressen heißen jetzt nach dem Verein.** `app-dev.mtb-bielefeld.de`
+ist der Prüfstand, `app.mtb-bielefeld.de` ist für den Vereinsstand
+reserviert. Die alten Namen `api-dev.bockelbrink.net` und
+`api.bockelbrink.net` werden **weiter bedient** und bleiben es —
+siehe [[alte-adressen-nie-abschalten]], dort steht auch das Prüfskript.
+
+`app.mtb-bielefeld.de` antwortet bewusst **noch nicht**: Der Name gehört
+dem Vereinsstand mit eigener Datenbank, und ihn übergangsweise auf den
+Prüfstand zu legen hieße, dass die erste prod-Fassung in Prüfdaten
+schreibt. `UMGEBUNG=prod betrieb/pruefe-adressen.sh` meldet das
+folgerichtig als Fehler — das ist der erwartete Zustand, kein Befund.
+
+**Der Vereinsstand ist vorbereitet, aber nicht ausgerollt:**
+`betrieb/docker-compose.verein.yml` (eigene Datenbank, eigene Bildablage,
+eigene AASA-Kennung, Schema `mtbie://`), zweiter Site-Block in der
+Caddyfile mit eigenen `-verein`-Zonen. `VEREIN_DOMAIN` hat in
+`docker-compose.yml` die Vorgabe `localhost:8443`, damit Caddy auch ohne
+den Stand startet. **Wer dort ein Mitglied einlädt, lädt es wirklich
+ein** — derselbe echte Mailserver, kein Mailpit davor. Und `sichern.sh`
+deckt ihn noch nicht ab; das muss vor den ersten echten Daten passieren.
+
+**Storage-Box-Passwort ist am 19.08.2026 rotiert** — ohne Wirkung auf die
+Sicherung: Die geht über den SSH-Schlüssel `/home/verein/.ssh/sicherung`,
+nicht über das Passwort. Nachgemessen, Verbindung steht, Timer läuft alle
+zwei Stunden und lädt Datenbank und Bilder hoch.
+
+Weiterhin offen und nur von außen zu holen: die **Vereinsmaschine**, ein
+**zweiter Zugang** zu den Servern, der **öffentliche TestFlight-Link** und
+eine **Rücksicherung mit dem echten age-Schlüssel**
+([[age-schluessel-fuer-sicherungen]]).
+
+Bei GitHub steht nichts mehr offen: Dependabot null, Secret Scanning null,
+CodeQL null. `npm audit` meldet weiter acht Funde hoher Stufe — es ist
+**einer**: `image-size` unter Metro, über vier Pakete verzweigt. Bleibt die
+dokumentierte Ausnahme (Bündelwerkzeug, nicht die App; die verwundbaren
+ICNS-, JXL- und HEIF-Parser ruft das Projekt nicht auf).
