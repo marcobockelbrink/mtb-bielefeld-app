@@ -174,6 +174,21 @@ export class ApiZugang {
   #zugang: string | null = null;
   /** Läuft schon eine Erneuerung, teilen sich weitere Aufrufer ihr Ergebnis. */
   #erneuerungLaeuft: Promise<Erneuerung> | null = null;
+
+  /**
+   * Wird gerufen, wenn der Server diese Fassung ablehnt (`426`, Handoff 16).
+   *
+   * Eine setzbare Eigenschaft und kein Wert im Bauplan: `VersionsProvider`
+   * liegt **innerhalb** von `KontoProvider`, wo dieser Zugang entsteht, und
+   * kann ihn deshalb nicht beim Bauen mitgeben. Dasselbe Ziel wie
+   * `beiSitzungsende`, nur von der anderen Seite eingehängt.
+   *
+   * Ohne diesen Weg merkte eine laufende App eine angehobene
+   * Mindestversion erst beim nächsten Wechsel in den Vordergrund — und
+   * zeigte bis dahin bei jedem Tippen eine Fehlermeldung, der niemand
+   * ansieht, dass eine Aktualisierung hilft.
+   */
+  beiZuAlt: (() => void) | null = null;
   /**
    * Zählt jedes Abmelden mit.
    *
@@ -291,6 +306,11 @@ export class ApiZugang {
       // gesetzten `content-type` — kommen stattdessen mit `message` herein.
       // Ohne diesen zweiten Blick sähe die Person bei einem Protokollfehler
       // nur "Da ist etwas schiefgegangen." statt eines Hinweises.
+      // Der Server hat diese Fassung abgelehnt. Die Oberfläche muss darauf
+      // mit der Sperre antworten und nicht mit einem Banner — deshalb hier
+      // Bescheid sagen, statt es jedem Aufrufer zu überlassen.
+      if (status === 426) this.beiZuAlt?.();
+
       const vonDerApi = typeof koerper.fehler === 'string';
       const nachricht = vonDerApi
         ? (koerper.fehler as string)

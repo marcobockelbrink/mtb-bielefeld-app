@@ -128,6 +128,13 @@ abschnitt('Vorprüfung: Läuft der Aufbau?');
 try {
   const antwort = await fetch(`${BASIS}/gesundheit`);
   pruefe(`${BASIS}/gesundheit antwortet mit 200`, antwort.status === 200, antwort.status);
+  // Seit Handoff 17 prüft der Endpunkt wirklich (Datenbank, 503,
+  // no-store). Ein 200 heißt damit mehr als „der Prozess lebt" — und die
+  // Fassung daneben sagt, welcher Stand gerade läuft. Genau die Frage, die
+  // man sich bei einem seltsamen Ergebnis der Rauchprobe als Erstes stellt.
+  const zustand = (await antwort.clone().json()) as { datenbank?: string; version?: string };
+  pruefe('… und meldet die Datenbank als erreichbar', zustand.datenbank === 'ok', zustand.datenbank);
+  console.log(`   Fassung des Servers: ${zustand.version ?? 'unbekannt'}`);
 } catch {
   console.error(`\nFEHLGESCHLAGEN: keine Verbindung zu ${BASIS}.`);
   console.error('Läuft der Aufbau? docker compose -f betrieb/docker-compose.yml up -d');

@@ -234,6 +234,39 @@ describe('Erneuerung: nur 401 löscht das Token', () => {
   });
 });
 
+describe('Zu alte App (426)', () => {
+  it('meldet den Fehler als „zu alt"', async () => {
+    // Ein eigenes Merkmal statt eines Vergleichs auf den Statuscode bei
+    // jedem Aufrufer: Die Oberfläche muss darauf mit der Sperre antworten
+    // und nicht mit einem Banner.
+    const { api } = zugang([{ status: 426, koerper: { fehler: 'Diese Fassung ist zu alt.' } }]);
+
+    await expect(api.hole('/termine')).rejects.toMatchObject({ zuAlt: true, status: 426 });
+  });
+
+  it('sagt dem Aufrufer Bescheid, sobald ein 426 kommt', async () => {
+    /**
+     * Ohne diesen Ruf merkte eine **laufende** App eine angehobene
+     * Mindestversion erst beim nächsten Wechsel in den Vordergrund — und
+     * zeigte bis dahin bei jedem Tippen eine Fehlermeldung, der niemand
+     * ansieht, dass eine Aktualisierung hilft.
+     */
+    const { api } = zugang([{ status: 426, koerper: { fehler: 'zu alt' } }]);
+    let gerufen = 0;
+    api.beiZuAlt = () => {
+      gerufen += 1;
+    };
+
+    await expect(api.hole('/termine')).rejects.toBeInstanceOf(ApiFehler);
+    expect(gerufen).toBe(1);
+  });
+
+  it('lässt andere Fehler unberührt', () => {
+    expect(new ApiFehler(403, 'verboten').zuAlt).toBe(false);
+    expect(new ApiFehler(0, 'kein Netz').zuAlt).toBe(false);
+  });
+});
+
 describe('sitzungsstand', () => {
   /**
    * **Der Fall, der die Sitzung scheinbar verlieren ließ.** Der

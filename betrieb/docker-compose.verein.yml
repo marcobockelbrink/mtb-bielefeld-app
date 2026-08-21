@@ -72,6 +72,14 @@ services:
       APP_BASIS_URL: ${VEREIN_APP_BASIS_URL:-mtbie://}
       API_BASIS_URL: ${VEREIN_API_BASIS_URL:?VEREIN_API_BASIS_URL fehlt (https://app.mtb-bielefeld.de)}
       VERTRAUTER_PROXY: ${VERTRAUTER_PROXY:-}
+      # **Eigene Werte für die Versionsprüfung**, nicht die des Prüfstands.
+      # Die beiden Stände bedienen verschiedene Fassungen der App: Was auf
+      # dem Prüfstand seit gestern läuft, ist im Store womöglich noch nicht
+      # da. Würde hier `MINDEST_APP_VERSION` vom Prüfstand gelten, sperrte
+      # der Verein Mitglieder aus, deren Fassung die neueste im Store ist.
+      MINDEST_APP_VERSION: ${VEREIN_MINDEST_APP_VERSION:-}
+      AKTUELLE_APP_VERSION: ${VEREIN_AKTUELLE_APP_VERSION:-}
+      APP_UPDATE_HINWEIS: ${VEREIN_APP_UPDATE_HINWEIS:-}
       FOTO_WURZEL: /fotos
     volumes:
       - betrieb-fotos-verein:/fotos

@@ -53,8 +53,23 @@ export function VersionsProvider({ children }: { children: ReactNode }) {
     const abo = AppState.addEventListener('change', (zustand) => {
       if (zustand === 'active') void laden();
     });
-    return () => abo.remove();
-  }, [laden]);
+
+    /*
+      Der dritte Anlass, und der wichtigste: Weist der Server eine Anfrage
+      mit `426` ab, ist die Sperre **jetzt** fällig und nicht erst beim
+      nächsten Wechsel in den Vordergrund. Bis dahin sähe man bei jedem
+      Tippen eine Fehlermeldung, der niemand ansieht, dass eine
+      Aktualisierung hilft.
+
+      `laden()` und nicht ein hartes Setzen der Lage: Die Auskunft holt die
+      genaue Mindestversion mit, und die steht auf dem Sperrbildschirm.
+    */
+    api.beiZuAlt = () => void laden();
+    return () => {
+      abo.remove();
+      api.beiZuAlt = null;
+    };
+  }, [laden, api]);
 
   const lage = beurteile(APP_VERSION, auskunft);
 

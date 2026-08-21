@@ -25,20 +25,32 @@ import { font, fontSize, radius, spacing } from '../../theme';
 import { useTheme } from '../../ui/theme';
 
 /**
+ * Die Kennung der App im App Store — **`null`, solange es keine gibt.**
+ *
+ * Die App ist bisher nur über TestFlight verteilt; eine erfundene Nummer
+ * führte auf „App nicht gefunden", und das ausgerechnet auf dem
+ * Bildschirm, von dem es sonst keinen Weg gibt. Ein ehrliches „such nach
+ * MTB Bielefeld" ist dort mehr wert als ein Link, der ins Leere zeigt.
+ *
+ * Sobald die Vereinsfassung veröffentlicht ist, gehört die Nummer hierher
+ * — sie steht in App Store Connect unter „Allgemeine Informationen" als
+ * Apple-ID.
+ */
+const STORE_KENNUNG: string | null = null;
+
+/**
  * Der Weg in den App Store.
  *
  * `itms-apps://` öffnet die Store-App direkt statt über den Browser — ohne
  * das Schema landet man auf einer Webseite, die dann ihrerseits fragt, ob
  * sie den Store öffnen darf. Zwei Tipps für etwas, das keinen Umweg
  * verträgt: Wer hier steht, kann sonst nichts mehr tun.
- *
- * Ohne Kennung im Store gibt es noch keine Adresse — dann führt der Knopf
- * auf die Suche, und das ist ehrlicher als ein Link ins Leere. Sobald die
- * App veröffentlicht ist, gehört die Kennung hierher.
  */
 const STORE_ADRESSE =
   Platform.OS === 'ios'
-    ? 'itms-apps://itunes.apple.com/de/app/id0000000000'
+    ? STORE_KENNUNG
+      ? `itms-apps://itunes.apple.com/de/app/id${STORE_KENNUNG}`
+      : 'itms-apps://itunes.apple.com/de/search?term=MTB%20Bielefeld'
     : 'market://details?id=de.mtbbielefeld.app';
 
 export function VersionsSperre({ mindestVersion }: { mindestVersion: string }) {
@@ -68,14 +80,14 @@ export function VersionsSperre({ mindestVersion }: { mindestVersion: string }) {
       <Pressable
         onPress={() => void Linking.openURL(STORE_ADRESSE)}
         accessibilityRole="button"
-        accessibilityLabel="Im App Store aktualisieren"
+        accessibilityLabel={STORE_KENNUNG ? 'Im App Store aktualisieren' : 'Im App Store suchen'}
         style={({ pressed }) => [
           styles.knopf,
           { backgroundColor: pressed ? '#1b587a' : palette.primary },
         ]}
       >
         <Text style={[styles.knopfText, { color: palette.onPrimary }]}>
-          Im App Store aktualisieren
+          {STORE_KENNUNG ? 'Im App Store aktualisieren' : 'Im App Store suchen'}
         </Text>
       </Pressable>
 

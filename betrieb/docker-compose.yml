@@ -62,6 +62,13 @@ services:
       MAIL_ABSENDER: ${MAIL_ABSENDER}
       APP_BASIS_URL: ${APP_BASIS_URL}
       API_BASIS_URL: ${API_BASIS_URL}
+      # Versionsprüfung (Handoff 16). Alle drei ohne Vorgabe harmlos:
+      # `MINDEST_APP_VERSION` fällt in der API auf `0.0.0` zurück, und
+      # damit wird **niemand** ausgesperrt. Die Begründung samt Warnung
+      # steht in `betrieb/.env.beispiel`.
+      MINDEST_APP_VERSION: ${MINDEST_APP_VERSION:-}
+      AKTUELLE_APP_VERSION: ${AKTUELLE_APP_VERSION:-}
+      APP_UPDATE_HINWEIS: ${APP_UPDATE_HINWEIS:-}
       NODE_ENV: production
       # Die Adresse des Compose-Netzes: Nur Anfragen von dort — also von
       # Caddy — dürfen `X-Forwarded-For` bestimmen, wer die IP-Begrenzung
