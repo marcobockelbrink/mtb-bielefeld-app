@@ -86,6 +86,26 @@ describe('liesAuskunft', () => {
     expect(liesAuskunft('0.12.4').aktuelleVersion).toBe('0.12.4');
   });
 
+  it('behandelt eine leere Variable wie eine fehlende', () => {
+    /**
+     * **Der Fall, den Compose herstellt.** `${MINDEST_APP_VERSION:-}`
+     * reicht ohne Eintrag in der `.env` eine leere Zeichenkette durch,
+     * kein `undefined` — `??` griffe dann nicht, und `/version` meldete
+     * `mindestVersion: ""`.
+     *
+     * Gefährlich war das nicht (`liesFassung('')` ist `null`, es wird
+     * niemand ausgesperrt), aber die Auskunft war Unsinn und der Kopf
+     * `X-MTB-Version` leer. Bemerkt beim Messen gegen den ausgerollten
+     * Server, nicht hier — deshalb steht der Fall jetzt hier.
+     */
+    process.env.MINDEST_APP_VERSION = '';
+    process.env.AKTUELLE_APP_VERSION = '';
+
+    const auskunft = liesAuskunft('0.12.4');
+    expect(auskunft.mindestVersion).toBe('0.0.0');
+    expect(auskunft.aktuelleVersion).toBe('0.12.4');
+  });
+
   it('macht aus einem leeren Hinweis null', () => {
     process.env.APP_UPDATE_HINWEIS = '';
     expect(liesAuskunft('0.12.4').hinweis).toBeNull();

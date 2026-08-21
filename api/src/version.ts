@@ -44,11 +44,24 @@ export interface Versionsauskunft {
  * `aktuelleVersion` fällt auf die Fassung des Servers zurück: App und API
  * werden in diesem Projekt gemeinsam hochgezählt, und eine Auskunft, die
  * eine ältere Fassung als „aktuell" nennt, zeigte den Hinweis nie.
+ *
+ * **`||` und nicht `??`** — der Unterschied ist hier nicht Geschmack. Die
+ * Compose-Datei reicht die Werte als `${MINDEST_APP_VERSION:-}` durch, und
+ * ohne Eintrag in der `.env` kommt damit eine **leere Zeichenkette** an,
+ * kein `undefined`. `??` griffe nicht, und `/version` meldete
+ * `mindestVersion: ""`.
+ *
+ * Gefährlich war das nicht — `liesFassung('')` ist `null`, und dann wird
+ * niemand ausgesperrt. Aber die Auskunft war Unsinn, der Kopf
+ * `X-MTB-Version` leer, und die App hätte nichts anzuzeigen gehabt.
+ * Bemerkt am 21.08.2026 beim Messen gegen den frisch ausgerollten Server;
+ * kein Test hätte es gefunden, weil in den Tests niemand die Variable auf
+ * `''` setzt — das tut nur Compose.
  */
 export function liesAuskunft(serverVersion: string): Versionsauskunft {
   return {
-    mindestVersion: process.env.MINDEST_APP_VERSION ?? '0.0.0',
-    aktuelleVersion: process.env.AKTUELLE_APP_VERSION ?? serverVersion,
+    mindestVersion: process.env.MINDEST_APP_VERSION || '0.0.0',
+    aktuelleVersion: process.env.AKTUELLE_APP_VERSION || serverVersion,
     hinweis: process.env.APP_UPDATE_HINWEIS || null,
   };
 }
