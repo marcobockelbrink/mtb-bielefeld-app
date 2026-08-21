@@ -141,6 +141,25 @@
 			events 60
 			window 1m
 		}
+
+		# Die Gesundheitsprüfung (Handoff 17). Bis zum 21.08.2026 hatte sie
+		# **gar keine** Grenze — sie stand in keiner Zone, und der Endpunkt
+		# ist der einzige, der ohne Anmeldung erreichbar ist und bei jedem
+		# Aufruf die Datenbank anfasst. Als Hebel für eine Flut war er damit
+		# der bequemste Weg in den Aufbau hinein.
+		#
+		# 60 je Minute ist bewusst weit: Der Wächter kommt alle fünf Minuten,
+		# ein zweiter Dienst käme dazu, und wer von Hand nachsieht, soll nicht
+		# ausgesperrt werden. Es geht nicht darum, den Normalfall zu regeln,
+		# sondern eine Obergrenze zu haben, wo vorher keine war.
+		zone gesundheit {
+			match {
+				path /gesundheit
+			}
+			key {remote_host}
+			events 60
+			window 1m
+		}
 	}
 
 	# Ein Bild je Anfrage, und mehr nimmt niemand mit dem Telefon auf. Die App

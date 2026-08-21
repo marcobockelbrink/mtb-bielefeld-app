@@ -16,6 +16,18 @@
 import type { TokenSpeicher } from './tokenSpeicher';
 
 /** Ein Fehler, den die API selbst benannt hat — mit ihrem deutschen Text. */
+import paket from '../../package.json';
+import type { Versionsauskunft } from '../features/version/pruefung';
+
+/**
+ * Die Fassung dieser App — dieselbe Quelle wie `app.config.js`.
+ *
+ * Aus der `package.json` und nicht noch einmal hingeschrieben: Diese Zahl
+ * entscheidet mit, ob jemand die App noch benutzen kann (Handoff 16), und
+ * zwei Stellen mit derselben Wahrheit laufen auseinander.
+ */
+export const APP_VERSION: string = paket.version;
+
 export class ApiFehler extends Error {
   readonly status: number;
   /** Zusatzangaben, die die API mitschickt — etwa Belegung bei „voll". */
@@ -40,6 +52,16 @@ export class ApiFehler extends Error {
    * durchreichen" (dann gehen die guten Sätze der API mit verloren).
    */
   readonly vonDerApi: boolean;
+  /**
+   * Hat der Server diese Fassung der App abgelehnt? (`426`, Handoff 16)
+   *
+   * Ein eigenes Merkmal statt eines Vergleichs auf `status === 426` bei
+   * jedem Aufrufer: Die Oberfläche muss darauf mit einer Sperre antworten
+   * und nicht mit einem Banner, und ein vergessener Vergleich zeigte
+   * stattdessen eine Fehlermeldung, der niemand ansieht, dass eine
+   * Aktualisierung hilft.
+   */
+  readonly zuAlt: boolean;
   /**
    * Kam gar keine Antwort an, weil das Gerät nicht ins Netz kam?
    *
@@ -83,6 +105,10 @@ export class ApiFehler extends Error {
     this.vonDerApi = vonDerApi;
     this.ohneNetz = ohneNetz;
     this.ursprung = ursprung;
+    // Aus dem Statuscode abgeleitet und nicht als weiterer Parameter: Es
+    // gibt genau einen Weg, auf dem ein 426 entsteht, und ein Parameter
+    // ließe sich an einer der Wurfstellen vergessen.
+    this.zuAlt = status === 426;
   }
 }
 
@@ -195,6 +221,16 @@ export class ApiZugang {
           ...(init.body !== undefined && !(init.body instanceof FormData)
             ? { 'content-type': 'application/json' }
             : {}),
+          // Die eigene Fassung an **jede** Anfrage (Handoff 16). Der Server
+          // weist damit Apps ab, die zu alt sind, um noch richtig zu
+          // rechnen — der doppelte Boden unter der Sperre in der App.
+          //
+          // Aus der `package.json` und nicht aus einer zweiten Angabe: Die
+          // Nummer, die hier steht, muss dieselbe sein, die im App Store
+          // steht. Zwei Stellen mit derselben Wahrheit laufen auseinander,
+          // und dieser Wert entscheidet darüber, ob jemand die App noch
+          // benutzen kann.
+          'x-app-version': APP_VERSION,
         },
       });
     } catch (fehler) {
@@ -304,6 +340,28 @@ export class ApiZugang {
     const paar = await this.#auswerten<{ zugang: string; erneuerung: string }>(antwort);
     this.#zugang = paar.zugang;
     await this.#speicher.schreib(paar.erneuerung);
+  }
+
+  /**
+   * Welche Fassung der Server verlangt (Handoff 16).
+   *
+   * Ohne Token und **ohne** den Umweg über `#mitToken`: Die Frage „bin ich
+   * zu alt?" muss auch beantwortbar sein, wenn niemand angemeldet ist —
+   * und eine Antwort mit 401 löste sonst eine Token-Erneuerung aus, für
+   * einen Endpunkt, der gar keines will.
+   *
+   * `null` bei jedem Fehlschlag. Eine App, die sich sperrt, weil der
+   * Server gerade nicht antwortet, wäre im Funkloch unbenutzbar — und
+   * genau dort steht sie am häufigsten (siehe `features/version/pruefung.ts`).
+   */
+  async holeVersionsauskunft(): Promise<Versionsauskunft | null> {
+    try {
+      const antwort = await this.#ruf('/version');
+      if (!antwort.ok) return null;
+      return (await antwort.json()) as Versionsauskunft;
+    } catch {
+      return null;
+    }
   }
 
   async loeseEin(magicToken: string): Promise<void> {

@@ -25,6 +25,7 @@ import { ActionButton, Badge, Banner, Chip, EmptyState, LoadingState } from '../
 import { Blatt } from '../../src/ui/Blatt';
 import { useTheme } from '../../src/ui/theme';
 
+import { UpdateKarte } from '../../src/features/version/UpdateKarte';
 /**
  * Spielraum in Punkten, ab dem die Zeile als „geht weiter" gilt.
  *
@@ -113,6 +114,11 @@ export default function NewsScreen() {
       }
       ListHeaderComponent={
         <View style={styles.kopf}>
+          {/* Der weiche Update-Hinweis (Handoff 16b). Ganz oben und in
+              „Aktuelles", weil das der Bildschirm ist, den man ohnehin
+              öffnet, um zu sehen, was es Neues gibt. */}
+          <UpdateKarte />
+
           {news.error ? (
             <Banner
               tone={news.data.length > 0 ? 'warning' : 'danger'}

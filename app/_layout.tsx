@@ -15,6 +15,8 @@ import '../src/notifications/backgroundTask';
 import { NotificationProvider } from '../src/notifications/NotificationContext';
 import { darkPalette, font, fontSize, lightPalette } from '../src/theme';
 import { useTheme } from '../src/ui/theme';
+import { useVersion, VersionsProvider } from '../src/features/version/VersionsContext';
+import { VersionsSperre } from '../src/features/version/VersionsSperre';
 
 export default function RootLayout() {
   const schriftenBereit = useAppFonts();
@@ -32,7 +34,13 @@ export default function RootLayout() {
       <AppDataProvider>
         <KontoProvider>
           <NotificationProvider>
-            <AppStack />
+            {/* Innerhalb von `KontoProvider`, weil die Auskunft über
+                dessen `api` geholt wird — und außerhalb von `AppStack`,
+                weil die Sperre **über** der Navigation liegen muss und
+                nicht als Bildschirm darin. */}
+            <VersionsProvider>
+              <AppStack />
+            </VersionsProvider>
           </NotificationProvider>
         </KontoProvider>
       </AppDataProvider>
@@ -42,6 +50,22 @@ export default function RootLayout() {
 
 function AppStack() {
   const { palette, isDark } = useTheme();
+  const { lage, auskunft } = useVersion();
+
+  /*
+    Die Sperre ersetzt die Navigation, statt sich darüberzulegen (Handoff
+    16a). Ein Bildschirm im Stapel ließe sich wegwischen, und ein Overlay
+    ließe den Stapel darunter weiterleben — beides steht dem Sinn entgegen:
+    Es soll keinen Weg dahinter geben. Jeder Aufruf bekäme ohnehin ein 426.
+  */
+  if (lage === 'gesperrt') {
+    return (
+      <>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <VersionsSperre mindestVersion={auskunft?.mindestVersion ?? '—'} />
+      </>
+    );
+  }
 
   return (
     <>

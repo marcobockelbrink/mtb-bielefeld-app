@@ -13,6 +13,8 @@ import { fordereMagicLinkAn } from './anmeldung.ts';
 import { Bildablage, INHALTSTYPEN, etag } from './bildablage.ts';
 import { BildFehler, HOECHSTGROESSE_BYTES, verarbeite, verarbeiteAvatar } from './bildverarbeitung.ts';
 import * as familie from './familie.ts';
+import { baueGesundheit, liesVersion, pruefeDatenbank, statusFuer } from './gesundheit.ts';
+import { istZuAlt, liesAuskunft } from './version.ts';
 import * as fotos from './fotoalbum.ts';
 import { IpBegrenzung } from './ipbegrenzung.ts';
 import * as jugend from './jugendtraining.ts';
@@ -322,6 +324,10 @@ export function baueApp({
 }: Abhaengigkeiten): FastifyInstance {
   const app = Fastify({ logger: protokollEinstellung, trustProxy: vertrauterProxy ?? false });
 
+  // Einmal beim Start gelesen — die Datei ändert sich zur Laufzeit nicht.
+  const version = liesVersion();
+  const versionsauskunft = liesAuskunft(version);
+
   // Ein Bild je Anfrage, und die Grenze steht **hier** und nicht erst in der
   // Bildverarbeitung: Ohne sie läse Fastify erst 400 MB in den Speicher, um
   // sie danach abzulehnen. Caddy hat davor noch eine eigene Grenze — zwei
@@ -350,8 +356,39 @@ export function baueApp({
    * Adresse bekannt ist; die IP-Begrenzung hier verrät dazu gar nichts,
    * weil sie die Adresse nie zu Gesicht bekommt.
    */
+  /**
+   * Versionsprüfung (Handoff 16) — der doppelte Boden unter der App.
+   *
+   * Die App prüft selbst und zeigt eine Sperre; diese Schicht hier greift,
+   * wenn sie es nicht tut. `426 Upgrade Required` ist der Code dafür, und
+   * die App behandelt ihn wie ihre eigene Sperre.
+   *
+   * **`/gesundheit` und `/version` sind ausgenommen.** Der Wächter schickt
+   * keinen App-Kopf, und die Auskunft darüber, welche Fassung nötig ist,
+   * darf nicht an der Fassung scheitern, die man gerade hat — das wäre eine
+   * Tür, deren Schlüssel dahinter liegt.
+   *
+   * Die Kopfzeile `X-MTB-Version` geht auf **jede** Antwort. So merkt eine
+   * laufende App die Anhebung beim nächsten Aufruf und muss nicht bis zum
+   * Neustart warten.
+   */
+  const OHNE_VERSIONSSPERRE = ['/gesundheit', '/version'];
+
   app.addHook('onRequest', async (anfrage, antwort) => {
     const pfad = anfrage.url.split('?', 1)[0] ?? anfrage.url;
+
+    void antwort.header('x-mtb-version', versionsauskunft.mindestVersion);
+
+    if (
+      !OHNE_VERSIONSSPERRE.includes(pfad) &&
+      istZuAlt(anfrage.headers['x-app-version'] as string | undefined, versionsauskunft.mindestVersion)
+    ) {
+      return antwort.code(426).send({
+        fehler: 'Diese Fassung der App ist zu alt. Bitte im App Store aktualisieren.',
+        mindestVersion: versionsauskunft.mindestVersion,
+      });
+    }
+
     if (!zaehltGegenIpGrenze(anfrage.method, pfad)) return;
 
     if (!ipBegrenzung.erlaubt(anfrage.ip, jetzt().getTime())) {
@@ -432,7 +469,42 @@ export function baueApp({
     }
   });
 
-  app.get('/gesundheit', async () => ({ zustand: 'bereit' }));
+  /**
+   * Für den Wächter von außen (Handoff 17) — und der einzige Endpunkt, der
+   * ohne jede Anmeldung etwas über den Betrieb sagt.
+   *
+   * Bis zum 21.08.2026 stand hier ein fester Wert, der auch bei toter
+   * Datenbank 200 lieferte. Ein Wächter daran meldet „alles in Ordnung",
+   * während sich niemand anmelden kann — schlimmer als keine Überwachung,
+   * weil er Gewissheit vortäuscht. Die Begründung zu 503, zur Zeitschranke
+   * und zum Katalog der Werte steht in `gesundheit.ts`.
+   *
+   * Das alte Feld `zustand` bleibt im Körper — `betrieb/pruefe-adressen.sh`
+   * und die Rauchprobe kennen es, und zwei Dinge auf einmal zu bewegen
+   * lohnt nicht. Aber **nicht fest auf `'bereit'`**: Ein Feld, das bei
+   * toter Datenbank „bereit" sagt, ist genau die Lüge, gegen die dieser
+   * Umbau angetreten ist, nur eine Zeile tiefer.
+   */
+  /**
+   * Welche App-Fassung dieser Server verlangt (Handoff 16).
+   *
+   * Für den Kaltstart: Die App fragt einmal beim Öffnen, bevor sie
+   * irgendetwas anderes tut. Ohne Anmeldung und ohne Versionssperre —
+   * sonst wäre es eine Tür, deren Schlüssel dahinter liegt.
+   */
+  app.get('/version', async (_anfrage, antwort) =>
+    antwort.header('cache-control', 'no-store').send(versionsauskunft),
+  );
+
+  app.get('/gesundheit', async (_anfrage, antwort) => {
+    const gesundheit = baueGesundheit(await pruefeDatenbank(pool), version, jetzt());
+    return antwort
+      // Eine zwischengespeicherte Gesundheitsmeldung ist eine Lüge mit
+      // Verfallsdatum — auf **beiden** Antworten, nicht nur der schlechten.
+      .header('cache-control', 'no-store')
+      .code(statusFuer(gesundheit))
+      .send({ ...gesundheit, zustand: gesundheit.status === 'ok' ? 'bereit' : 'gestört' });
+  });
 
   app.post('/anmeldung/anfordern', async (anfrage, antwort) => {
     const { email, einladungscode } = (anfrage.body ?? {}) as AnfordernKoerper;
