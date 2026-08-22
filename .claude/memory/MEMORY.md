@@ -3,6 +3,7 @@
 - [Instagram erst mit Backend](instagram-erst-mit-backend.md) — vertagt; Meta verlangt Token, das nirgends sicher liegen kann
 - [iOS-Gerätebau: Push-Berechtigung](ios-geraetebau-push-berechtigung.md) — kostenloses Apple-Team scheitert an `aps-environment`, das die App gar nicht braucht
 - [Server: offene Punkte](mtb-server-offene-punkte.md) — Hetzner trägt allein und verschickt echte Mail; Aufbau liegt in `~/mtb-bielefeld-app/betrieb`, es fehlt die Vereinsmaschine
+- [Weg in den App Store](weg-in-den-app-store.md) — der Vereinsstand läuft, aber ein prod-Bau ist eine andere App, kein Schalter
 - [Alte Adressen nie abschalten](alte-adressen-nie-abschalten.md) — eine ausgelieferte App trägt ihre Serveradresse fest eingebaut; ein toter Name macht sie tot, nicht langsam
 - [Grenzen der App-Store-Connect-API](asc-api-grenzen.md) — Läufe abbrechen geht nicht, Sortieren muss man verlangen, externe Verteilung sperrt den Start
 - [Git-Refs-Duplikate auf macOS](git-refs-duplikate-macos.md) — „bad object refs/heads/main 2" blockiert jedes pull; die Datei mit Leerzeichen ist die Ursache

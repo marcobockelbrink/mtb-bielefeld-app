@@ -244,6 +244,12 @@ Prüfstandslauf 83, und auf der Box liegen genau 1 + 83 + 5.
 derselbe echte Mailserver wie beim Prüfstand, kein Mailpit davor. Bisher ist
 dort niemand angelegt.
 
+**Externe Überwachung steht seit dem 22.08.2026** (Handoff 17b, von Marco
+eingerichtet). Sie fragt `/gesundheit` ab — und das ist erst seit demselben
+Tag eine echte Auskunft: Vorher gab der Endpunkt einen festen Wert zurück
+und meldete auch bei toter Datenbank 200.
+
 Weiterhin offen und nur von außen zu holen: eine **Rücksicherung mit dem
 echten age-Schlüssel** ([[age-schluessel-fuer-sicherungen]]), ein **zweiter
-Zugang** zu den Servern und der **öffentliche TestFlight-Link**.
+Zugang** zu den Servern und der **öffentliche TestFlight-Link**. Der Weg zu
+einer Fassung im App Store steht in [[weg-in-den-app-store]].
