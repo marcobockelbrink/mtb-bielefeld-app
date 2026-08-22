@@ -5,20 +5,29 @@ metadata:
   type: project
 ---
 
-Seit dem 22.08.2026 überwacht Better Stack den Prüfserver:
+Seit dem 22.08.2026 überwacht Better Stack beide Server:
 
     Monitor 4845221   https://app-dev.mtb-bielefeld.de/gesundheit
-    erwartet genau 200, alle 5 Minuten, Region EU, 15 s Zeitschranke,
-    60 s Bestätigung, keine Umleitungen, Benachrichtigung per Mail
+    Monitor 4845229   https://app.mtb-bielefeld.de/gesundheit
+
+Beide gleich eingestellt: erwartet genau 200, alle 5 Minuten, Region EU,
+15 s Zeitschranke, 60 s Bestätigung, keine Umleitungen, Mail ans Team.
+
+Dazu die öffentliche Statusseite **https://mtb-bielefeld.betteruptime.com**
+(ID 260262). Darauf steht **nur** der Vereinsserver, unter dem neutralen
+Namen „MTB Bielefeld App". Beim Anlegen hängt Better Stack ungefragt
+**alle** vorhandenen Monitore an die Seite — der Prüfserver stand dadurch
+unter seinem internen Namen öffentlich da und musste einzeln wieder
+entfernt werden. Nach jedem neuen Monitor also nachsehen.
+
+Absperren geht im aktuellen Tarif nicht: `hide_from_search_engines` und
+`password_enabled` antworten mit `403 Please upgrade your account`.
 
 Genau 200 und nicht „2xx": Der Endpunkt antwortet bei toter Datenbank mit
 503 (`api/src/gesundheit.ts`) — das ist der Fall, den der Wächter fangen
 soll. Fünf Minuten sind nicht beliebig gewählt: `betrieb/Caddyfile`
 begrenzt `/gesundheit` auf 60 Anfragen je Minute und rechnet ausdrücklich
 mit diesem Takt.
-
-Der Vereinsserver (`app.mtb-bielefeld.de`) hat noch keinen — siehe
-[[mtb-server-offene-punkte]].
 
 ## Die Falle: zwei Token, die gleich aussehen
 

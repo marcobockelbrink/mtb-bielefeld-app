@@ -1,11 +1,11 @@
 ---
 name: mtb-server-offene-punkte
-description: "Hetzner ist der Prüfserver und verschickt echte Mail; Sicherungen laufen, es fehlt der Vereinsstand — Stand 20.08.2026"
+description: "Hetzner trägt Prüfstand und Vereinsstand nebeneinander; beide gesichert — Stand 22.08.2026"
 metadata:
   node_type: memory
   type: project
   originSessionId: 9594adb8-6d4b-46e0-b2ff-87ebf8679fee
-  modified: 2026-08-20T00:00:00.000Z
+  modified: 2026-08-22T00:00:00.000Z
 ---
 
 ## Was läuft
@@ -202,3 +202,48 @@ CodeQL null. `npm audit` meldet weiter acht Funde hoher Stufe — es ist
 **einer**: `image-size` unter Metro, über vier Pakete verzweigt. Bleibt die
 dokumentierte Ausnahme (Bündelwerkzeug, nicht die App; die verwundbaren
 ICNS-, JXL- und HEIF-Parser ruft das Projekt nicht auf).
+
+
+## Stand nach dem 22.08.2026 — der Vereinsstand läuft
+
+`app.mtb-bielefeld.de` antwortet. **Zwei Stände auf einer Maschine, und
+getrennt ist, worauf es ankommt:**
+
+|  | Prüfstand | Vereinsstand |
+| --- | --- | --- |
+| Adresse | `app-dev.mtb-bielefeld.de` | `app.mtb-bielefeld.de` |
+| Dienste | `postgres`, `api` | `postgres-verein`, `api-verein` |
+| Datenbank | eigene (12 Mitglieder) | eigene (leer) |
+| Bilder | `betrieb_betrieb-fotos` | `betrieb_betrieb-fotos-verein` |
+| AASA | `…app.dev` | `…app` |
+| Schema | `mtbie-dev://` | `mtbie://` |
+| Sicherung | `mtb-sicherung.timer` | `mtb-sicherung-verein.timer` |
+
+Hochgefahren mit **drei** Compose-Dateien:
+
+```bash
+cd ~/mtb-bielefeld-app/betrieb
+docker compose -f docker-compose.yml -f docker-compose.vorlaeufig.yml \
+               -f docker-compose.verein.yml up -d --build
+```
+
+Die `VEREIN_*`-Werte stehen in `betrieb/.env`; das Datenbankpasswort ist auf
+dem Server mit `openssl rand` erzeugt worden und **nirgends sonst
+aufgeschrieben**. Sicherung davor liegt als `.env.vor-verein-*`.
+
+**`sichern.sh` nimmt seit dem 22.08.2026 einen Stand entgegen** —
+`sichern.sh` (Prüfstand) oder `sichern.sh verein`. Je Stand eigene
+Compose-Dateien, Dienstnamen, Zugangsdaten und ein eigener Namensteil.
+
+Die Aufräum-Muster trennen sauber: Der Ausdruck des Prüfstands verlangt
+hinter `mtbie-` sofort Ziffern, `mtbie-verein-…` fällt also nicht darunter.
+In beide Richtungen nachgemessen — der Vereinslauf zählte 1, der
+Prüfstandslauf 83, und auf der Box liegen genau 1 + 83 + 5.
+
+**Wer im Vereinsstand ein Mitglied einlädt, lädt es wirklich ein:**
+derselbe echte Mailserver wie beim Prüfstand, kein Mailpit davor. Bisher ist
+dort niemand angelegt.
+
+Weiterhin offen und nur von außen zu holen: eine **Rücksicherung mit dem
+echten age-Schlüssel** ([[age-schluessel-fuer-sicherungen]]), ein **zweiter
+Zugang** zu den Servern und der **öffentliche TestFlight-Link**.

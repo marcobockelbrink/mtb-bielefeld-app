@@ -15,3 +15,4 @@
 - [age-Schlüssel für Sicherungen](age-schluessel-fuer-sicherungen.md) — privater Teil nur lokal in ~/.ssh, bewusst nirgends im Repository
 - [Lokal grün ist nicht CI grün](lokal-gruen-ist-nicht-ci-gruen.md) — mehrfach „alles grün" gemeldet, während die CI seit Tagen rot war
 - [Better-Stack-Wächter](betterstack-waechter.md) — Monitor 4845221 auf /gesundheit; zwei gleich aussehende Token, nur einer öffnet die Uptime-API
+- [System-curl lügt bei TLS](system-curl-libressl.md) — LibreSSL 3.3.6 bricht ab, wo der Server gesund ist; mit Pythons ssl gegenprüfen
