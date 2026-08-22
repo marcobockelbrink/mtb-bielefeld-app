@@ -18,6 +18,7 @@
 import type pg from 'pg';
 
 import type { KindEingabe, TrainingEingabe, Zustand } from '../../src/domain/apiVertrag.ts';
+import { EIGENE_STIMME_AB, TEXT_VERSION } from './einwilligung.ts';
 
 // Zustand und die Eingabeformen stehen in `src/domain/apiVertrag.ts`: Die App
 // schickt sie, dieser Server erwartet sie — sie müssen übereinstimmen. Standen
@@ -532,10 +533,16 @@ export async function meldeKindAn(
     }
 
     const { rows } = await verbindung.query<{ id: string }>(
+      // `kind_mitglied_id` nur, wenn das Profil wirklich diesem Konto
+      // gehört (Unterabfrage mit `verwaltet_von`). Sonst könnte ein Aufruf
+      // von Hand die Anmeldung an ein fremdes Kind hängen und damit dessen
+      // Einwilligung für ein Foto ins Feld führen, das jemand anderes
+      // betrifft.
       `INSERT INTO jugendtraining_kind
          (training_id, mitglied_id, vorname, nachname, platz,
-          zeigt_vorname, zeigt_nachname, angelegt_am)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          zeigt_vorname, zeigt_nachname, angelegt_am, kind_mitglied_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
+               (SELECT id FROM mitglied WHERE id = $9 AND verwaltet_von = $2))
        RETURNING id`,
       [
         trainingId,
@@ -546,6 +553,7 @@ export async function meldeKindAn(
         kind.zeigtVorname,
         kind.zeigtNachname,
         jetzt,
+        kind.kindId ?? null,
       ],
     );
     await verbindung.query('COMMIT');
@@ -653,7 +661,8 @@ export async function holeKinder(
   trainingId: string,
   alsGuide: boolean,
   fragenderId: string,
-): Promise<Array<{ id: string; anzeige: string; eigene: boolean }>> {
+  jetzt: Date = new Date(),
+): Promise<Array<{ id: string; anzeige: string; eigene: boolean; keineFotos: boolean }>> {
   if (!istKennung(trainingId)) return [];
 
   const { rows } = await ausfuehrer.query<{
@@ -663,13 +672,36 @@ export async function holeKinder(
     zeigt_vorname: boolean;
     zeigt_nachname: boolean;
     eigene: boolean;
+    darf_fotos: boolean;
   }>(
-    `SELECT id, vorname, nachname, zeigt_vorname, zeigt_nachname,
-            mitglied_id = $2 AS eigene
-       FROM jugendtraining_kind
-      WHERE training_id = $1 AND storniert_am IS NULL
-      ORDER BY angelegt_am, id`,
-    [trainingId, fragenderId],
+    // **„Fehlt = Nein" steckt in dieser Abfrage.** `darf_fotos` ist nur
+    // dann wahr, wenn eine Verknüpfung zum Kindprofil besteht, dazu eine
+    // Zustimmung zur **aktuellen** Textfassung vorliegt und die zweite
+    // Stimme da ist, soweit sie gebraucht wird.
+    //
+    // Alles andere — keine Verknüpfung (Freitext-Anmeldung), keine
+    // Antwort, alter Text, Ablehnung, Widerruf — ergibt `false`. Das ist
+    // die einzige Richtung, in der ein Fehler niemandem schadet.
+    `SELECT k.id, k.vorname, k.nachname, k.zeigt_vorname, k.zeigt_nachname,
+            k.mitglied_id = $2 AS eigene,
+            COALESCE(
+              e.status = 'erteilt'
+              AND e.text_version = $3
+              AND (e.jugend_bestaetigt OR $4::int - kind.geburtsjahr < $5 OR kind.geburtsjahr IS NULL),
+              false
+            ) AS darf_fotos
+       FROM jugendtraining_kind k
+       LEFT JOIN mitglied kind ON kind.id = k.kind_mitglied_id
+       LEFT JOIN LATERAL (
+         SELECT status, text_version, jugend_bestaetigt
+           FROM einwilligung_bild
+          WHERE kind_id = k.kind_mitglied_id
+          ORDER BY nr DESC
+          LIMIT 1
+       ) e ON true
+      WHERE k.training_id = $1 AND k.storniert_am IS NULL
+      ORDER BY k.angelegt_am, k.id`,
+    [trainingId, fragenderId, TEXT_VERSION, jetzt.getFullYear(), EIGENE_STIMME_AB],
   );
 
   return rows.map((z) => {
@@ -686,10 +718,12 @@ export async function holeKinder(
     // zwei datensparsam angemeldeten Kindern zwei Knöpfe „ein Kind abmelden"
     // nebeneinander, und ein Elternteil hätte beim Austragen die Wahl
     // zwischen zwei nicht unterscheidbaren Möglichkeiten.
-    if (alsGuide || eigene) return { id: z.id, anzeige: `${z.vorname} ${z.nachname}`, eigene };
+    const keineFotos = !z.darf_fotos;
+    if (alsGuide || eigene)
+      return { id: z.id, anzeige: `${z.vorname} ${z.nachname}`, eigene, keineFotos };
     const teile = [z.zeigt_vorname ? z.vorname : null, z.zeigt_nachname ? z.nachname : null];
     const anzeige = teile.filter(Boolean).join(' ');
-    return { id: z.id, anzeige: anzeige || 'ein Kind', eigene };
+    return { id: z.id, anzeige: anzeige || 'ein Kind', eigene, keineFotos };
   });
 }
 

@@ -9,6 +9,7 @@
  * gefiltert, sonst gäbe es zwei Wahrheiten über dieselbe Anmeldung.
  */
 
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
@@ -22,7 +23,7 @@ import { beschreibeJugendFehler } from '../../../src/features/jugend/jugendFehle
 import { KindAnmelden } from '../../../src/features/jugend/KindAnmelden';
 import { baueTeilenText } from '../../../src/features/jugend/teilen';
 import { useKonto } from '../../../src/konto/KontoContext';
-import { font, fontSize, spacing } from '../../../src/theme';
+import { font, radius, fontSize, spacing } from '../../../src/theme';
 import { ActionButton, Banner, Card, DetailRow, EmptyState, Label, LoadingState } from '../../../src/ui/components';
 import { useTheme } from '../../../src/ui/theme';
 
@@ -196,9 +197,25 @@ export default function TrainingDetailScreen() {
           <Text style={[styles.leer, { color: palette.textMuted }]}>Noch niemand angemeldet.</Text>
         ) : (
           training.kinder.map((kind) => (
-            <Text key={kind.id} style={[styles.kind, { color: palette.text }]}>
-              {kind.anzeige}
-            </Text>
+            <View key={kind.id} style={styles.kindZeile}>
+              <Text style={[styles.kind, { color: palette.text }]}>{kind.anzeige}</Text>
+              {/*
+                „keine Fotos" (Handoff 15, Sicht 15c) — **nur für Guides**.
+                Ein Elternteil sieht an fremden Kindern ohnehin nur „ein
+                Kind"; ein Etikett daneben verriete etwas über eine Familie,
+                die es nichts angeht.
+
+                Ein Ja wird bewusst **nicht** markiert. Die Liste soll
+                zeigen, worauf zu achten ist, nicht wer wie entschieden hat
+                — und eine Zeile voller grüner Haken liest bald niemand mehr.
+              */}
+              {(rolle === 'guide' || rolle === 'verwaltung') && kind.keineFotos ? (
+                <View style={[styles.keineFotos, { borderColor: palette.danger }]}>
+                  <Ionicons name="camera-outline" size={13} color={palette.danger} />
+                  <Text style={[styles.keineFotosText, { color: palette.danger }]}>keine Fotos</Text>
+                </View>
+              ) : null}
+            </View>
           ))
         )}
       </Card>
@@ -221,6 +238,17 @@ export default function TrainingDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  kindZeile: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  keineFotos: {
+    alignItems: 'center',
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  keineFotosText: { fontFamily: font.medium, fontSize: fontSize.xs },
   geaendert: {
     fontFamily: font.regular,
     fontSize: fontSize.xs,

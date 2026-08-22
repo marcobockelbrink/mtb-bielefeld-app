@@ -23,9 +23,11 @@ function training(
   };
 }
 
-const meins = { id: 'k1', anzeige: 'Lena', eigene: true };
-const zweites = { id: 'k2', anzeige: 'Finn', eigene: true };
-const fremd = { id: 'k3', anzeige: 'ein Kind', eigene: false };
+// `keineFotos` gehört seit Handoff 15 zu jeder Zeile — für diese Prüfung
+// ohne Bedeutung, aber die Form muss stimmen.
+const meins = { id: 'k1', anzeige: 'Lena', eigene: true, keineFotos: false };
+const zweites = { id: 'k2', anzeige: 'Finn', eigene: true, keineFotos: false };
+const fremd = { id: 'k3', anzeige: 'ein Kind', eigene: false, keineFotos: true };
 
 describe('eigeneKinder', () => {
   it('behält nur die eigenen und lässt fremde weg', () => {

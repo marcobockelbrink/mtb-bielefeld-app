@@ -51,7 +51,21 @@ export interface TrainingDetails extends Training {
    * sieht bei fremden Kindern den vollen Namen und trotzdem `eigene: false`.
    * Sichtbarkeit ist nicht Besitz.
    */
-  kinder: Array<{ id: string; anzeige: string; eigene: boolean }>;
+  kinder: Array<{
+    id: string;
+    anzeige: string;
+    eigene: boolean;
+    /**
+     * Kein vollständiges Ja zu den Bildrechten (Handoff 15, Sicht 15c).
+     *
+     * **Alles außer einem vollständigen Ja steht hier auf `true`** — keine
+     * Antwort, alter Text, Nein, Widerruf, fehlende zweite Stimme, und
+     * auch eine Anmeldung ohne Familienprofil. Wer nicht zugestimmt hat,
+     * hat nicht zugestimmt; das ist die einzige Richtung, in der ein
+     * Fehler niemandem schadet.
+     */
+    keineFotos: boolean;
+  }>;
   /**
    * Nur für Guides — sonst schickt die API das Feld gar nicht.
    *

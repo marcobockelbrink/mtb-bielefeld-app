@@ -7,6 +7,7 @@
  */
 
 import type { ApiZugang, DateiUpload } from './api';
+import type { Einwilligung } from './bildrechte';
 
 export type ProfilStatus = 'aktiv' | 'einladung_offen';
 
@@ -18,6 +19,12 @@ export interface Profil {
   kannBilderHochladen: boolean;
   avatarUrl: string | null;
   status: ProfilStatus;
+  /**
+   * Der Stand der Bildrechte (Handoff 15) — kommt mit der Liste, statt je
+   * Profil einzeln geholt zu werden. Bei Erwachsenen steht hier „offen"
+   * und wird nirgends angezeigt; die Einwilligung betrifft Kinder.
+   */
+  einwilligung: Einwilligung;
 }
 
 export interface ProfilEingabe {

@@ -48,20 +48,21 @@ import {
   loescheProfil,
   statusZeile,
   type Profil,
-} from '../../src/data/familie';
+} from '../../../src/data/familie';
 import {
   altersHinweis,
   geburtsjahrVorschlaege,
   istPlausiblesJahr,
   vollerName,
-} from '../../src/features/familie/formular';
-import { AvatarBlatt } from '../../src/features/konto/AvatarBlatt';
-import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
-import { useKonto } from '../../src/konto/KontoContext';
-import { font, fontSize, radius, spacing } from '../../src/theme';
-import { Avatar } from '../../src/ui/Avatar';
-import { Banner, Card, Chip, Gruppe, LoadingState, Zeile } from '../../src/ui/components';
-import { useTheme } from '../../src/ui/theme';
+} from '../../../src/features/familie/formular';
+import { beschreibe, HINWEIS_NEIN } from '../../../src/features/bildrechte/status';
+import { AvatarBlatt } from '../../../src/features/konto/AvatarBlatt';
+import { beschreibeJugendFehler } from '../../../src/features/jugend/jugendFehler';
+import { useKonto } from '../../../src/konto/KontoContext';
+import { font, fontSize, radius, spacing } from '../../../src/theme';
+import { Avatar } from '../../../src/ui/Avatar';
+import { Banner, Card, Chip, Gruppe, LoadingState, Zeile } from '../../../src/ui/components';
+import { useTheme } from '../../../src/ui/theme';
 
 /** Welches Feld gerade offen zum Tippen ist. */
 type OffenesFeld = 'name' | 'jahr' | null;
@@ -287,6 +288,51 @@ export default function FamilienprofilScreen() {
           </Zeile>
         </Card>
 
+        {/*
+          Bildrechte (Handoff 15). Nur bei Kindern: Die Einwilligung
+          betrifft Aufnahmen von Minderjährigen, und ein Erwachsener
+          entscheidet für sich selbst — eine Zeile an seinem Profil wäre
+          eine Frage an die falsche Person.
+        */}
+        <Gruppe>Bildrechte</Gruppe>
+        <Card>
+          <Zeile erste>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/familie/[id]/bildrechte',
+                  params: { id: profil.id },
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Bildrechte"
+              style={styles.bildrechteZeile}
+            >
+              <View style={styles.bildrechteText}>
+                <Text style={[styles.wert, { color: palette.text }]}>
+                  Fotos und Videos:{' '}
+                  <Text style={{ color: tonFarbe(beschreibe(profil.einwilligung, profil.name).ton, palette) }}>
+                    {beschreibe(profil.einwilligung, profil.name).wort}
+                  </Text>
+                </Text>
+                {beschreibe(profil.einwilligung, profil.name).zusatz ? (
+                  <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+                    {beschreibe(profil.einwilligung, profil.name).zusatz}
+                  </Text>
+                ) : null}
+                {profil.einwilligung.bestaetigtVon ? (
+                  <Text style={[styles.hinweis, { color: palette.textMuted }]}>
+                    {profil.einwilligung.bestaetigtVon}
+                    {profil.einwilligung.quelle === 'forms-import' ? ' · aus dem Formular' : ''}
+                  </Text>
+                ) : null}
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
+            </Pressable>
+          </Zeile>
+        </Card>
+        <Text style={[styles.fussnote, { color: palette.textMuted }]}>{HINWEIS_NEIN}</Text>
+
         <Gruppe>Status</Gruppe>
         <Card>
           <Zeile erste>
@@ -317,7 +363,21 @@ export default function FamilienprofilScreen() {
   );
 }
 
+/**
+ * Der Farbwert zum Ton — Farbe **begleitet** das Wort, sie ersetzt es
+ * nicht. Dieselbe Regel wie bei den Zusage-Knöpfen (Handoff 14): In der
+ * Sonne und bei Rot-Grün-Schwäche trägt Farbe allein keine Aussage.
+ */
+function tonFarbe(ton: 'gut' | 'offen' | 'nein', palette: { success: string; textMuted: string; danger: string }) {
+  if (ton === 'gut') return palette.success;
+  if (ton === 'nein') return palette.danger;
+  return palette.textMuted;
+}
+
 const styles = StyleSheet.create({
+  bildrechteZeile: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, minHeight: 44 },
+  bildrechteText: { flex: 1, gap: 2 },
+  fussnote: { fontFamily: font.regular, fontSize: fontSize.xs, lineHeight: 18, paddingHorizontal: spacing.xs },
   inhalt: { gap: spacing.md, padding: spacing.lg },
   bildbereich: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md },
   bildKnopf: { fontFamily: font.semibold, fontSize: fontSize.sm, minHeight: 44, paddingTop: spacing.sm },

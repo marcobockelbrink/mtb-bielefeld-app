@@ -95,22 +95,45 @@ export function KindAnmelden({
    * einem einzelnen Wort bleibt der Nachname leer — das ist gültig, und
    * einen zu erfinden wäre schlimmer.
    */
+  /**
+   * Welches Profil den Namen geliefert hat — `null`, wenn frei getippt.
+   *
+   * Wird beim ersten Zeichen von Hand wieder verworfen: Wer den
+   * vorgeschlagenen Namen ändert, meint womöglich ein anderes Kind, und
+   * eine stehengebliebene Kennung hinge die Anmeldung an die falsche
+   * Einwilligung.
+   */
+  const [ausProfilId, setAusProfilId] = useState<string | null>(null);
+
   function ausProfil(profil: Profil) {
     const teile = (profil.name ?? '').trim().split(/\s+/).filter(Boolean);
     setVorname(teile[0] ?? '');
     setNachname(teile.slice(1).join(' '));
+    setAusProfilId(profil.id);
   }
 
   async function anmelden() {
     setMeldung(null);
     setLaeuft(true);
     try {
-      await meldeKindAn(api, trainingId, { vorname, nachname, zeigtVorname, zeigtNachname });
+      // `kindId` verknüpft die Anmeldung mit dem Familienprofil (Handoff
+      // 15) — nur so kommt die Teilnehmerliste an die Bildrechte. Wer den
+      // Namen frei tippt, hat keine; für dieses Kind gilt dann dauerhaft
+      // „keine Fotos", und das ist richtig so: Es hat auch wirklich
+      // niemand eingewilligt.
+      await meldeKindAn(api, trainingId, {
+        vorname,
+        nachname,
+        zeigtVorname,
+        zeigtNachname,
+        kindId: ausProfilId,
+      });
       // Zurück auf die datensparsame Vorgabe. Das Formular bleibt stehen,
       // solange noch ein Platz frei ist — ein Elternteil mit zwei Kindern
       // tippt sonst zweimal denselben Weg über die Liste zurück.
       setVorname('');
       setNachname('');
+      setAusProfilId(null);
       setZeigtVorname(true);
       setZeigtNachname(false);
       setMeldung({ text: 'Eingetragen.', fehler: false });
@@ -277,7 +300,10 @@ export function KindAnmelden({
 
           <TextInput
             value={vorname}
-            onChangeText={setVorname}
+            onChangeText={(wert) => {
+              setVorname(wert);
+              setAusProfilId(null);
+            }}
             placeholder="Vorname"
             placeholderTextColor={palette.textMuted}
             style={[
@@ -287,7 +313,10 @@ export function KindAnmelden({
           />
           <TextInput
             value={nachname}
-            onChangeText={setNachname}
+            onChangeText={(wert) => {
+              setNachname(wert);
+              setAusProfilId(null);
+            }}
             placeholder="Nachname"
             placeholderTextColor={palette.textMuted}
             style={[

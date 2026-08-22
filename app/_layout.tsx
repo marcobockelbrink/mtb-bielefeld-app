@@ -94,6 +94,13 @@ function AppStack() {
             `index` ist die Einzelansicht, daneben liegt `bearbeiten`. Ohne
             beide Einträge stünde der rohe Routenpfad in der Kopfzeile. */}
         <Stack.Screen name="jugend/[id]/index" options={{ title: 'Jugendtraining' }} />
+        {/* `familie/[id]` und `verwaltung` sind seit Handoff 15 Ordner:
+            `index` ist die bisherige Seite, daneben liegen die Bildrechte.
+            Ohne beide Einträge stünde der rohe Routenpfad in der Kopfzeile. */}
+        <Stack.Screen name="familie/[id]/index" options={{ title: 'Profil' }} />
+        <Stack.Screen name="familie/[id]/bildrechte" options={{ title: 'Bildrechte' }} />
+        <Stack.Screen name="verwaltung/index" options={{ title: 'Verwaltung' }} />
+        <Stack.Screen name="verwaltung/bildrechte" options={{ title: 'Bildrechte' }} />
         <Stack.Screen name="jugend/[id]/bearbeiten" options={{ title: 'Training ändern' }} />
         <Stack.Screen name="news/[id]" options={{ title: 'Beitrag' }} />
         {/* Ohne Eintrag stünde der rohe Routenpfad in der Kopfzeile —

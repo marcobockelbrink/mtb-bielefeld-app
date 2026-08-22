@@ -12,6 +12,8 @@ import type pg from 'pg';
 import { fordereMagicLinkAn } from './anmeldung.ts';
 import { Bildablage, INHALTSTYPEN, etag } from './bildablage.ts';
 import { BildFehler, HOECHSTGROESSE_BYTES, verarbeite, verarbeiteAvatar } from './bildverarbeitung.ts';
+import * as einwilligung from './einwilligung.ts';
+import { EINWILLIGUNGSTEXT } from './einwilligungstext.ts';
 import * as familie from './familie.ts';
 import { baueGesundheit, liesVersion, pruefeDatenbank, statusFuer } from './gesundheit.ts';
 import { istZuAlt, liesAuskunft } from './version.ts';
@@ -1128,7 +1130,7 @@ dein Kind auch anmelden.</p>
     return antwort.send({
       ...training,
       belegt: await jugend.holeBelegungTraining(pool, id),
-      kinder: await jugend.holeKinder(pool, id, istGuide, ausweis.mitgliedId),
+      kinder: await jugend.holeKinder(pool, id, istGuide, ausweis.mitgliedId, jetzt()),
       // Guides bekommen die Namen, alle anderen nur die Zahl der Zusagen —
       // die Spec verspricht ihnen genau das. Ohne die Zahl bliebe „reichen
       // die Guides?" für Eltern unsichtbar, mit den Namen wüssten sie mehr
@@ -1280,6 +1282,10 @@ dein Kind auch anmelden.</p>
         nachname,
         zeigtVorname: koerper.zeigtVorname !== false,
         zeigtNachname: koerper.zeigtNachname === true,
+        // Das Familienprofil hinter der Anmeldung (Handoff 15). Der Server
+        // übernimmt es nur, wenn es diesem Konto gehört — die Prüfung steht
+        // in der `INSERT`-Abfrage, nicht hier.
+        kindId: typeof koerper.kindId === 'string' ? koerper.kindId : null,
       },
       jetzt(),
     );
@@ -1692,6 +1698,24 @@ dein Kind auch anmelden.</p>
       : antwort.code(403).send({ fehler: 'Das darf nur die Verwaltung.' });
   }
 
+  /**
+   * Die Bildrechte aller Kinder (Handoff 15, Sicht 15b).
+   *
+   * Nur für die Verwaltung: Hier stehen die vollen Namen aller Kinder samt
+   * Elternadresse. Das ist der Zweck — jemand muss anrufen können, um ein
+   * Nein oder einen Widerruf aufzunehmen — und zugleich der Grund, warum es
+   * sonst niemand sieht.
+   */
+  app.get('/verwaltung/bildrechte', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+    if (ausweis.rolle !== 'verwaltung') {
+      return antwort.code(403).send({ fehler: 'Das darf nur die Vereinsverwaltung.' });
+    }
+
+    return antwort.send(await einwilligung.holeAlleKinder(pool, jetzt()));
+  });
+
   app.get('/verwaltung/mitglieder', async (anfrage, antwort) => {
     const erlaubnis = await holeVerwaltung(anfrage);
     if ('fehler' in erlaubnis) return weiseVerwaltungAb(antwort, erlaubnis.fehler);
@@ -1866,6 +1890,70 @@ dein Kind auch anmelden.</p>
     // nicht" dürfen sich für den Anfragenden nicht unterscheiden.
     if (!geaendert) return antwort.code(404).send({ fehler: 'Dieses Profil gibt es nicht.' });
     return antwort.code(204).send();
+  });
+
+  /**
+   * Der Einwilligungstext (Handoff 15d) — versioniert, vom Server.
+   *
+   * Läge er im Bündel, hinge die Frage an der installierten App-Fassung:
+   * Wer nicht aktualisiert, stimmte für immer dem alten Text zu, ohne dass
+   * es jemand sähe.
+   *
+   * Angemeldeten zugänglich und nicht öffentlich — er nennt die
+   * Verantwortlichen des Vereins beim Namen.
+   */
+  app.get('/einwilligungstext', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+    return antwort.send(EINWILLIGUNGSTEXT);
+  });
+
+  /**
+   * Die Bildrechte eines Kindes festhalten (Handoff 15).
+   *
+   * **Die App kennt nur den Ja-Weg.** `darfSetzen` in `einwilligung.ts`
+   * lässt von einem Mitgliedskonto ausschließlich `erteilt` durch;
+   * `abgelehnt` und `widerrufen` bleiben der Verwaltung vorbehalten. Das
+   * steht hier und nicht nur in der Oberfläche — ein fehlender Knopf ist
+   * keine Regel, und der Handoff verlangt ausdrücklich, dass auch ein
+   * direkter Aufruf es nicht kann.
+   */
+  app.patch('/familie/:id/einwilligung', async (anfrage, antwort) => {
+    const ausweis = await holeAusweis(anfrage);
+    if (!ausweis) return antwort.code(401).send({ fehler: 'Nicht angemeldet.' });
+
+    const { id } = anfrage.params as { id: string };
+    const koerper = anfrage.body as Record<string, unknown>;
+    const istVerwaltung = ausweis.rolle === 'verwaltung';
+
+    const ergebnis = await einwilligung.setzeEinwilligung(pool, {
+      kindId: id,
+      status: typeof koerper?.status === 'string' ? koerper.status : '',
+      ausfuehrer: ausweis.mitgliedId,
+      istVerwaltung,
+      jugendBestaetigt:
+        typeof koerper?.jugendBestaetigt === 'boolean' ? koerper.jugendBestaetigt : undefined,
+      // Setzen die Eltern das Häkchen „<Name> stimmt zu", gibt es kein
+      // eigenes Konto, das dahinterstünde — dann bleibt das Feld leer.
+      jugendBestaetigtVon: null,
+      quelle: koerper?.quelle === 'forms-import' && istVerwaltung ? 'forms-import' : 'app',
+      jetzt: jetzt(),
+    });
+
+    if (!ergebnis.ok) {
+      const texte: Record<typeof ergebnis.grund, [number, string]> = {
+        unbekannt: [404, 'Dieses Profil gibt es nicht.'],
+        'nicht-erlaubt': [404, 'Dieses Profil gibt es nicht.'],
+        'status-ungueltig': [
+          403,
+          'Ein Nein oder ein Widerruf wird von der Vereinsverwaltung erfasst — sprich uns an.',
+        ],
+      };
+      const [code, text] = texte[ergebnis.grund];
+      return antwort.code(code).send({ fehler: text });
+    }
+
+    return antwort.send(await einwilligung.holeEinwilligung(pool, id, jetzt()));
   });
 
   app.delete('/familie/:id', async (anfrage, antwort) => {

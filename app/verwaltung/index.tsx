@@ -26,7 +26,7 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,13 +39,13 @@ import {
   zieheEinladungZurueck,
   type MitgliedZeile,
   type Rolle,
-} from '../src/data/verwaltung';
-import { beschreibeJugendFehler } from '../src/features/jugend/jugendFehler';
-import { sucheMitglieder } from '../src/features/verwaltung/suche';
-import { useKonto } from '../src/konto/KontoContext';
-import { font, fontSize, radius, spacing } from '../src/theme';
-import { ActionButton, Badge, Banner, Card, Label, LoadingState } from '../src/ui/components';
-import { useTheme } from '../src/ui/theme';
+} from '../../src/data/verwaltung';
+import { beschreibeJugendFehler } from '../../src/features/jugend/jugendFehler';
+import { sucheMitglieder } from '../../src/features/verwaltung/suche';
+import { useKonto } from '../../src/konto/KontoContext';
+import { font, fontSize, radius, spacing } from '../../src/theme';
+import { ActionButton, Badge, Banner, Card, Label, LoadingState } from '../../src/ui/components';
+import { useTheme } from '../../src/ui/theme';
 
 /** Die vier Tags der Karte — jeder für sich schaltbar. */
 type Tag = 'guide' | 'jugendGuide' | 'jugend' | 'verwaltung';
@@ -222,6 +222,24 @@ export default function VerwaltungScreen() {
         {fehler ? <Banner text={fehler} tone="warning" /> : null}
         {hinweis ? <Banner text={hinweis} tone="info" /> : null}
 
+        {/*
+          Bildrechte (Handoff 15). Ganz oben, weil es die einzige Stelle
+          ist, an der ein Nein oder ein Widerruf erfasst werden kann — wer
+          deswegen hierherkommt, hat gerade jemanden am Telefon.
+        */}
+        <Pressable
+          onPress={() => router.push('/verwaltung/bildrechte')}
+          accessibilityRole="button"
+          style={({ pressed }) => [
+            styles.bildrechte,
+            { backgroundColor: palette.surface, borderColor: palette.border, opacity: pressed ? 0.7 : 1 },
+          ]}
+        >
+          <Ionicons name="camera-outline" size={20} color={palette.primary} />
+          <Text style={[styles.bildrechteText, { color: palette.text }]}>Bildrechte der Kinder</Text>
+          <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
+        </Pressable>
+
         <Card>
           <Label>Mitglied einladen</Label>
           <TextInput
@@ -351,6 +369,16 @@ export default function VerwaltungScreen() {
 }
 
 const styles = StyleSheet.create({
+  bildrechte: {
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 52,
+    paddingHorizontal: spacing.md,
+  },
+  bildrechteText: { flex: 1, fontFamily: font.medium, fontSize: fontSize.md },
   inhalt: { padding: spacing.lg, gap: spacing.md },
   feld: {
     borderWidth: 1,

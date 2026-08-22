@@ -23,6 +23,12 @@
 
 import type pg from 'pg';
 
+import {
+  brauchtEigeneStimme,
+  fasseZusammen,
+  type Einwilligung,
+} from './einwilligung.ts';
+
 import { erzeugeEinladung } from './einladung.ts';
 import { istKennung } from './fotoalbum.ts';
 import type { Mailer } from './mailer.ts';
@@ -46,6 +52,15 @@ export interface Profil {
   kannBilderHochladen: boolean;
   avatarUrl: string | null;
   status: ProfilStatus;
+  /**
+   * Der Stand der Bildrechte (Handoff 15) — nur bei Kindern.
+   *
+   * Kommt gleich mit, statt je Profil einzeln abgefragt zu werden: Die
+   * Familienseite zeigt für jedes Kind eine Zeile, und drei Kinder wären
+   * sonst drei zusätzliche Aufrufe für eine Angabe, die in derselben
+   * Tabelle nebenan liegt.
+   */
+  einwilligung: Einwilligung;
 }
 
 interface Zeile {
@@ -58,16 +73,88 @@ interface Zeile {
   gesehen_am: Date | null;
 }
 
+/** Noch keine Antwort — siehe `einwilligung.ts`, „offen" ist keine Zeile. */
+const LEERE_EINWILLIGUNG: Einwilligung = {
+  status: 'offen',
+  textVersion: null,
+  bestaetigtVon: null,
+  zeitpunkt: null,
+  jugendBestaetigt: null,
+  quelle: null,
+  vollstaendig: false,
+};
+
+/**
+ * Die Bildrechte aller Kinder auf einmal.
+ *
+ * `DISTINCT ON` nimmt je Kind die jüngste Zeile — die Tabelle ist nur
+ * angehängt (siehe `einwilligung.ts`), der aktuelle Stand ist also immer
+ * die neueste. Eine Abfrage je Kind wäre bei fünf Profilen fünf Abfragen
+ * für dieselbe Auskunft.
+ */
+async function holeEinwilligungen(
+  db: pg.Pool,
+  kindIds: string[],
+  jetzt: Date,
+): Promise<Map<string, Einwilligung>> {
+  if (kindIds.length === 0) return new Map();
+
+  const { rows } = await db.query<{
+    kind_id: string;
+    status: 'erteilt' | 'abgelehnt' | 'widerrufen';
+    text_version: string;
+    name: string | null;
+    angelegt_am: Date;
+    jugend_bestaetigt: boolean;
+    quelle: 'app' | 'forms-import';
+    geburtsjahr: number | null;
+  }>(
+    `SELECT DISTINCT ON (e.kind_id)
+            e.kind_id, e.status, e.text_version, m.name, e.angelegt_am,
+            e.jugend_bestaetigt, e.quelle, k.geburtsjahr
+       FROM einwilligung_bild e
+       JOIN mitglied k ON k.id = e.kind_id
+       LEFT JOIN mitglied m ON m.id = e.bestaetigt_von
+      WHERE e.kind_id = ANY($1::uuid[])
+      ORDER BY e.kind_id, e.nr DESC`,
+    [kindIds],
+  );
+
+  const nach = new Map(rows.map((z) => [z.kind_id, z]));
+  const ergebnis = new Map<string, Einwilligung>();
+  for (const id of kindIds) {
+    const zeile = nach.get(id);
+    ergebnis.set(
+      id,
+      fasseZusammen(
+        zeile ? [zeile] : [],
+        brauchtEigeneStimme(zeile?.geburtsjahr ?? null, jetzt),
+      ),
+    );
+  }
+  return ergebnis;
+}
+
 /**
  * `gesehen_am IS NULL` heißt: noch nie angemeldet, die Bestätigung liegt
  * also noch im Postfach. Das ist dieselbe Unterscheidung wie in der
  * Mitgliederliste der Verwaltung — nur aus Sicht der Familie.
  */
-export async function holeProfile(db: pg.Pool, verwalterId: string): Promise<Profil[]> {
+export async function holeProfile(
+  db: pg.Pool,
+  verwalterId: string,
+  jetzt = new Date(),
+): Promise<Profil[]> {
   const { rows } = await db.query<Zeile>(
     `SELECT id, name, email, geburtsjahr, kann_bilder_hochladen, avatar_url, gesehen_am
        FROM mitglied WHERE verwaltet_von = $1 ORDER BY name NULLS LAST, email`,
     [verwalterId],
+  );
+
+  const einwilligungen = await holeEinwilligungen(
+    db,
+    rows.map((z) => z.id),
+    jetzt,
   );
 
   return rows.map((z) => ({
@@ -78,6 +165,7 @@ export async function holeProfile(db: pg.Pool, verwalterId: string): Promise<Pro
     kannBilderHochladen: z.kann_bilder_hochladen,
     avatarUrl: z.avatar_url,
     status: z.gesehen_am ? 'aktiv' : 'einladung_offen',
+    einwilligung: einwilligungen.get(z.id) ?? LEERE_EINWILLIGUNG,
   }));
 }
 
@@ -188,6 +276,9 @@ export async function legeProfilAn(
     kannBilderHochladen: eingabe.kannBilderHochladen ?? eingabe.art !== 'kind',
     avatarUrl: null,
     status: 'einladung_offen' as const,
+    // Ein frisch angelegtes Profil hat noch keine Antwort — und „offen" ist
+    // die Abwesenheit einer Zeile, nicht ein gespeicherter Wert.
+    einwilligung: LEERE_EINWILLIGUNG,
   };
 
   return { ok: true, profil, bestaetigungAn };

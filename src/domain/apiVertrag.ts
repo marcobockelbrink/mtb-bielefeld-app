@@ -66,6 +66,19 @@ export interface KindEingabe {
   nachname: string;
   zeigtVorname: boolean;
   zeigtNachname: boolean;
+  /**
+   * Das Familienprofil hinter dieser Anmeldung — optional (Handoff 15).
+   *
+   * Ohne diese Kennung ist eine Anmeldung reiner Freitext, und es gibt
+   * keinen Weg von der Teilnehmerliste zur Bildrechte-Einwilligung. Wer
+   * ein Nachbarskind mitbringt, tippt weiter nur den Namen; für dieses
+   * Kind gilt dann dauerhaft „keine Fotos" — es hat ja auch wirklich
+   * niemand eingewilligt.
+   *
+   * Der Server übernimmt sie nur, wenn das Profil dem anfragenden Konto
+   * gehört. Eine fremde Kennung fällt still auf `null` zurück.
+   */
+  kindId?: string | null;
 }
 
 /**

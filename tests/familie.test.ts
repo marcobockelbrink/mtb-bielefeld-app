@@ -11,6 +11,15 @@ function profil(teil: Partial<Profil> = {}): Profil {
     kannBilderHochladen: false,
     avatarUrl: null,
     status: 'aktiv',
+    einwilligung: {
+      status: 'offen',
+      textVersion: null,
+      bestaetigtVon: null,
+      zeitpunkt: null,
+      jugendBestaetigt: null,
+      quelle: null,
+      vollstaendig: false,
+    },
     ...teil,
   };
 }
