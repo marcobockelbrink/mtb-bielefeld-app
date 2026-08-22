@@ -58,8 +58,20 @@
 set -uo pipefail
 
 WURZEL="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE=(docker compose -f "$WURZEL/betrieb/docker-compose.yml")
 UMGEBUNG="$WURZEL/betrieb/.env"
+
+# Welcher Stand gesichert wird — `pruefstand` (Vorgabe) oder `verein`.
+#
+# **Zwei Stände, zwei Datenbanken, zwei Bildablagen.** Der Vereinsstand hat
+# seit dem 22.08.2026 eigene Container (`docker-compose.verein.yml`); ohne
+# dieses Argument sicherte der Timer weiter nur den Prüfstand, und der
+# Stand mit den echten Mitgliederdaten wäre der ungesicherte gewesen.
+#
+# Als Argument und nicht automatisch beides: Ein Lauf, der stillschweigend
+# zwei Dinge tut, meldet auch nur einen Fehlschlag — und beim zweiten Stand
+# fiele niemandem auf, dass er fehlt. Je Stand eine eigene systemd-Einheit,
+# je Stand ein eigener Alarm.
+STAND=${1:-pruefstand}
 
 # Alle Meldungen auch nach syslog, damit `journalctl -u mtb-sicherung` sie
 # zeigt — ein Fehlschlag um drei Uhr nachts soll auffindbar sein.
@@ -73,8 +85,38 @@ scheitere() {
 # shellcheck disable=SC1090
 set -a; . "$UMGEBUNG"; set +a
 
-: "${POSTGRES_USER:?POSTGRES_USER fehlt in betrieb/.env}"
-: "${POSTGRES_DB:?POSTGRES_DB fehlt in betrieb/.env}"
+# Je Stand: Compose-Dateien, Dienstnamen, Zugangsdaten und der Namensteil
+# in der Ablage. Die Muster weiter unten hängen daran — `mtbie-verein-…`
+# fällt deshalb **nicht** unter das Muster des Prüfstands, dessen Ausdruck
+# hinter `mtbie-` sofort Ziffern verlangt. Ohne diese Trennung räumte der
+# eine Lauf die Sicherungen des anderen weg.
+case "$STAND" in
+  pruefstand)
+    COMPOSE=(docker compose -f "$WURZEL/betrieb/docker-compose.yml")
+    DB_DIENST=postgres
+    API_DIENST=api
+    PRAEFIX=mtbie
+    : "${POSTGRES_USER:?POSTGRES_USER fehlt in betrieb/.env}"
+    : "${POSTGRES_DB:?POSTGRES_DB fehlt in betrieb/.env}"
+    DB_USER=$POSTGRES_USER
+    DB_NAME=$POSTGRES_DB
+    ;;
+  verein)
+    COMPOSE=(docker compose \
+      -f "$WURZEL/betrieb/docker-compose.yml" \
+      -f "$WURZEL/betrieb/docker-compose.verein.yml")
+    DB_DIENST=postgres-verein
+    API_DIENST=api-verein
+    PRAEFIX=mtbie-verein
+    : "${VEREIN_POSTGRES_USER:?VEREIN_POSTGRES_USER fehlt in betrieb/.env}"
+    : "${VEREIN_POSTGRES_DB:?VEREIN_POSTGRES_DB fehlt in betrieb/.env}"
+    DB_USER=$VEREIN_POSTGRES_USER
+    DB_NAME=$VEREIN_POSTGRES_DB
+    ;;
+  *)
+    scheitere "Unbekannter Stand '$STAND' — erlaubt sind 'pruefstand' und 'verein'."
+    ;;
+esac
 : "${SICHERUNG_EMPFAENGER:?SICHERUNG_EMPFAENGER fehlt in betrieb/.env — der öffentliche age-Schlüssel}"
 : "${SICHERUNG_ZIEL:?SICHERUNG_ZIEL fehlt in betrieb/.env — z. B. benutzer@host:/pfad}"
 : "${SICHERUNG_SCHLUESSEL:?SICHERUNG_SCHLUESSEL fehlt in betrieb/.env — SSH-Schlüssel für den SFTP-Zugang}"
@@ -105,16 +147,16 @@ FERNPFAD=${SICHERUNG_ZIEL#*:}
 # ohne sie zu zerlegen, und dürfen bei der Zeitumstellung nicht rückwärts
 # springen — sonst überschreibt die Sicherung um 2:30 die von 2:30.
 STEMPEL=$(date -u +%Y%m%dT%H%M%SZ)
-NAME="mtbie-$STEMPEL.sql.gz.age"
+NAME="$PRAEFIX-$STEMPEL.sql.gz.age"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-melde "Sicherung $NAME beginnt."
+melde "Sicherung $NAME beginnt (Stand: $STAND)."
 
 # --- 1. Dump, gepackt und verschlüsselt in einem Durchlauf ----------------
 # `pg_dump` schreibt nach stdout, alles läuft durch die Kette — der Klartext
 # landet zu keinem Zeitpunkt auf der Platte.
-if ! "${COMPOSE[@]}" exec -T postgres pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" \
+if ! "${COMPOSE[@]}" exec -T "$DB_DIENST" pg_dump -U "$DB_USER" "$DB_NAME" \
      | gzip -9 \
      | age -r "$SICHERUNG_EMPFAENGER" -o "$TMP/$NAME"; then
   scheitere "pg_dump, gzip oder age sind gescheitert. Läuft der Aufbau?"
@@ -182,7 +224,7 @@ bye
 EOF
 }
 
-BILDER_MUSTER='mtbie-bilder-[0-9]{8}T[0-9]{6}Z\.tar\.gz\.age'
+BILDER_MUSTER="$PRAEFIX-bilder-[0-9]{8}T[0-9]{6}Z\\.tar\\.gz\\.age"
 LISTE=$(fern_liste)
 
 if [ "$BILDER_STUNDEN" -le 0 ]; then
@@ -191,18 +233,18 @@ else
   LETZTES=$(grep -oE "$BILDER_MUSTER" <<<"$LISTE" | sort | tail -1)
   FAELLIG_AB=$(date -u -d "-$BILDER_STUNDEN hours" +%Y%m%dT%H%M%SZ 2>/dev/null \
     || date -u -v-"${BILDER_STUNDEN}"H +%Y%m%dT%H%M%SZ)
-  LETZTER_STEMPEL=${LETZTES#mtbie-bilder-}; LETZTER_STEMPEL=${LETZTER_STEMPEL%%.tar.gz.age}
+  LETZTER_STEMPEL=${LETZTES#"$PRAEFIX"-bilder-}; LETZTER_STEMPEL=${LETZTER_STEMPEL%%.tar.gz.age}
 
   if [ -n "$LETZTES" ] && [[ "$LETZTER_STEMPEL" > "$FAELLIG_AB" ]]; then
     melde "Bildarchiv noch aktuell ($LETZTES) — übersprungen."
   else
-    BILD_NAME="mtbie-bilder-$STEMPEL.tar.gz.age"
+    BILD_NAME="$PRAEFIX-bilder-$STEMPEL.tar.gz.age"
 
     # Erst zählen, dann packen. Ein leeres Volume ist der Normalfall, solange
     # niemand Bilder hochgeladen hat — dafür jeden Tag ein Archiv aus nichts
     # anzulegen, verstopfte die Ablage mit Attrappen und ließe eine echte
     # Lücke später nicht mehr auffallen.
-    ANZ_BILDER=$("${COMPOSE[@]}" exec -T api sh -c 'find /fotos -type f | wc -l' 2>/dev/null | tr -d '[:space:]')
+    ANZ_BILDER=$("${COMPOSE[@]}" exec -T "$API_DIENST" sh -c 'find /fotos -type f | wc -l' 2>/dev/null | tr -d '[:space:]')
 
     if [ -z "$ANZ_BILDER" ]; then
       scheitere "Die Bildablage ließ sich nicht lesen. Läuft der api-Container?"
@@ -212,7 +254,7 @@ else
       melde "Bildarchiv $BILD_NAME beginnt ($ANZ_BILDER Dateien)."
       # Wie beim Dump: durch die Pipe, der Klartext berührt die Platte nicht.
       # `tar` liegt im Alpine-Abbild als busybox bei.
-      if ! "${COMPOSE[@]}" exec -T api tar -cf - -C /fotos . \
+      if ! "${COMPOSE[@]}" exec -T "$API_DIENST" tar -cf - -C /fotos . \
            | gzip -9 \
            | age -r "$SICHERUNG_EMPFAENGER" -o "$TMP/$BILD_NAME"; then
         scheitere "Das Bildarchiv ließ sich nicht anlegen (tar, gzip oder age)."
@@ -268,7 +310,7 @@ EOF
   melde "Bestand $beschriftung: $anzahl, davon $geloescht älter als $tage Tage entfernt."
 }
 
-raeume_auf 'mtbie-[0-9]{8}T[0-9]{6}Z\.sql\.gz\.age' '.sql.gz.age' "$TAGE" 'Datenbank'
+raeume_auf "$PRAEFIX-[0-9]{8}T[0-9]{6}Z\\.sql\\.gz\\.age" '.sql.gz.age' "$TAGE" 'Datenbank'
 raeume_auf "$BILDER_MUSTER" '.tar.gz.age' "$BILDER_TAGE" 'Bilder'
 
 melde "Fertig."

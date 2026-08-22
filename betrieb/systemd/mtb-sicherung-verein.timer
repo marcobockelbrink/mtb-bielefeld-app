@@ -1,0 +1,19 @@
+[Unit]
+Description=Alle zwei Stunden den Vereinsstand sichern
+
+[Timer]
+# Alle zwei Stunden zur vollen Stunde. `Persistent` holt einen Lauf nach,
+# der ausgefallen ist, weil die Maschine aus war — sonst klafft nach jedem
+# Neustart eine Lücke, die niemand bemerkt.
+# Um eine Stunde versetzt zum Prüfstand: Zwei pg_dumps und zwei
+# Bildarchive gleichzeitig auf dieselbe Storage Box hochzuladen,
+# nimmt sich gegenseitig die Bandbreite — und die Maschine hat
+# 3,8 GB, davon 2 GB Swap.
+OnCalendar=*-*-* 01/2:00:00
+Persistent=true
+# Bis zu fünf Minuten Versatz: Nicht alle Aufgaben sollen gleichzeitig
+# loslaufen, und dem SFTP-Ziel tut es auch gut.
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

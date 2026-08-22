@@ -1,0 +1,22 @@
+# Der **Vereinsstand** — eigene Einheit neben `mtb-sicherung.service`.
+#
+# Zwei Einheiten und nicht ein Lauf, der beides tut: Ein Lauf meldet auch
+# nur einen Fehlschlag, und beim zweiten Stand fiele niemandem auf, dass er
+# fehlt. So hat jeder Stand seinen eigenen Alarm und sein eigenes Protokoll.
+#
+[Unit]
+Description=Vereinsstand des MTB Bielefeld verschlüsselt auf den SFTP-Server sichern
+Documentation=file:///home/verein/mtb-bielefeld-app/betrieb/sichern.sh
+After=docker.service
+Requires=docker.service
+# Scheitert die Sicherung, läuft mtb-sicherung-alarm@.service an. Ohne das
+# bliebe ein Fehlschlag stumm — und ein Backup, das seit sechs Wochen
+# schweigend scheitert, ist schlimmer als gar keines, weil man sich darauf
+# verlässt.
+OnFailure=mtb-sicherung-alarm@%n.service
+
+[Service]
+Type=oneshot
+User=verein
+WorkingDirectory=/home/verein/mtb-bielefeld-app
+ExecStart=/home/verein/mtb-bielefeld-app/betrieb/sichern.sh verein
